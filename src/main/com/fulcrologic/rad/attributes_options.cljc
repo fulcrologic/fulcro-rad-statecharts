@@ -83,7 +83,6 @@
    DB adapters and other utilities *may* use it, but that is up to the author of that code."
   :com.fulcrologic.rad.attributes/valid?)
 
-
 (def target
   "REQUIRED for `:ref` attributes (unless you specify `ao/targets`). A qualified keyword of an `identity? true` attribute that identifies the entities/rows/docs
    to which this attribute refers.
@@ -222,17 +221,6 @@
 
   If you are resolving a scalar, then just specify the correct type.
 
-  The output will be post-processed by `com.fulcrologic.rad.authorization/redact`, which takes its cue from:
-  `:com.fulcrologic.rad.authorization/permissions`:
-
-  ```
-  (defattr secret-attr :account/secret :text
-    {::auth/permissions (fn [_] #{}) ; No permissions granted
-     ::pco/resolve      (fn [_env _input] {:account/secret \"very secret\"})})
-  ```
-
-  `:account/secret` will then output as `{:account/secret ::auth/REDACTED}`.
-
   Remember that automatic resolver generation in database adapters will be able to resolve any other desired attributes
   of an entity/row/document based on the ID of it. Therefore a ref attribute like this will typically ONLY return the
   IDs of the items (though it may choose to return more if that case is judged to always be more efficient).
@@ -252,8 +240,6 @@
   and is set up when you create the parser. Database adapters will document what they place here.
 
   May be used with `:com.wsscode.pathom3.connect.operation/output`, and `::com.wsscode.pathom3.connect.operation/input`.
-
-  The output will be post-processed by `com.fulcrologic.rad.authorization/redact`. See `pathom3-output`.
 
   Also note: Any keys from the `:com.wsscode.pathom3.connect.operation` namespace that you normally
   put into a `pco/defresolver` can be included in an attribute definition, and will be used for Pathom3 resolver generation.

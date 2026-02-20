@@ -33,9 +33,7 @@
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.form-render :as fr]
    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
-   [com.fulcrologic.rad.routing :as rad-routing]
-   [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
-   [com.fulcrologic.rad.routing.history :as history]))
+   [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]))
 
 (def ^:dynamic *default-save-form-mutation* `save-form)
 
@@ -976,26 +974,20 @@
         state-map      (raw.app/current-state fulcro-app)
         cancel-route   (?! (some-> Form comp/component-options ::cancel-route) fulcro-app (fns/ui->props state-map Form form-ident))
         {:keys [on-cancel embedded?]} (uism/retrieve uism-env :options)
-        use-history    (and (not embedded?) (history/history-support? fulcro-app))
         error!         (fn [msg] (log/error "The cancel-route option of" (comp/component-name Form) (str "(" cancel-route ")") msg))
+        ;; TODO: Routing actions will be reconnected during statechart routing conversion
         routing-action (fn []
                          (cond
                            (map? cancel-route) (let [{:keys [route target params]} cancel-route]
                                                  (cond
-                                                   (comp/component-class? target) (rad-routing/route-to! fulcro-app target (or params {}))
                                                    ;; TASK: Should not assume dr here. changing the route should be protocol based
                                                    (every? string? route) (dr/change-route! fulcro-app route params)
                                                    :else (do
                                                            (error! "did not return a valid route.")
                                                            :back)))
                            (= :none cancel-route) nil
-                           (= :back cancel-route) (if (history/history-support? fulcro-app)
-                                                    (if-not embedded? (history/back! fulcro-app))
-                                                    (error! "Back not supported. No history installed."))
                            ;; TASK: Should not assume dr here. changing the route should be protocol based
-                           (and (seq cancel-route) (every? string? cancel-route)) (dr/change-route! fulcro-app cancel-route)
-                           (comp/component-class? cancel-route) (rad-routing/route-to! fulcro-app cancel-route {})
-                           use-history (history/back! fulcro-app)))]
+                           (and (seq cancel-route) (every? string? cancel-route)) (dr/change-route! fulcro-app cancel-route)))]
     (sched/defer routing-action 100)
     (-> uism-env
         (cond->
@@ -1244,13 +1236,8 @@
        {::uism/handler (fn [{::uism/keys [fulcro-app] :as env}]
                          (let [form-ident  (uism/actor->ident env :actor/form)
                                Form        (uism/actor-class env :actor/form)
-                               {{:keys [saved]} ::triggers} (some-> Form (comp/component-options))
-                               {:keys [embedded?]} (uism/retrieve env :options)
-                               use-history (and (not embedded?) (history/history-support? fulcro-app))]
-                           (when use-history
-                             (let [{:keys [route params]} (history/current-route fulcro-app)
-                                   new-route (into (vec (drop-last 2 route)) [edit-action (str (second form-ident))])]
-                               (history/replace-route! fulcro-app new-route params)))
+                               {{:keys [saved]} ::triggers} (some-> Form (comp/component-options))]
+                           ;; TODO: History route replacement will be reconnected during statechart routing conversion
                            (-> env
                                (cond->
                                 saved (saved form-ident))
@@ -1322,12 +1309,10 @@
 
        :event/continue-abandoned-route
        {::uism/handler (fn [{::uism/keys [fulcro-app] :as env}]
+                         ;; TODO: History push/replace will be reconnected during statechart routing conversion
                          (let [{:keys [form relative-root route timeouts-and-params]} (uism/retrieve env :desired-route)
                                form-instance (some->> form (comp/registry-key->class) (comp/class->any fulcro-app))
                                Router        (comp/registry-key->class relative-root)]
-                           (if (::replace-route? timeouts-and-params)
-                             (history/replace-route! fulcro-app route timeouts-and-params)
-                             (history/push-route! fulcro-app route timeouts-and-params))
                            (when Router
                               ; TASK: deferred routing entangled with form
                              (dr/retry-route! form-instance Router route timeouts-and-params))
@@ -1603,41 +1588,24 @@
       (boolean? field-omit?) field-omit?
       :else false)))
 
+;; TODO: view!, edit!, and create! will be reconnected to statechart routing during conversion
 (defn view!
   "Route to the given form in read-only mode."
   ([this form-class entity-id]
-   (rad-routing/route-to! this form-class {:action view-action
-                                           :id     entity-id}))
+   (log/warn "view! is stubbed pending statechart routing conversion"))
   ([this form-class entity-id extra-params]
-   (rad-routing/route-to! this form-class (merge extra-params
-                                                 {:action view-action
-                                                  :id     entity-id})))
+   (log/warn "view! is stubbed pending statechart routing conversion"))
   ([this form-class entity-id extra-params dynamic-routing-options]
-   (rad-routing/route-to! this (merge
-                                dynamic-routing-options
-                                {:target       form-class
-                                 :route-params (merge extra-params
-                                                      {:action view-action
-                                                       :id     entity-id})}))))
+   (log/warn "view! is stubbed pending statechart routing conversion")))
 
 (defn edit!
-  "Route to the given form for editing the entity with the given ID.
-
-   `dynamic-routing-options` - can be used for dr/route-to! dynamic route injection support (:target will be auto-filled)."
+  "Route to the given form for editing the entity with the given ID."
   ([this form-class entity-id]
-   (rad-routing/route-to! this form-class {:action edit-action
-                                           :id     entity-id}))
+   (log/warn "edit! is stubbed pending statechart routing conversion"))
   ([this form-class entity-id extra-params]
-   (rad-routing/route-to! this form-class (merge extra-params
-                                                 {:action edit-action
-                                                  :id     entity-id})))
+   (log/warn "edit! is stubbed pending statechart routing conversion"))
   ([this form-class entity-id extra-params dynamic-routing-options]
-   (rad-routing/route-to! this (merge
-                                dynamic-routing-options
-                                {:target       form-class
-                                 :route-params (merge extra-params
-                                                      {:action edit-action
-                                                       :id     entity-id})}))))
+   (log/warn "edit! is stubbed pending statechart routing conversion")))
 
 (defn create!
   "Create a new instance of the given form-class using the provided `entity-id` and then route
@@ -1651,27 +1619,13 @@
 
    * `:initial-state` - A tree of data to be deep-merged into the new instance of the form before form config
    is added. This can be used to pre-set form fields to specific values.
-
-   `dynamic-routing-options` - Same as the options supported by `dr/route-to!` for route injection/loading (target will
-   be auto-populated by form-class, which can be a sym/keyword).
    "
   ([app-ish form-class]
-   ;; This function uses UUIDs for all ID types, since they will end up being tempids
-   ;; which are UUID-based.
-   (rad-routing/route-to! app-ish form-class {:action create-action
-                                              :id     (str (new-uuid))}))
+   (log/warn "create! is stubbed pending statechart routing conversion"))
   ([app-ish form-class options]
-   (rad-routing/route-to! app-ish form-class (merge options
-                                                    {:action create-action
-                                                     :id     (str (new-uuid))})))
+   (log/warn "create! is stubbed pending statechart routing conversion"))
   ([app-ish form-class options dynamic-routing-options]
-   (rad-routing/route-to! app-ish (merge
-                                   dynamic-routing-options
-                                   {:target       form-class
-                                    :route-params (merge
-                                                   options
-                                                   {:action create-action
-                                                    :id     (str (new-uuid))})}))))
+   (log/warn "create! is stubbed pending statechart routing conversion")))
 
 (def pathom2-server-delete-entity-mutation
   {:com.wsscode.pathom.connect/sym    `delete-entity

@@ -35,8 +35,6 @@
    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.report-render :as rr]
-   [com.fulcrologic.rad.routing :as rad-routing]
-   [com.fulcrologic.rad.routing.history :as history]
    [com.fulcrologic.rad.type-support.date-time :as dt]
    [com.fulcrologic.rad.type-support.decimal :as math]
    [com.fulcrologic.rad.picker-options :as picker-options]
@@ -171,22 +169,18 @@
   [env]
   (merge {:ascending? true} (report-options env ::initial-sort-params)))
 
+;; TODO: Re-add history-based parameter initialization during statechart routing conversion
 (defn initialize-parameters [{::uism/keys [app event-data] :as env}]
   (let [report-ident       (uism/actor->ident env :actor/report)
         path               (conj report-ident :ui/parameters)
         {:keys  [params]
          ::keys [externally-controlled?]} event-data
-        {history-params :params} (history/current-route app)
-        sort-path          (route-params-path env ::sort)
-        selected-row       (get-in history-params (route-params-path env ::selected-row))
-        current-page       (get-in history-params (route-params-path env ::current-page) 1)
         controls           (report-options env :com.fulcrologic.rad.control/controls)
         original-state-map (::uism/state-map env)
-        initial-parameters (cond-> {::sort         (initial-sort-params env)
-                                    ::current-page current-page}
-                             selected-row (assoc ::selected-row selected-row))]
+        initial-parameters {::sort         (initial-sort-params env)
+                            ::current-page 1}]
     (as-> env $
-      (uism/apply-action $ assoc-in path (deep-merge initial-parameters {::sort (get-in history-params sort-path {})}))
+      (uism/apply-action $ assoc-in path (deep-merge initial-parameters {::sort {}}))
       (reduce-kv
        (fn [new-env control-key {:keys [local? retain? default-value]}]
          (let [param-path         (route-params-path env control-key)
@@ -195,14 +189,13 @@
                                     (conj report-ident :ui/parameters control-key)
                                     [::control/id control-key ::control/value])
                state-value        (when-not (false? retain?) (get-in original-state-map control-value-path))
-               url-value          (get-in history-params param-path)
-               explicit-value     (enc/nnil event-value url-value)
+               explicit-value     event-value
                default-value      (?! default-value app)
                v                  (enc/nnil explicit-value state-value default-value)
                skip-assignment?   (or
-                                     ;; A container is controlling this report, and it is a global control.
+                                    ;; A container is controlling this report, and it is a global control.
                                    (and (not local?) externally-controlled?)
-                                     ;; There's nothing to assign
+                                    ;; There's nothing to assign
                                    (nil? v))]
            (if skip-assignment?
              new-env
@@ -291,14 +284,7 @@
   "Internal state machine helper. May be used by extensions.
    Sends a message to routing system that the page number changed. "
   [env]
-  (when-not (false? (report-options env ro/track-in-url?))
-    (let [pg        (uism/alias-value env :current-page)
-          row-path  (route-params-path env ::selected-row)
-          page-path (route-params-path env ::current-page)]
-      (rad-routing/update-route-params! (::uism/app env) (fn [p]
-                                                           (-> p
-                                                               (assoc-in row-path -1)
-                                                               (assoc-in page-path pg))))))
+  ;; TODO: Route-param tracking will be re-added during statechart routing conversion
   env)
 
 (defn postprocess-page
@@ -440,21 +426,16 @@
    ::uism/states
    {:initial
     {::uism/handler (fn [env]
-                      (let [{::uism/keys [fulcro-app event-data]} env
-                            {::keys [run-on-mount?]} (report-options env)
-                            page-path    (route-params-path env ::current-page)
-                            desired-page (-> (history/current-route fulcro-app)
-                                             :params
-                                             (get-in page-path))
-                            run-now?     (or desired-page run-on-mount?)]
+                      ;; TODO: Re-add history-based page detection during statechart routing conversion
+                      (let [{::uism/keys [event-data]} env
+                            {::keys [run-on-mount?]} (report-options env)]
                         (-> env
                             (uism/store :route-params (:route-params event-data))
-                            (cond->
-                             (nil? desired-page) (uism/assoc-aliased :current-page 1))
+                            (uism/assoc-aliased :current-page 1)
                             (initialize-parameters)
                             (cond->
-                             run-now? (load-report!)
-                             (not run-now?) (uism/activate :state/gathering-parameters)))))}
+                             run-on-mount? (load-report!)
+                             (not run-on-mount?) (uism/activate :state/gathering-parameters)))))}
 
     :state/loading
     {::uism/events
@@ -489,18 +470,14 @@
                                                         (let [page (uism/alias-value env :current-page)]
                                                           (goto-page* env (dec (max 2 page)))))}
 
-             :event/do-sort           {::uism/handler (fn [{::uism/keys [event-data app] :as env}]
+             :event/do-sort           {::uism/handler (fn [{::uism/keys [event-data] :as env}]
                                                         (if-let [{::attr/keys [qualified-key]} (get event-data ::attr/attribute)]
                                                           (let [sort-by    (uism/alias-value env :sort-by)
-                                                                sort-path  (route-params-path env ::sort)
                                                                 ascending? (uism/alias-value env :ascending?)
                                                                 ascending? (if (= qualified-key sort-by)
                                                                              (not ascending?)
                                                                              true)]
-                                                            (when-not (false? (report-options env ro/track-in-url?))
-                                                              (rad-routing/update-route-params! app update-in sort-path merge
-                                                                                                {:ascending? ascending?
-                                                                                                 :sort-by    qualified-key}))
+                                                            ;; TODO: Route-param tracking will be re-added during statechart routing conversion
                                                             (-> env
                                                                 (uism/assoc-aliased
                                                                  :busy? false
@@ -510,12 +487,9 @@
                                                                 (populate-current-page)))
                                                           env))}
 
-             :event/select-row        {::uism/handler (fn [{::uism/keys [app event-data] :as env}]
-                                                        (let [row               (:row event-data)
-                                                              selected-row-path (route-params-path env ::selected-row)]
-                                                          (when (and (nat-int? row)
-                                                                     (not (false? (report-options env ro/track-in-url?))))
-                                                            (rad-routing/update-route-params! app assoc-in selected-row-path row))
+             :event/select-row        {::uism/handler (fn [{::uism/keys [event-data] :as env}]
+                                                        (let [row (:row event-data)]
+                                                          ;; TODO: Route-param tracking will be re-added during statechart routing conversion
                                                           (uism/assoc-aliased env :selected-row row)))}
 
              :event/sort              {::uism/handler (fn [{::uism/keys [app event-data] :as env}]
