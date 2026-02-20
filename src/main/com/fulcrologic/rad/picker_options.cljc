@@ -13,35 +13,35 @@
   defined.
   "
   (:require
-    [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.rad.attributes :as attr]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.options-util :refer [?!]]
-    [com.fulcrologic.rad.type-support.date-time :as dt]
-    [taoensso.timbre :as log]))
+   [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
+   [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+   [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.data-fetch :as df]
+   [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.rad.attributes :as attr]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.options-util :refer [?!]]
+   [com.fulcrologic.rad.type-support.date-time :as dt]
+   [taoensso.timbre :as log]))
 
 (defmutation transform-options
   "INTERNAL MUTATION. Do not use."
   [{:keys  [ref]
     ::keys [pick-one]}]
   (action [{:keys [state]}]
-    (let [{:options/keys [subquery]} pick-one
-          result    (:ui/query-result
-                      (fdn/db->tree [{:ui/query-result (rc/get-query subquery)}]
-                        (get-in @state ref) @state))
-          transform (get pick-one :options/transform)
-          options   (if transform
-                      (mapv transform result)
-                      result)]
-      (swap! state assoc-in (conj ref :ui/options) options))))
+          (let [{:options/keys [subquery]} pick-one
+                result    (:ui/query-result
+                           (fdn/db->tree [{:ui/query-result (rc/get-query subquery)}]
+                                         (get-in @state ref) @state))
+                transform (get pick-one :options/transform)
+                options   (if transform
+                            (mapv transform result)
+                            result)]
+            (swap! state assoc-in (conj ref :ui/options) options))))
 
 (defn load-picker-options!
   "Load picker options based on raw picker options. This function does all of the picker-centric inner workings
@@ -88,18 +88,18 @@
      (swap! state-atom assoc-in time-path now)
      (when reload?
        (df/load! app-ish query-key query-component
-         (cond-> (merge load-options
-                   {:target      target-path
-                    :params      params
-                    :post-action (fn [{:keys [state result]}]
-                                   (let [query-result (get-in @state target-path)
-                                         raw-result   (get-in result [:body query-key])
-                                         options      (vec
-                                                        (cond-> query-result
-                                                          options-xform (options-xform raw-result)))]
-                                     (fns/swap!-> state
-                                       (assoc-in options-path options))))})
-           remote (assoc :remote remote)))))))
+                 (cond-> (merge load-options
+                                {:target      target-path
+                                 :params      params
+                                 :post-action (fn [{:keys [state result]}]
+                                                (let [query-result (get-in @state target-path)
+                                                      raw-result   (get-in result [:body query-key])
+                                                      options      (vec
+                                                                    (cond-> query-result
+                                                                      options-xform (options-xform raw-result)))]
+                                                  (fns/swap!-> state
+                                                               (assoc-in options-path options))))})
+                   remote (assoc :remote remote)))))))
 
 (defn load-options!
   "Load picker options into the options cache for a form field. This should be used by the UI implementation of
@@ -146,13 +146,13 @@
            cache-key      (or (?! cache-key cls props) query-key)
            options        (get-in props [::options-cache cache-key :options])]
        (when (and #?(:cljs goog.DEBUG :clj true)
-               (not cache-key))
+                  (not cache-key))
          (log/error "Could not find picker option for cache or query key in options: " picker-options))
        (when (and #?(:cljs goog.DEBUG :clj true)
-               (not (contains? props ::options-cache)))
+                  (not (contains? props ::options-cache)))
          (log/warn "No options cache found in props for" (rc/component-name cls) ". This could mean options have not been "
-           "loaded, or that you forgot to put `[::picker-options/options-cache '_]` on your query. NOTE: This warning can be "
-           "a false alarm if the application just started and no picker options have yet been loaded."))
+                   "loaded, or that you forgot to put `[::picker-options/options-cache '_]` on your query. NOTE: This warning can be "
+                   "a false alarm if the application just started and no picker options have yet been loaded."))
        options))))
 
 (defn current-form-options
@@ -167,8 +167,6 @@
         props         (rc/props form-instance)
         options       (get-in props [::options-cache cache-key :options])]
     options))
-
-(def current-options "DEPRECATED NAME: Use current-form-options" current-form-options)
 
 (defn current-to-one-value
   "Returns the current to-one ref value for the given reference attribute as an ident."

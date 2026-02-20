@@ -12,37 +12,37 @@
   "
   #?(:cljs (:require-macros com.fulcrologic.rad.report))
   (:require
-    #?@(:clj
-        [[clojure.pprint :refer [pprint]]
-         [cljs.analyzer :as ana]])
-    [clojure.spec.alpha :as s]
-    [clojure.string :as str]
-    [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
-    [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :refer [deep-merge]]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as fstate]
-    [com.fulcrologic.rad.attributes :as attr]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.control :as control :refer [Control]]
-    [com.fulcrologic.rad.form :as form]
-    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
-    [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.report-render :as rr]
-    [com.fulcrologic.rad.routing :as rad-routing]
-    [com.fulcrologic.rad.routing.history :as history]
-    [com.fulcrologic.rad.type-support.date-time :as dt]
-    [com.fulcrologic.rad.type-support.decimal :as math]
-    [com.fulcrologic.rad.picker-options :as picker-options]
-    [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
-    [taoensso.timbre :as log]))
+   #?@(:clj
+       [[clojure.pprint :refer [pprint]]
+        [cljs.analyzer :as ana]])
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+   [com.fulcrologic.fulcro.data-fetch :as df]
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
+   [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
+   [com.fulcrologic.fulcro.algorithms.do-not-use :refer [deep-merge]]
+   [com.fulcrologic.fulcro.algorithms.merge :as merge]
+   [com.fulcrologic.fulcro.algorithms.normalized-state :as fstate]
+   [com.fulcrologic.rad.attributes :as attr]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.control :as control :refer [Control]]
+   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
+   [com.fulcrologic.rad.report-options :as ro]
+   [com.fulcrologic.rad.report-render :as rr]
+   [com.fulcrologic.rad.routing :as rad-routing]
+   [com.fulcrologic.rad.routing.history :as history]
+   [com.fulcrologic.rad.type-support.date-time :as dt]
+   [com.fulcrologic.rad.type-support.decimal :as math]
+   [com.fulcrologic.rad.picker-options :as picker-options]
+   [edn-query-language.core :as eql]
+   [taoensso.encore :as enc]
+   [taoensso.timbre :as log]))
 
 (defn report-ident
   "Returns the ident of a RAD report. The parameter can be a react instance, a class, or the registry key(word)
@@ -118,15 +118,15 @@
                 ::attr/keys [qualified-key] :as attr}]
             {:column attr
              :help   (or
-                       (?! (get report-column-infos qualified-key) report-instance)
-                       (?! column-info report-instance))
+                      (?! (get report-column-infos qualified-key) report-instance)
+                      (?! column-info report-instance))
              :label  (or
-                       (?! (get report-column-headings qualified-key) report-instance)
-                       (?! column-heading report-instance)
-                       (?! (ao/label attr) report-instance)
-                       (some-> qualified-key name str/capitalize)
-                       "")})
-      columns)))
+                      (?! (get report-column-headings qualified-key) report-instance)
+                      (?! column-heading report-instance)
+                      (?! (ao/label attr) report-instance)
+                      (some-> qualified-key name str/capitalize)
+                      "")})
+          columns)))
 
 ;; Multimethod rendering defaults
 (defmethod rr/render-row :default [report-instance options row-props]
@@ -188,27 +188,27 @@
     (as-> env $
       (uism/apply-action $ assoc-in path (deep-merge initial-parameters {::sort (get-in history-params sort-path {})}))
       (reduce-kv
-        (fn [new-env control-key {:keys [local? retain? default-value]}]
-          (let [param-path         (route-params-path env control-key)
-                event-value        (enc/nnil (get-in params param-path) (get params control-key))
-                control-value-path (if local?
-                                     (conj report-ident :ui/parameters control-key)
-                                     [::control/id control-key ::control/value])
-                state-value        (when-not (false? retain?) (get-in original-state-map control-value-path))
-                url-value          (get-in history-params param-path)
-                explicit-value     (enc/nnil event-value url-value)
-                default-value      (?! default-value app)
-                v                  (enc/nnil explicit-value state-value default-value)
-                skip-assignment?   (or
+       (fn [new-env control-key {:keys [local? retain? default-value]}]
+         (let [param-path         (route-params-path env control-key)
+               event-value        (enc/nnil (get-in params param-path) (get params control-key))
+               control-value-path (if local?
+                                    (conj report-ident :ui/parameters control-key)
+                                    [::control/id control-key ::control/value])
+               state-value        (when-not (false? retain?) (get-in original-state-map control-value-path))
+               url-value          (get-in history-params param-path)
+               explicit-value     (enc/nnil event-value url-value)
+               default-value      (?! default-value app)
+               v                  (enc/nnil explicit-value state-value default-value)
+               skip-assignment?   (or
                                      ;; A container is controlling this report, and it is a global control.
-                                     (and (not local?) externally-controlled?)
+                                   (and (not local?) externally-controlled?)
                                      ;; There's nothing to assign
-                                     (nil? v))]
-            (if skip-assignment?
-              new-env
-              (uism/apply-action new-env assoc-in control-value-path v))))
-        $
-        controls))))
+                                   (nil? v))]
+           (if skip-assignment?
+             new-env
+             (uism/apply-action new-env assoc-in control-value-path v))))
+       $
+       controls))))
 
 (defn current-control-parameters
   "Internal state machine helper. May be used by extensions to the stock state machine."
@@ -218,16 +218,16 @@
         controls     (comp/component-options Report ::control/controls)
         controls     (control/control-map->controls controls)]
     (reduce
-      (fn [result {:keys          [local?]
-                   ::control/keys [id]}]
-        (let [v (if local?
-                  (get-in state-map (conj report-ident :ui/parameters id))
-                  (get-in state-map [::control/id id ::control/value]))]
-          (if (nil? v)
-            result
-            (assoc result id v))))
-      {}
-      controls)))
+     (fn [result {:keys          [local?]
+                  ::control/keys [id]}]
+       (let [v (if local?
+                 (get-in state-map (conj report-ident :ui/parameters id))
+                 (get-in state-map [::control/id id ::control/value]))]
+         (if (nil? v)
+           result
+           (assoc result id v))))
+     {}
+     controls)))
 
 (defn load-report! [env]
   (let [Report         (uism/actor-class env :actor/report)
@@ -238,16 +238,16 @@
         path           (conj report-ident :ui/loaded-data)]
     (log/debug "Loading report" source-attribute (comp/component-name Report) (comp/component-name BodyItem))
     (-> env
-      (cond->
-        before-load (before-load))
-      (uism/load source-attribute BodyItem (merge
-                                             {:params            current-params
-                                              ::uism/ok-event    :event/loaded
-                                              ::uism/error-event :event/failed
-                                              :marker            report-ident
-                                              :target            path}
-                                             load-options))
-      (uism/activate :state/loading))))
+        (cond->
+         before-load (before-load))
+        (uism/load source-attribute BodyItem (merge
+                                              {:params            current-params
+                                               ::uism/ok-event    :event/loaded
+                                               ::uism/error-event :event/failed
+                                               :marker            report-ident
+                                               :target            path}
+                                              load-options))
+        (uism/activate :state/loading))))
 
 (defn filter-rows
   "Generates filtered rows, which is an intermediate cached value (not displayed). This function is used in the
@@ -261,10 +261,10 @@
             report        (uism/actor-class uism-env :actor/report)
             BodyItem      (comp/component-options report ro/BodyItem)
             filtered-rows (filterv
-                            (fn [row]
-                              (let [row (if normalized? (fstate/ui->props state-map BodyItem row) row)]
-                                (row-visible? parameters row)))
-                            all-rows)]
+                           (fn [row]
+                             (let [row (if normalized? (fstate/ui->props state-map BodyItem row) row)]
+                               (row-visible? parameters row)))
+                           all-rows)]
         (uism/assoc-aliased uism-env :filtered-rows filtered-rows))
       (uism/assoc-aliased uism-env :filtered-rows all-rows))))
 
@@ -278,8 +278,7 @@
       (let [compare-rows (report-options uism-env ::compare-rows)
             normalized?  (some-> all-rows (first) (eql/ident?))
             sorted-rows  (if compare-rows
-                           (let [
-                                 keyfn     (if normalized? #(get-in state-map %) identity)
+                           (let [keyfn     (if normalized? #(get-in state-map %) identity)
                                  comparefn (fn [a b] (compare-rows sort-params a b))]
                              (vec (sort-by keyfn comparefn all-rows)))
                            all-rows)]
@@ -298,8 +297,8 @@
           page-path (route-params-path env ::current-page)]
       (rad-routing/update-route-params! (::uism/app env) (fn [p]
                                                            (-> p
-                                                             (assoc-in row-path -1)
-                                                             (assoc-in page-path pg))))))
+                                                               (assoc-in row-path -1)
+                                                               (assoc-in page-path pg))))))
   env)
 
 (defn postprocess-page
@@ -318,32 +317,32 @@
   "Internal state machine implementation. May be used by extensions to the stock state machine."
   [uism-env]
   (->
-    (if (report-options uism-env ::paginate?)
-      (let [current-page   (max 1 (uism/alias-value uism-env :current-page))
-            page-size      (or (?! (report-options uism-env ::page-size) uism-env) 20)
-            available-rows (or (uism/alias-value uism-env :sorted-rows) [])
-            n              (count available-rows)
-            stragglers?    (pos? (rem n page-size))
-            pages          (cond-> (int (/ n page-size))
-                             stragglers? inc)
-            current-page   (cond
-                             (zero? pages) 1
-                             (> current-page pages) pages
-                             :else current-page)
-            page-start     (* (dec current-page) page-size)
-            rows           (cond
-                             (= pages current-page) (subvec available-rows page-start n)
-                             (> n page-size) (subvec available-rows page-start (+ page-start page-size))
-                             :else available-rows)]
-        (if (and (not= 1 current-page) (empty? rows))
-          (goto-page* uism-env 1)
-          (-> uism-env
-            (uism/assoc-aliased :current-page current-page :current-rows rows :page-count pages))))
-      (-> uism-env
-        (uism/assoc-aliased
+   (if (report-options uism-env ::paginate?)
+     (let [current-page   (max 1 (uism/alias-value uism-env :current-page))
+           page-size      (or (?! (report-options uism-env ::page-size) uism-env) 20)
+           available-rows (or (uism/alias-value uism-env :sorted-rows) [])
+           n              (count available-rows)
+           stragglers?    (pos? (rem n page-size))
+           pages          (cond-> (int (/ n page-size))
+                            stragglers? inc)
+           current-page   (cond
+                            (zero? pages) 1
+                            (> current-page pages) pages
+                            :else current-page)
+           page-start     (* (dec current-page) page-size)
+           rows           (cond
+                            (= pages current-page) (subvec available-rows page-start n)
+                            (> n page-size) (subvec available-rows page-start (+ page-start page-size))
+                            :else available-rows)]
+       (if (and (not= 1 current-page) (empty? rows))
+         (goto-page* uism-env 1)
+         (-> uism-env
+             (uism/assoc-aliased :current-page current-page :current-rows rows :page-count pages))))
+     (-> uism-env
+         (uism/assoc-aliased
           :page-count 1
           :current-rows (uism/alias-value uism-env :sorted-rows))))
-    (postprocess-page)))
+   (postprocess-page)))
 
 (defn goto-page*
   "Internal state machine implementation. May be used by extensions to the stock state machine."
@@ -351,9 +350,9 @@
   (let [pg (uism/alias-value env :current-page)]
     (if (not= pg page)
       (-> env
-        (uism/assoc-aliased :current-page (max 1 page) :selected-row -1)
-        (populate-current-page)
-        (page-number-changed))
+          (uism/assoc-aliased :current-page (max 1 page) :selected-row -1)
+          (populate-current-page)
+          (page-number-changed))
       env)))
 
 (defn rotate-result
@@ -403,9 +402,9 @@
         table-name          (::attr/qualified-key row-pk)
         current-table-count (count (keys (get state-map table-name)))
         cache-looks-stale?  (or
-                              (nil? last-load-time)
-                              (not= current-table-count last-table-count)
-                              (< last-load-time (- now-ms cache-expiration-ms)))
+                             (nil? last-load-time)
+                             (not= current-table-count last-table-count)
+                             (< last-load-time (- now-ms cache-expiration-ms)))
         user-cache-expired? (?! load-cache-expired? uism-env cache-looks-stale?)]
     (if (boolean user-cache-expired?)
       user-cache-expired?
@@ -445,99 +444,99 @@
                             {::keys [run-on-mount?]} (report-options env)
                             page-path    (route-params-path env ::current-page)
                             desired-page (-> (history/current-route fulcro-app)
-                                           :params
-                                           (get-in page-path))
+                                             :params
+                                             (get-in page-path))
                             run-now?     (or desired-page run-on-mount?)]
                         (-> env
-                          (uism/store :route-params (:route-params event-data))
-                          (cond->
-                            (nil? desired-page) (uism/assoc-aliased :current-page 1))
-                          (initialize-parameters)
-                          (cond->
-                            run-now? (load-report!)
-                            (not run-now?) (uism/activate :state/gathering-parameters)))))}
+                            (uism/store :route-params (:route-params event-data))
+                            (cond->
+                             (nil? desired-page) (uism/assoc-aliased :current-page 1))
+                            (initialize-parameters)
+                            (cond->
+                             run-now? (load-report!)
+                             (not run-now?) (uism/activate :state/gathering-parameters)))))}
 
     :state/loading
     {::uism/events
      (merge global-events
-       {:event/loaded {::uism/handler (fn [{::uism/keys [state-map] :as env}]
-                                        (let [Report     (uism/actor-class env :actor/report)
-                                              {::keys [row-pk report-loaded]} (comp/component-options Report)
-                                              table-name (::attr/qualified-key row-pk)]
-                                          (-> env
-                                            (preprocess-raw-result)
-                                            (filter-rows)
-                                            (sort-rows)
-                                            (populate-current-page)
-                                            (uism/store :last-load-time (inst-ms (dt/now)))
-                                            (uism/store :raw-items-in-table (count (keys (get state-map table-name))))
-                                            (uism/activate :state/gathering-parameters)
-                                            (cond-> report-loaded report-loaded))))}
-        :event/failed {::uism/handler (fn [env] (log/error "Report failed to load.")
-                                        (uism/activate env :state/gathering-parameters))}})}
+            {:event/loaded {::uism/handler (fn [{::uism/keys [state-map] :as env}]
+                                             (let [Report     (uism/actor-class env :actor/report)
+                                                   {::keys [row-pk report-loaded]} (comp/component-options Report)
+                                                   table-name (::attr/qualified-key row-pk)]
+                                               (-> env
+                                                   (preprocess-raw-result)
+                                                   (filter-rows)
+                                                   (sort-rows)
+                                                   (populate-current-page)
+                                                   (uism/store :last-load-time (inst-ms (dt/now)))
+                                                   (uism/store :raw-items-in-table (count (keys (get state-map table-name))))
+                                                   (uism/activate :state/gathering-parameters)
+                                                   (cond-> report-loaded report-loaded))))}
+             :event/failed {::uism/handler (fn [env] (log/error "Report failed to load.")
+                                             (uism/activate env :state/gathering-parameters))}})}
 
     :state/gathering-parameters
     {::uism/events
      (merge global-events
-       {:event/goto-page         {::uism/handler (fn [{::uism/keys [event-data] :as env}]
-                                                   (let [{:keys [page]} event-data]
-                                                     (goto-page* env page)))}
-        :event/next-page         {::uism/handler (fn [env]
-                                                   (let [page (uism/alias-value env :current-page)]
-                                                     (goto-page* env (inc (max 1 page)))))}
+            {:event/goto-page         {::uism/handler (fn [{::uism/keys [event-data] :as env}]
+                                                        (let [{:keys [page]} event-data]
+                                                          (goto-page* env page)))}
+             :event/next-page         {::uism/handler (fn [env]
+                                                        (let [page (uism/alias-value env :current-page)]
+                                                          (goto-page* env (inc (max 1 page)))))}
 
-        :event/prior-page        {::uism/handler (fn [env]
-                                                   (let [page (uism/alias-value env :current-page)]
-                                                     (goto-page* env (dec (max 2 page)))))}
+             :event/prior-page        {::uism/handler (fn [env]
+                                                        (let [page (uism/alias-value env :current-page)]
+                                                          (goto-page* env (dec (max 2 page)))))}
 
-        :event/do-sort           {::uism/handler (fn [{::uism/keys [event-data app] :as env}]
-                                                   (if-let [{::attr/keys [qualified-key]} (get event-data ::attr/attribute)]
-                                                     (let [sort-by    (uism/alias-value env :sort-by)
-                                                           sort-path  (route-params-path env ::sort)
-                                                           ascending? (uism/alias-value env :ascending?)
-                                                           ascending? (if (= qualified-key sort-by)
-                                                                        (not ascending?)
-                                                                        true)]
-                                                       (when-not (false? (report-options env ro/track-in-url?))
-                                                         (rad-routing/update-route-params! app update-in sort-path merge
-                                                           {:ascending? ascending?
-                                                            :sort-by    qualified-key}))
-                                                       (-> env
-                                                         (uism/assoc-aliased
-                                                           :busy? false
-                                                           :sort-by qualified-key
-                                                           :ascending? ascending?)
-                                                         (sort-rows)
-                                                         (populate-current-page)))
-                                                     env))}
+             :event/do-sort           {::uism/handler (fn [{::uism/keys [event-data app] :as env}]
+                                                        (if-let [{::attr/keys [qualified-key]} (get event-data ::attr/attribute)]
+                                                          (let [sort-by    (uism/alias-value env :sort-by)
+                                                                sort-path  (route-params-path env ::sort)
+                                                                ascending? (uism/alias-value env :ascending?)
+                                                                ascending? (if (= qualified-key sort-by)
+                                                                             (not ascending?)
+                                                                             true)]
+                                                            (when-not (false? (report-options env ro/track-in-url?))
+                                                              (rad-routing/update-route-params! app update-in sort-path merge
+                                                                                                {:ascending? ascending?
+                                                                                                 :sort-by    qualified-key}))
+                                                            (-> env
+                                                                (uism/assoc-aliased
+                                                                 :busy? false
+                                                                 :sort-by qualified-key
+                                                                 :ascending? ascending?)
+                                                                (sort-rows)
+                                                                (populate-current-page)))
+                                                          env))}
 
-        :event/select-row        {::uism/handler (fn [{::uism/keys [app event-data] :as env}]
-                                                   (let [row               (:row event-data)
-                                                         selected-row-path (route-params-path env ::selected-row)]
-                                                     (when (and (nat-int? row)
-                                                             (not (false? (report-options env ro/track-in-url?))))
-                                                       (rad-routing/update-route-params! app assoc-in selected-row-path row))
-                                                     (uism/assoc-aliased env :selected-row row)))}
+             :event/select-row        {::uism/handler (fn [{::uism/keys [app event-data] :as env}]
+                                                        (let [row               (:row event-data)
+                                                              selected-row-path (route-params-path env ::selected-row)]
+                                                          (when (and (nat-int? row)
+                                                                     (not (false? (report-options env ro/track-in-url?))))
+                                                            (rad-routing/update-route-params! app assoc-in selected-row-path row))
+                                                          (uism/assoc-aliased env :selected-row row)))}
 
-        :event/sort              {::uism/handler (fn [{::uism/keys [app event-data] :as env}]
+             :event/sort              {::uism/handler (fn [{::uism/keys [app event-data] :as env}]
                                                    ;; this ensures that the do sort doesn't get the CPU until the busy state is rendered
-                                                   (uism/trigger! app (uism/asm-id env) :event/do-sort event-data)
-                                                   (uism/assoc-aliased env :busy? true))}
+                                                        (uism/trigger! app (uism/asm-id env) :event/do-sort event-data)
+                                                        (uism/assoc-aliased env :busy? true))}
 
-        :event/do-filter         {::uism/handler (fn [{::uism/keys [event-data] :as env}]
-                                                   (-> env
-                                                     (uism/assoc-aliased :busy? false)
-                                                     (filter-rows)
-                                                     (sort-rows)
-                                                     (populate-current-page)))}
+             :event/do-filter         {::uism/handler (fn [{::uism/keys [event-data] :as env}]
+                                                        (-> env
+                                                            (uism/assoc-aliased :busy? false)
+                                                            (filter-rows)
+                                                            (sort-rows)
+                                                            (populate-current-page)))}
 
-        :event/filter            {::uism/handler handle-filter-event}
+             :event/filter            {::uism/handler handle-filter-event}
 
-        :event/set-ui-parameters {::uism/handler initialize-parameters}
+             :event/set-ui-parameters {::uism/handler initialize-parameters}
 
-        :event/run               {::uism/handler load-report!}
+             :event/run               {::uism/handler load-report!}
 
-        :event/resume            {::uism/handler handle-resume-report}})}}})
+             :event/resume            {::uism/handler handle-resume-report}})}}})
 
 (defn run-report!
   "Run a report with the current parameters"
@@ -588,9 +587,9 @@
 (defn report-will-enter [app route-params report-class]
   (let [report-ident (comp/get-ident report-class {})]
     (dr/route-deferred report-ident
-      (fn []
-        (start-report! app report-class {:route-params route-params})
-        (comp/transact! app [(dr/target-ready {:target report-ident})])))))
+                       (fn []
+                         (start-report! app report-class {:route-params route-params})
+                         (comp/transact! app [(dr/target-ready {:target report-ident})])))))
 
 #?(:clj
    (defmacro defsc-report
@@ -618,88 +617,78 @@
        (req! &env sym options ::row-pk #(symbol? %))
        (req! &env sym options ::source-attribute keyword?)
        (let
-         [generated-row-sym (symbol (str (name sym) "-Row"))
-          {::control/keys [controls]
-           ::keys [BodyItem edit-form columns row-pk form-links query-inclusions
-                   row-query-inclusion denormalize? row-actions route initialize-ui-props] :as options} options
-          _                 (when edit-form (throw (ana/error &env "::edit-form is no longer supported. Use ::form-links instead.")))
-          normalize?        (not denormalize?)
-          ItemClass         (or BodyItem generated-row-sym)
-          subquery          `(comp/get-query ~ItemClass)
-          nspc              (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
-          fqkw              (keyword (str nspc) (name sym))
-          query             (into [::id
-                                   :ui/parameters
-                                   :ui/cache
-                                   :ui/busy?
-                                   :ui/page-count
-                                   :ui/current-page
-                                   [::uism/asm-id [::id fqkw]]
-                                   [::picker-options/options-cache (quote '_)]
-                                   {:ui/controls `(comp/get-query Control)}
-                                   {:ui/current-rows subquery}
-                                   [df/marker-table '(quote _)]]
-                              query-inclusions)
-          options           (merge
-                              {::compare-rows `default-compare-rows
-                               :will-enter    `(fn [app# route-params#] (report-will-enter app# route-params# ~sym))}
-                              options
-                              {:route-segment (if (vector? route) route [route])
-                               ::BodyItem     ItemClass
-                               :query         query
-                               :initial-state (list 'fn ['params]
-                                                `(let [user-ui-props# (?! ~initialize-ui-props ~sym ~'params)]
-                                                   (cond-> {:ui/parameters   {}
-                                                            :ui/cache        {}
-                                                            :ui/controls     (mapv #(select-keys % #{::control/id})
-                                                                               (remove :local? (control/control-map->controls ~controls)))
-                                                            :ui/busy?        false
-                                                            :ui/current-page 1
-                                                            :ui/page-count   1
-                                                            :ui/current-rows []}
-                                                     (contains? ~'params ::id) (assoc ::id (::id ~'params))
-                                                     (seq user-ui-props#) (merge user-ui-props#))))
-                               :ident         (list 'fn [] [::id `(or (::id ~props-sym) ~fqkw)])})
-          body              (if (seq (rest args))
-                              (rest args)
-                              [`(render-layout ~this-sym)])
-          row-query         (list 'fn [] `(let [forms#    ~(::form-links options)
-                                                id-attrs# (keep #(comp/component-options % ::form/id) (vals forms#))]
-                                            (vec
-                                              (into #{~@row-query-inclusion}
-                                                (map (fn [attr#] (or
-                                                                   (::column-EQL attr#)
-                                                                   (::attr/qualified-key attr#))) (conj (set (concat id-attrs# ~columns)) ~row-pk))))))
-          props-sym         (gensym "props")
-          row-ident         (list 'fn []
-                              `(let [k# (::attr/qualified-key ~row-pk)]
-                                 [k# (get ~props-sym k#)]))
-          row-actions       (or row-actions [])
-          body-options      (cond-> {:query        row-query
-                                     ::row-actions row-actions
-                                     ::columns     columns}
-                              normalize? (assoc :ident row-ident)
-                              form-links (assoc ::form-links form-links))
-          defs              (if-not BodyItem
-                              [`(comp/defsc ~generated-row-sym [this# ~props-sym computed#]
-                                  ~body-options
-                                  (render-row (:report-instance computed#) ~generated-row-sym ~props-sym))
-                               `(comp/defsc ~sym ~arglist ~options ~@body)]
-                              [`(comp/defsc ~sym ~arglist ~options ~@body)])]
+        [generated-row-sym (symbol (str (name sym) "-Row"))
+         {::control/keys [controls]
+          ::keys [BodyItem edit-form columns row-pk form-links query-inclusions
+                  row-query-inclusion denormalize? row-actions route initialize-ui-props] :as options} options
+         _                 (when edit-form (throw (ana/error &env "::edit-form is no longer supported. Use ::form-links instead.")))
+         normalize?        (not denormalize?)
+         ItemClass         (or BodyItem generated-row-sym)
+         subquery          `(comp/get-query ~ItemClass)
+         nspc              (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
+         fqkw              (keyword (str nspc) (name sym))
+         query             (into [::id
+                                  :ui/parameters
+                                  :ui/cache
+                                  :ui/busy?
+                                  :ui/page-count
+                                  :ui/current-page
+                                  [::uism/asm-id [::id fqkw]]
+                                  [::picker-options/options-cache (quote '_)]
+                                  {:ui/controls `(comp/get-query Control)}
+                                  {:ui/current-rows subquery}
+                                  [df/marker-table '(quote _)]]
+                                 query-inclusions)
+         options           (merge
+                            {::compare-rows `default-compare-rows
+                             :will-enter    `(fn [app# route-params#] (report-will-enter app# route-params# ~sym))}
+                            options
+                            {:route-segment (if (vector? route) route [route])
+                             ::BodyItem     ItemClass
+                             :query         query
+                             :initial-state (list 'fn ['params]
+                                                  `(let [user-ui-props# (?! ~initialize-ui-props ~sym ~'params)]
+                                                     (cond-> {:ui/parameters   {}
+                                                              :ui/cache        {}
+                                                              :ui/controls     (mapv #(select-keys % #{::control/id})
+                                                                                     (remove :local? (control/control-map->controls ~controls)))
+                                                              :ui/busy?        false
+                                                              :ui/current-page 1
+                                                              :ui/page-count   1
+                                                              :ui/current-rows []}
+                                                       (contains? ~'params ::id) (assoc ::id (::id ~'params))
+                                                       (seq user-ui-props#) (merge user-ui-props#))))
+                             :ident         (list 'fn [] [::id `(or (::id ~props-sym) ~fqkw)])})
+         body              (if (seq (rest args))
+                             (rest args)
+                             [`(render-layout ~this-sym)])
+         row-query         (list 'fn [] `(let [forms#    ~(::form-links options)
+                                               id-attrs# (keep #(comp/component-options % ::form/id) (vals forms#))]
+                                           (vec
+                                            (into #{~@row-query-inclusion}
+                                                  (map (fn [attr#] (or
+                                                                    (::column-EQL attr#)
+                                                                    (::attr/qualified-key attr#))) (conj (set (concat id-attrs# ~columns)) ~row-pk))))))
+         props-sym         (gensym "props")
+         row-ident         (list 'fn []
+                                 `(let [k# (::attr/qualified-key ~row-pk)]
+                                    [k# (get ~props-sym k#)]))
+         row-actions       (or row-actions [])
+         body-options      (cond-> {:query        row-query
+                                    ::row-actions row-actions
+                                    ::columns     columns}
+                             normalize? (assoc :ident row-ident)
+                             form-links (assoc ::form-links form-links))
+         defs              (if-not BodyItem
+                             [`(comp/defsc ~generated-row-sym [this# ~props-sym computed#]
+                                 ~body-options
+                                 (render-row (:report-instance computed#) ~generated-row-sym ~props-sym))
+                              `(comp/defsc ~sym ~arglist ~options ~@body)]
+                             [`(comp/defsc ~sym ~arglist ~options ~@body)])]
          `(do
             ~@defs)))))
 
 #?(:clj (s/fdef defsc-report :args ::comp/args))
-
-(def ^:deprecated reload!
-  "Alias to `control/run!`. Runs the report."
-  control/run!)
-
-(def ^:deprecated set-parameter!
-  "[instance k v]
-
-   Alias to `control/set-parameter!`. Set the given parameter value on the report. Usually used internally by controls."
-  control/set-parameter!)
 
 (defn form-link
   "Get the form link info for a given (column) key.
@@ -739,27 +728,27 @@
 
 (defn built-in-formatter [type style]
   (get-in
-    {:string  {:default (fn [_ value] value)}
-     :instant {:default         (fn [_ value] (dt/inst->human-readable-date value))
-               :short-timestamp (fn [_ value] (dt/tformat "MMM d, h:mma" value))
-               :timestamp       (fn [_ value] (dt/tformat "MMM d, yyyy h:mma" value))
-               :date            (fn [_ value] (dt/tformat "MMM d, yyyy" value))
-               :month-day       (fn [_ value] (dt/tformat "MMM d" value))
-               :time            (fn [_ value] (dt/tformat "h:mma" value))}
-     :keyword {:default (fn [_ value _ column-attribute]
-                          (if-let [labels (::attr/enumerated-labels column-attribute)]
-                            (labels value)
-                            (some-> value (name) str/capitalize)))}
-     :enum    {:default (fn [_ value _ column-attribute]
-                          (if-let [labels (::attr/enumerated-labels column-attribute)]
-                            (labels value) (str value)))}
-     :int     {:default (fn [_ value] (str value))}
-     :decimal {:default    (fn [_ value] (math/numeric->str value))
-               :currency   (fn [_ value] (math/numeric->str (math/round value 2)))
-               :percentage (fn [_ value] (math/numeric->percent-str value))
-               :USD        (fn [_ value] (math/numeric->currency-str value))}
-     :boolean {:default (fn [_ value] (if value (tr "true") (tr "false")))}}
-    [type style]))
+   {:string  {:default (fn [_ value] value)}
+    :instant {:default         (fn [_ value] (dt/inst->human-readable-date value))
+              :short-timestamp (fn [_ value] (dt/tformat "MMM d, h:mma" value))
+              :timestamp       (fn [_ value] (dt/tformat "MMM d, yyyy h:mma" value))
+              :date            (fn [_ value] (dt/tformat "MMM d, yyyy" value))
+              :month-day       (fn [_ value] (dt/tformat "MMM d" value))
+              :time            (fn [_ value] (dt/tformat "h:mma" value))}
+    :keyword {:default (fn [_ value _ column-attribute]
+                         (if-let [labels (::attr/enumerated-labels column-attribute)]
+                           (labels value)
+                           (some-> value (name) str/capitalize)))}
+    :enum    {:default (fn [_ value _ column-attribute]
+                         (if-let [labels (::attr/enumerated-labels column-attribute)]
+                           (labels value) (str value)))}
+    :int     {:default (fn [_ value] (str value))}
+    :decimal {:default    (fn [_ value] (math/numeric->str value))
+              :currency   (fn [_ value] (math/numeric->str (math/round value 2)))
+              :percentage (fn [_ value] (math/numeric->percent-str value))
+              :USD        (fn [_ value] (math/numeric->currency-str value))}
+    :boolean {:default (fn [_ value] (if value (tr "true") (tr "false")))}}
+   [type style]))
 
 (defn formatted-column-value
   "Given a report instance, a row of props, and a column attribute for that report:
@@ -770,23 +759,23 @@
                               ::attr/keys [qualified-key type style] :as column-attribute}]
   (let [value                  (get row-props qualified-key)
         report-field-formatter (or
-                                 (comp/component-options report-instance ::column-formatters qualified-key)
-                                 (comp/component-options report-instance ::field-formatters qualified-key))
+                                (comp/component-options report-instance ::column-formatters qualified-key)
+                                (comp/component-options report-instance ::field-formatters qualified-key))
         {::app/keys [runtime-atom]} (comp/any->app report-instance)
         formatter              (cond
                                  report-field-formatter report-field-formatter
                                  column-formatter column-formatter
                                  field-formatter field-formatter
                                  :else (let [style                (or
-                                                                    (comp/component-options report-instance ::column-styles qualified-key)
-                                                                    style
-                                                                    :default)
+                                                                   (comp/component-options report-instance ::column-styles qualified-key)
+                                                                   style
+                                                                   :default)
                                              installed-formatters (some-> runtime-atom deref :com.fulcrologic.rad/controls ::type->style->formatter)
                                              formatter            (get-in installed-formatters [type style])]
                                          (or
-                                           formatter
-                                           (built-in-formatter type style)
-                                           (fn [_ v] (str v)))))
+                                          formatter
+                                          (built-in-formatter type style)
+                                          (fn [_ v] (str v)))))
         formatted-value        (formatter report-instance value row-props column-attribute)]
     formatted-value))
 
@@ -936,18 +925,18 @@
         normalize?   (not denormalize?)
         row-query    (let [id-attrs (keep #(comp/component-options % ::form/id) (vals form-links))]
                        (vec
-                         (into (set row-query-inclusion)
-                           (map (fn [attr] (or
-                                             (::column-EQL attr)
-                                             (::attr/qualified-key attr))) (conj (set (concat id-attrs columns)) row-pk)))))
+                        (into (set row-query-inclusion)
+                              (map (fn [attr] (or
+                                               (::column-EQL attr)
+                                               (::attr/qualified-key attr))) (conj (set (concat id-attrs columns)) row-pk)))))
         row-key      (::attr/qualified-key row-pk)
         row-ident    (fn [this props] [row-key (get props row-key)])
         row-actions  (or row-actions [])
         row-render   (fn [this]
                        (comp/wrapped-render this
-                         (fn []
-                           (let [props (comp/props this)]
-                             (render-row this (rc/registry-key->class registry-key) props)))))
+                                            (fn []
+                                              (let [props (comp/props this)]
+                                                (render-row this (rc/registry-key->class registry-key) props)))))
         body-options (cond-> {:query        (fn [this] row-query)
                               ::row-actions row-actions
                               ::columns     columns}
@@ -986,39 +975,36 @@
                                   {:ui/controls (comp/get-query Control)}
                                   {:ui/current-rows (comp/get-query ItemClass)}
                                   [df/marker-table '_]]
-                             query-inclusions)
+                                 query-inclusions)
          render            (fn [this]
                              (comp/wrapped-render this
-                               (fn []
-                                 (let [props (comp/props this)]
-                                   (render this props)))))
+                                                  (fn []
+                                                    (let [props (comp/props this)]
+                                                      (render this props)))))
          options           (merge
-                             {::compare-rows default-compare-rows
-                              :will-enter    (fn [app route-params] (report-will-enter app route-params (get-class)))}
-                             options
-                             {:route-segment (if (vector? route) route [route])
-                              :render        render
-                              ::BodyItem     ItemClass
-                              :query         (fn [] query)
-                              :initial-state (fn [params]
-                                               (let [user-initial-state (?! initialize-ui-props (get-class) params)]
-                                                 (cond-> {:ui/parameters   {}
-                                                          :ui/cache        {}
-                                                          :ui/controls     (mapv #(select-keys % #{::control/id})
-                                                                             (remove :local? (control/control-map->controls controls)))
-                                                          :ui/busy?        false
-                                                          :ui/current-page 1
-                                                          :ui/page-count   1
-                                                          :ui/current-rows []}
-                                                   (contains? params ::id) (assoc ::id (::id params))
-                                                   (seq user-initial-state) (merge user-initial-state))))
-                              :ident         (fn [this props] [::id (or (::id props) registry-key)])})
+                            {::compare-rows default-compare-rows
+                             :will-enter    (fn [app route-params] (report-will-enter app route-params (get-class)))}
+                            options
+                            {:route-segment (if (vector? route) route [route])
+                             :render        render
+                             ::BodyItem     ItemClass
+                             :query         (fn [] query)
+                             :initial-state (fn [params]
+                                              (let [user-initial-state (?! initialize-ui-props (get-class) params)]
+                                                (cond-> {:ui/parameters   {}
+                                                         :ui/cache        {}
+                                                         :ui/controls     (mapv #(select-keys % #{::control/id})
+                                                                                (remove :local? (control/control-map->controls controls)))
+                                                         :ui/busy?        false
+                                                         :ui/current-page 1
+                                                         :ui/page-count   1
+                                                         :ui/current-rows []}
+                                                  (contains? params ::id) (assoc ::id (::id params))
+                                                  (seq user-initial-state) (merge user-initial-state))))
+                             :ident         (fn [this props] [::id (or (::id props) registry-key)])})
          cls               (comp/sc registry-key options render)]
      (vreset! generated-class cls)
      cls)))
-
-(def ^:deprecated generated-row-class "Accidental duplication. Use genrow instead" genrow)
-(def ^:deprecated sc-report "Accidental duplication. Use `report` instead." report)
 
 (defn clear-report*
   "Mutation helper. Clear a report out of app state. The report should not be visible when you do this."
@@ -1026,17 +1012,17 @@
   (let [report-ident (comp/get-ident ReportClass {})
         [table report-class-registry-key] report-ident]
     (-> state-map
-      (update ::uism/asm-id dissoc report-ident)
-      (update table dissoc report-class-registry-key)
-      (merge/merge-component ReportClass (comp/get-initial-state ReportClass {})))))
+        (update ::uism/asm-id dissoc report-ident)
+        (update table dissoc report-class-registry-key)
+        (merge/merge-component ReportClass (comp/get-initial-state ReportClass {})))))
 
 (defmutation clear-report
   "MUTATION: Clear a report (which should not be on screen) out of app state."
   [{:keys [report-ident]}]
   (action [{:keys [state]}]
-    (let [[table report-class-registry-key] report-ident
-          Report (comp/registry-key->class report-class-registry-key)]
-      (swap! state clear-report* Report))))
+          (let [[table report-class-registry-key] report-ident
+                Report (comp/registry-key->class report-class-registry-key)]
+            (swap! state clear-report* Report))))
 
 (defn clear-report!
   "Run a transaction that completely clears a report (which should not be on-screen) out of app state."
@@ -1057,14 +1043,14 @@
   ([app-ish report-class-ish event event-data]
    (let [report-ident (cond
                         (or
-                          (string? report-class-ish)
-                          (symbol? report-class-ish)
-                          (keyword? report-class-ish)) (some-> report-class-ish (comp/registry-key->class) (comp/get-ident {}))
+                         (string? report-class-ish)
+                         (symbol? report-class-ish)
+                         (keyword? report-class-ish)) (some-> report-class-ish (comp/registry-key->class) (comp/get-ident {}))
                         (vector? report-class-ish) report-class-ish
                         (comp/component-class? report-class-ish) (comp/get-ident report-class-ish {})
                         (comp/component-instance? report-class-ish) (comp/get-ident report-class-ish))]
      (when-not (vector? report-ident)
        (log/error (ex-info "Cannot trigger an event on a report with invalid report identifier"
-                    {:value report-class-ish
-                     :type  (type report-class-ish)})))
+                           {:value report-class-ish
+                            :type  (type report-class-ish)})))
      (uism/trigger!! app-ish report-ident event event-data))))

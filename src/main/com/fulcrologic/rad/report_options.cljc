@@ -137,13 +137,9 @@
    "
   :com.fulcrologic.rad.report/column-formatters)
 
-(def field-formatters "DEPRECATED. Use column-formatters" column-formatters)
-
 (def column-formatter
   "ATTRIBUTE OPTION. A `(fn [report-instance value row-props attribute])` which can be used on an attribute. See `column-formatters`."
   :com.fulcrologic.rad.report/column-formatter)
-
-(def field-formatter "DEPRECATED. Use column-formatter." column-formatter)
 
 (def run-on-mount?
   "Boolean. Should this report run when it is first mounted, or wait for the user to explicitly take an action. See
@@ -264,10 +260,6 @@
 
    See also `row-query-inclusion`, `form-links`, and `link`."
   :com.fulcrologic.rad.report/row-actions)
-
-(def ^:deprecated link
-  "See `links`."
-  :com.fulcrologic.rad.report/links)
 
 (def links
   "A map from *qualified key* to a side-effecting `(fn [report-instance row-props]). Wraps the column value
