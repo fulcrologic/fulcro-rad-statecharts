@@ -13,7 +13,7 @@ The `defsc-form`, `defsc-report`, and `defsc-container` macros are the primary i
 1. Remove all UISM references (`::uism/asm-id` in queries, UISM-based lifecycle hooks)
 2. Add statechart routing component options (`sfro/statechart`, `sfro/busy?`, `sfro/initialize`)
 3. Remove dynamic routing lifecycle hooks (`will-enter`, `will-leave`, `allow-route-change?`) since statecharts routing uses `rstate`/`istate` instead
-4. Keep `:route-segment` for discoverability, even though the routing chart defines the actual segments
+4. Do NOT generate `:route-segment` -- route segments live only on `istate` in the routing chart
 
 ### Source of Truth
 
@@ -30,7 +30,7 @@ Routing options from statecharts library:
 1. Each macro must generate a component that works as a route target for `istate` in a statecharts routing chart
 2. The generated query must not include `[::uism/asm-id '_]`
 3. The generated component must include `sfro/statechart` (or `sfro/statechart-id`) as a component option
-4. Custom statecharts must be specifiable via `fo/machine` / `ro/machine` (repurposed option)
+4. Custom statecharts must be specifiable via `fo/statechart` / `ro/statechart` (renamed from `fo/statechart` / `ro/statechart`)
 5. `:will-enter`, `:will-leave`, `:allow-route-change?` must not be generated (statecharts routing does not use them)
 6. All macros remain CLJC-compatible
 
@@ -89,8 +89,7 @@ The current `defsc-form` via `convert-options` (line 528) generates:
 
 ;; Initial State -- UNCHANGED (pre-merge + form defaults still apply)
 
-;; Route segment -- KEPT for discoverability, but not used by routing:
-:route-segment [route-prefix :action :id]
+;; NO :route-segment (route segments live in the routing chart on istate)
 
 ;; NEW component options for statecharts routing:
 sfro/statechart    (or user-chart form/form-statechart)
@@ -129,8 +128,8 @@ In `form-options->form-query` (line 389), remove the UISM asm-id join from `quer
 In `convert-options` (line 528), add statechart routing options to the generated component:
 
 ```clojure
-;; The chart to use: user-specified via fo/machine, or the default form-statechart
-(let [chart (or (::machine options) form-statechart)]
+;; The chart to use: user-specified via fo/statechart, or the default form-statechart
+(let [chart (or (::statechart options) form-statechart)]
   (assoc base-options
     sfro/statechart  chart
     sfro/busy?       form-busy?
@@ -164,47 +163,47 @@ In `convert-options`, when `route-prefix` is set, the current code merges:
                                  (form-will-enter app route-params (get-class))))})
 ```
 
-Replace with:
+Remove entirely. No `:route-segment`, no `:will-enter`, no `:will-leave`, no `:allow-route-change?`:
 
 ```clojure
 ;; NEW:
-(merge {:route-segment [route-prefix :action :id]})
-;; will-enter, will-leave, allow-route-change? are NOT generated.
+;; No route lifecycle options generated at all.
 ;; Routing lifecycle is handled by istate + sfro/busy? + sfro/initialize.
+;; Route segments are defined in the routing chart on istate, not on the component.
 ```
 
 #### 4. Remove `:route-denied` Default
 
 The current default `route-denied` handler (line 545) triggers the UISM directly. Remove it entirely. In the statecharts routing system, route denial is handled by the `sfro/busy?` function returning `true`, which causes the routing chart to set `:route/denied?` data that the form's statechart can react to.
 
-#### 5. Repurpose `fo/machine`
+#### 5. Rename `fo/statechart` to `fo/statechart`
 
-Currently `fo/machine` provides a UISM definition (a map). In the new system, it provides a **statechart definition** (the output of the `statechart` function):
+The option is renamed from `fo/statechart` to `fo/statechart` to reflect the new semantics. It provides a **statechart definition** (the output of the `statechart` function):
 
 ```clojure
 ;; BEFORE (UISM):
 (defsc-form MyForm [this props]
-  {fo/machine my-custom-uism-definition  ;; a UISM map
+  {fo/statechart my-custom-uism-definition  ;; a UISM map
    ...})
 
 ;; AFTER (Statechart):
 (defsc-form MyForm [this props]
-  {fo/machine my-custom-form-chart  ;; a statechart definition
+  {fo/statechart my-custom-form-chart  ;; a statechart definition
    ...})
 ```
 
-The macro reads `fo/machine` and places it as `sfro/statechart`:
+The macro reads `fo/statechart` and places it as `sfro/statechart`:
 
 ```clojure
-sfro/statechart (or (::machine options) form-statechart)
+sfro/statechart (or (::statechart options) form-statechart)
 ```
 
-If the user specifies a **keyword** for `fo/machine` (a pre-registered chart ID), it is placed as `sfro/statechart-id` instead:
+If the user specifies a **keyword** for `fo/statechart` (a pre-registered chart ID), it is placed as `sfro/statechart-id` instead:
 
 ```clojure
-(if (keyword? user-machine)
-  (assoc base-options sfro/statechart-id user-machine)
-  (assoc base-options sfro/statechart (or user-machine form-statechart)))
+(if (keyword? user-statechart)
+  (assoc base-options sfro/statechart-id user-statechart)
+  (assoc base-options sfro/statechart (or user-statechart form-statechart)))
 ```
 
 ---
@@ -268,8 +267,7 @@ From `defsc-report` (line 596):
 
 ;; Ident -- UNCHANGED
 
-;; Route segment -- KEPT for discoverability:
-:route-segment (if (vector? route) route [route])
+;; NO :route-segment (route segments live in the routing chart on istate)
 
 ;; NEW component options:
 sfro/statechart    (or user-chart report/report-statechart)
@@ -288,7 +286,7 @@ Line 637 currently includes `[::uism/asm-id [::id fqkw]]`. Remove it.
 #### 2. Component Options: Add `sfro/statechart`
 
 ```clojure
-(let [chart (or (::machine options) report-statechart)]
+(let [chart (or (::statechart options) report-statechart)]
   (assoc options
     sfro/statechart chart
     sfro/initialize :once))
@@ -300,14 +298,14 @@ Reports use `:once` initialization because they persist their state across route
 
 The current default `will-enter` (line 645) calls `report-will-enter` which uses `dr/route-deferred`. Remove this entirely. The routing chart's `istate` handles initialization.
 
-#### 4. Repurpose `ro/machine`
+#### 4. Rename `ro/statechart` to `ro/statechart`
 
-Same pattern as forms. `ro/machine` now provides a statechart definition or a pre-registered chart ID keyword:
+Same pattern as forms. `ro/statechart` now provides a statechart definition or a pre-registered chart ID keyword:
 
 ```clojure
-(if (keyword? user-machine)
-  (assoc options sfro/statechart-id user-machine)
-  (assoc options sfro/statechart (or user-machine report-statechart)))
+(if (keyword? user-statechart)
+  (assoc options sfro/statechart-id user-statechart)
+  (assoc options sfro/statechart (or user-statechart report-statechart)))
 ```
 
 ---
@@ -350,8 +348,7 @@ From `defsc-container` (line 136):
 
 ;; Ident -- UNCHANGED
 
-;; Route segment -- KEPT:
-:route-segment [route]
+;; NO :route-segment (route segments live in the routing chart on istate)
 
 ;; NEW component options:
 sfro/statechart    (or user-chart container/container-statechart)
@@ -370,7 +367,7 @@ The container query does not include `::uism/asm-id`. No modification required.
 #### 2. Component Options: Add `sfro/statechart`
 
 ```clojure
-(let [chart (or (comp/component-options container-class ::machine) container-statechart)]
+(let [chart (or (comp/component-options container-class ::statechart) container-statechart)]
   (assoc options
     sfro/statechart chart
     sfro/initialize :once))
@@ -408,7 +405,7 @@ This means:
 
 ## How Custom Charts Are Specified
 
-### Pattern 1: Inline Chart via `fo/machine` (or `ro/machine`)
+### Pattern 1: Inline Chart via `fo/statechart` (or `ro/statechart`)
 
 ```clojure
 (def my-custom-form-chart
@@ -418,11 +415,11 @@ This means:
 (defsc-form MyForm [this props]
   {fo/id         account/id
    fo/attributes [...]
-   fo/machine    my-custom-form-chart})
+   fo/statechart    my-custom-form-chart})
 ;; Macro sets: sfro/statechart my-custom-form-chart
 ```
 
-### Pattern 2: Pre-registered Chart via `fo/machine` Keyword
+### Pattern 2: Pre-registered Chart via `fo/statechart` Keyword
 
 ```clojure
 ;; Somewhere at app init:
@@ -431,11 +428,11 @@ This means:
 (defsc-form MyForm [this props]
   {fo/id         account/id
    fo/attributes [...]
-   fo/machine    ::my-special-chart})
+   fo/statechart    ::my-special-chart})
 ;; Macro sets: sfro/statechart-id ::my-special-chart
 ```
 
-### Pattern 3: Default Chart (no `fo/machine`)
+### Pattern 3: Default Chart (no `fo/statechart`)
 
 ```clojure
 (defsc-form MyForm [this props]
@@ -452,7 +449,7 @@ This means:
 
 Most users who use the default form/report machines need **zero changes**. The macros generate the correct component options automatically.
 
-### Users with `fo/machine` / `ro/machine` Overrides
+### Users with `fo/statechart` / `ro/statechart` Overrides
 
 These users must rewrite their custom machines as statecharts. This is a breaking change, but it is expected and documented. The old UISM definition format is incompatible with the new statechart format.
 
@@ -478,13 +475,13 @@ These must be updated to use `scf/current-configuration` instead.
 - `src/main/com/fulcrologic/rad/form.cljc` - `defsc-form*`, `convert-options`, `form-options->form-query`
 - `src/main/com/fulcrologic/rad/report.cljc` - `defsc-report` macro
 - `src/main/com/fulcrologic/rad/container.cljc` - `defsc-container` macro
-- `src/main/com/fulcrologic/rad/form_options.cljc` - Update `fo/machine` docstring
-- `src/main/com/fulcrologic/rad/report_options.cljc` - Update `ro/machine` docstring
+- `src/main/com/fulcrologic/rad/form_options.cljc` - Rename `fo/machine` to `fo/statechart`, update docstring
+- `src/main/com/fulcrologic/rad/report_options.cljc` - Rename `ro/machine` to `ro/statechart`, update docstring
 
 ## Open Questions
 
-1. **Should `fo/machine` be renamed to `fo/statechart`?** Renaming would be clearer but breaks all existing custom machine users. Keeping `fo/machine` as the option key with updated semantics (now accepts a statechart) minimizes migration churn. The docstring update makes the change clear.
-2. **Should `:route-segment` still be generated?** It is not used by statecharts routing (`istate`'s `:route/segment` is what matters), but keeping it on the component is useful for documentation and for tools that inspect component options.
+1. **DECIDED: `fo/statechart` renamed to `fo/statechart`** (and `ro/statechart` to `ro/statechart`). The rename makes the intent clear. All references to `fo/statechart` / `ro/statechart` in the macros and option namespaces become `fo/statechart` / `ro/statechart`. This is a breaking change for users who specified custom machines, but they must rewrite their custom machines as statecharts anyway.
+2. **DECIDED: No `:route-segment` in macros.** Route segments live only on `istate` in the routing chart. The macros no longer generate `:route-segment`. Users define route segments in their routing chart definition.
 3. **Should there be a compile-time warning for `:will-enter` overrides?** Yes, at macro expansion time.
 
 ## Verification
@@ -494,8 +491,8 @@ These must be updated to use `scf/current-configuration` instead.
 3. [ ] `defsc-form` generates `sfro/busy?` component option pointing to `form-busy?`
 4. [ ] `defsc-form` generates `sfro/initialize :always`
 5. [ ] `defsc-form` does not generate `:will-enter`, `:will-leave`, `:allow-route-change?`
-6. [ ] `defsc-form` with `fo/machine` custom chart sets `sfro/statechart` to user chart
-7. [ ] `defsc-form` with `fo/machine` keyword sets `sfro/statechart-id` to that keyword
+6. [ ] `defsc-form` with `fo/statechart` custom chart sets `sfro/statechart` to user chart
+7. [ ] `defsc-form` with `fo/statechart` keyword sets `sfro/statechart-id` to that keyword
 8. [ ] `defsc-report` generates query without `::uism/asm-id`
 9. [ ] `defsc-report` generates `sfro/statechart` pointing to `report-statechart`
 10. [ ] `defsc-report` generates `sfro/initialize :once`

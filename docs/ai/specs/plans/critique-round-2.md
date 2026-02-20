@@ -235,27 +235,31 @@ These are questions that require human decision-making before or during implemen
 
 ### Architecture Decisions
 
-1. **`ident->session-id` separator**: Should the separator between namespace and name be `_` (current), `__`, `/`, or something else? Edge case with underscored namespaces (NEW-1).
+1. **`ident->session-id` separator**: Should the separator between namespace and name be `_` (current), `__`, `/`, or something else? Edge case with underscored namespaces (NEW-1). *(Still open -- low-impact edge case to resolve during implementation.)*
 
-2. **`istate` child-session-id**: Should RAD configure `child-session-id` on `istate` to match `ident->session-id`, or accept that routed forms use invoke-generated session-ids and `send-to-self!`? (session-id-convention.md OQ-1)
+2. **DECIDED: Routed forms use `send-to-self!`, not `ident->session-id`.** `ident->session-id` is only for embedded/non-routed use. No need to align `istate` child-session-id. (session-id-convention.md OQ-1)
 
-3. **`fo/machine` rename**: Should `fo/machine` be renamed to `fo/statechart`? Keeps backward compat but may confuse users. (macro-rewrites.md OQ-1)
+3. **DECIDED: `fo/machine` renamed to `fo/statechart`** (and `ro/machine` to `ro/statechart`). The rename makes the intent clear. Breaking change, but users must rewrite custom machines anyway. (macro-rewrites.md OQ-1)
 
-4. **Route-segment in macros**: Should `defsc-form` keep generating `:route-segment`? It's unused by statecharts routing but useful for discoverability. (macro-rewrites.md OQ-2)
+4. **DECIDED: No `:route-segment` in macros.** Route segments live only on `istate` in the routing chart. Macros no longer generate `:route-segment`. (macro-rewrites.md OQ-2)
 
-5. **Routing chart auto-generation**: Should RAD eventually auto-generate the routing chart from form/report definitions? Current decision: user-defined. (app-initialization.md OQ-2)
+5. **DECIDED: Routing chart is user-defined.** Not auto-generated from form/report definitions. Auto-generation may be a v2 convenience. (app-initialization.md OQ-2)
 
 ### Technical Questions
 
-6. **Timbre version**: Should RAD bump to timbre 6.x to match statecharts? Needs audit of RAD's timbre usage. (project-setup OQ-2)
+6. **DECIDED: Bump all deps to latest.** Timbre goes to 6.x to match statecharts. All other deps bumped to latest. (project-setup OQ-2)
 
-7. **Statecharts library version**: What version of statecharts to use at release? (project-setup OQ-1)
+7. **Statecharts library version**: What version of statecharts to use at release? (project-setup OQ-1) *(Still open -- depends on statecharts release schedule.)*
 
-8. **Two-phase sort/filter**: Self-send vs intermediate state? Current recommendation: self-send. (report-statechart OQ-2)
+8. **DECIDED: Two-phase sort/filter uses observable intermediate state (NOT self-send).** Uses `:state/sorting` / `:state/filtering` intermediate states that are observable by the UI for loading indicators. Matches original UISM behavior. (report-statechart OQ-2)
 
-9. **Report composability**: Separate charts vs shared expressions for incremental/server-paginated? Current recommendation: shared expressions. (report-statechart OQ-3)
+9. **DECIDED: Report variants use separate charts with shared expressions.** Each variant is a separate statechart but they share expression functions. (report-statechart OQ-3)
 
-10. **`start-form!` / `start-report!` visibility**: These are needed for embedded use. Should they remain public? Current recommendation: yes. (public-api-mapping OQ-2)
+10. **DECIDED: `start-form!` / `start-report!` remain public.** Needed for non-routed use (modals, inline subforms, hooks). (public-api-mapping OQ-2)
+
+### Additionally Decided
+
+- **DECIDED: Statecharts as local/root during dev.** Use `{:local/root "../statecharts"}` in deps.edn. (project-setup)
 
 ### Deferred
 

@@ -63,4 +63,4 @@
 
 ## Open Questions for Human Review
 
-See [critique-round-2.md](plans/critique-round-2.md) Section "Consolidated Open Questions for Human Review" for 13 questions requiring human decision.
+All questions resolved by human review 2026-02-20. See [critique-round-2.md](plans/critique-round-2.md) Section "Consolidated Open Questions for Human Review" for the full list with DECIDED annotations. Only 2 minor items remain open (ident->session-id separator edge case, statecharts release version).

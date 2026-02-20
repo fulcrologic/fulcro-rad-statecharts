@@ -77,18 +77,19 @@ From the statecharts `deps.edn`, the library's own dependencies are:
 - `com.taoensso/timbre` 6.8.0
 - `funcool/promesa` 11.0.678
 
-Potential version conflicts with fulcro-rad's current deps:
-- **guardrails**: RAD uses 1.2.9, statecharts uses 1.2.16 -- use 1.2.16 (newer minor)
-- **core.async**: RAD uses 1.6.673, statecharts uses 1.8.741 -- use 1.8.741 (newer)
-- **timbre**: RAD uses 4.10.0, statecharts uses 6.8.0 -- **major version jump**. This is the most likely conflict. RAD and statecharts must agree on timbre version. Timbre 6.x has API changes from 4.x. RAD's usage of timbre should be audited.
+Potential version conflicts with fulcro-rad's current deps (DECIDED: bump all to latest):
+- **guardrails**: RAD uses 1.2.9, statecharts uses 1.2.16 -- bump to latest (>= 1.2.16)
+- **core.async**: RAD uses 1.6.673, statecharts uses 1.8.741 -- bump to latest (>= 1.8.741)
+- **timbre**: RAD uses 4.10.0, statecharts uses 6.8.0 -- **DECIDED: bump to 6.x**. Timbre 6.x has API changes from 4.x. RAD's usage of timbre must be audited during implementation for any breaking changes (mainly logging macro changes).
 
 ## Open Questions
 
 - What version of `com.fulcrologic/statecharts` should be used for the maven dependency at release time? The statecharts library appears to be pre-1.0 and under active development.
-- Should the timbre dependency be bumped to 6.x in RAD to match statecharts, or should statecharts be made to work with timbre 4.x? The safest path is bumping RAD to timbre 6.x since it's the newer library.
-- Will `com.taoensso/encore` (used by RAD at 3.45.0) be compatible with timbre 6.x? Timbre 6.x may pull in a newer encore.
+- **DECIDED: Bump all deps to latest.** Timbre goes to 6.x to match statecharts. All other dependencies (guardrails, core.async, etc.) bumped to latest available versions. RAD's timbre usage should be audited for any 4.x -> 6.x API changes during implementation.
+- Will `com.taoensso/encore` (used by RAD at 3.45.0) be compatible with timbre 6.x? Timbre 6.x may pull in a newer encore. (Audit during implementation.)
 - Should the GitHub repo `fulcrologic/fulcro-rad-statecharts` be created before or after initial code conversion?
 - Is `0.1.0-SNAPSHOT` the right starting version, or should it track closer to the fulcro-rad version it forked from (e.g. `1.6.11-sc-SNAPSHOT`)?
+- **DECIDED: Statecharts as local/root during dev.** Use `{:local/root "../statecharts"}` in deps.edn during development. Switch to maven coordinates for release.
 
 ## Verification
 

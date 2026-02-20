@@ -17,7 +17,7 @@ The current form UISM is defined in `src/main/com/fulcrologic/rad/form.cljc` lin
 1. Replace `form-machine` (defstatemachine) with a statechart definition using `statechart`, `state`, `transition`, `on-entry`, `script`, etc.
 2. Preserve all existing form behaviors: load, create, edit, save, undo, cancel, route guarding, subform add/delete, dirty tracking
 3. Maintain the public API surface (`save!`, `cancel!`, `undo-all!`, `add-child!`, `delete-child!`, `edit!`, `create!`, `view!`, `start-form!`, `input-changed!`, `input-blur!`, etc.)
-4. Support custom form machines via `fo/machine` option (users can override the chart)
+4. Support custom form machines via `fo/statechart` option (users can override the chart)
 5. All code must be CLJC for headless testing
 6. Route integration must use statecharts routing (`rstate`/`istate`) instead of Fulcro dynamic routing
 
@@ -259,7 +259,7 @@ The actor is set up identically. The `start-form!` function changes from:
 
 ;; Statechart version (see session-id-convention.md for ident->session-id)
 (let [session-id (ident->session-id form-ident)]
-  (scf/start! app {:machine    (or (comp/component-options form-class ::machine) ::form-chart)
+  (scf/start! app {:machine    (or (comp/component-options form-class ::statechart) ::form-chart)
                    :session-id session-id
                    :data       {:fulcro/actors  {:actor/form (scf/actor form-class form-ident)}
                                 :fulcro/aliases {:confirmation-message [:actor/form :ui/confirmation-message]
@@ -560,8 +560,8 @@ The `convert-options` function (lines 528-578) must be updated to:
 1. Remove `:will-enter`, `:will-leave`, `:allow-route-change?`, `:route-denied` generation
 2. Add `sfro/statechart`, `sfro/busy?`, and `sfro/initialize :always` to component options
 3. Remove `[::uism/asm-id '_]` from the query (no longer needed)
-4. Keep `:route-segment` generation for discoverability
-5. Support `fo/machine` as either a statechart definition or a pre-registered chart ID keyword
+4. Do NOT generate `:route-segment` -- route segments live only on `istate` in the routing chart
+5. Support `fo/statechart` as either a statechart definition or a pre-registered chart ID keyword
 6. Emit a compile-time warning if `:will-enter` is overridden in user options
 
 ### Public API Changes for Routing
@@ -623,7 +623,7 @@ Each expression is a `(fn [env data event-name event-data] ops-or-nil)`. The Ful
 4. **Embedded forms**: Forms with `:embedded? true` skip routing. How do embedded forms start their statechart?
    - The `start-form!` function should work for this case, starting the chart directly
 
-5. **Custom form machines**: Users who have overridden `fo/machine` with a custom UISM will need migration guidance. Their custom UISMs won't work with the new system.
+5. **Custom form machines**: Users who have overridden `fo/statechart` with a custom UISM will need migration guidance. Their custom UISMs won't work with the new system.
 
 6. **Query changes**: The current query includes `[::uism/asm-id '_]` for the UISM. The statechart equivalent query inclusion (if any) needs to be determined. The statechart session is at `[::sc/session-id session-id]` but may not need to be in the component query if we don't render based on chart state.
 
@@ -660,7 +660,7 @@ Each expression is a `(fn [env data event-name event-data] ops-or-nil)`. The Ful
 13. [ ] Route denied (sync) prompts user and either leaves or stays
 14. [ ] Route denied (async) sets flag for UI rendering
 15. [ ] Continue abandoned route re-routes after form reset
-16. [ ] Custom form charts via `fo/machine` work
+16. [ ] Custom form charts via `fo/statechart` work
 17. [ ] Public API functions (save!, cancel!, undo-all!, etc.) work unchanged
 18. [ ] on-change trigger fires on field changes
 19. [ ] derive-fields trigger runs after changes

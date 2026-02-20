@@ -133,13 +133,12 @@ All three must be converted to statecharts. The public API (`run-report!`, `filt
     (handle :event/next-page next-page-expr)
     (handle :event/prior-page prior-page-expr)
 
-    ;; Sort (two-phase for rendering busy state may need send-to-self pattern)
-    (handle :event/sort sort-request-expr)       ;; sets busy, assigns sort params
-    (handle :event/do-sort do-sort-expr)         ;; actually sorts, clears busy
+    ;; Sort -> intermediate observable state
+    (on :event/sort :state/sorting
+      (script {:expr store-sort-params-expr}))
 
-    ;; Filter (two-phase)
-    (handle :event/filter filter-request-expr)
-    (handle :event/do-filter do-filter-expr)
+    ;; Filter -> intermediate observable state
+    (on :event/filter :state/filtering)
 
     ;; Row selection
     (handle :event/select-row select-row-expr)
@@ -157,25 +156,48 @@ All three must be converted to statecharts. The public API (`run-report!`, `filt
       (script {:expr resume-from-cache-expr}))  ;; re-filter and re-paginate
 
     ;; Clear sort (available everywhere)
-    (handle :event/clear-sort clear-sort-expr)))
+    (handle :event/clear-sort clear-sort-expr))
+
+  ;; Observable intermediate state for sorting -- UI can show loading indicator
+  (state {:id :state/sorting}
+    (on-entry {}
+      (script {:expr (fn [env data & _] [(fops/assoc-alias :busy? true)])}))
+    (transition {:target :state/ready}
+      (script {:expr do-sort-and-clear-busy-expr})))
+
+  ;; Observable intermediate state for filtering -- UI can show loading indicator
+  (state {:id :state/filtering}
+    (on-entry {}
+      (script {:expr (fn [env data & _] [(fops/assoc-alias :busy? true)])}))
+    (transition {:target :state/ready}
+      (script {:expr do-filter-and-clear-busy-expr}))))
 ```
 
 ### Two-Phase Sort/Filter Pattern
 
 The current UISM uses `uism/trigger!` within a handler to self-send `:event/do-sort` after setting `:busy? true`. This allows the UI to render the busy state before the potentially expensive sort runs.
 
-In statecharts, we can use a similar pattern: the `:event/sort` handler sets busy and uses `scf/send!` (via the event queue) to send `:event/do-sort` to itself. Alternatively, we could use a brief intermediate state:
+**DECIDED: Use observable intermediate state (NOT self-send).** The statechart uses an intermediate state like `:state/processing` (or `:state/sorting` / `:state/filtering`) that is observable by the UI. This allows the UI to show a loading animation while sorting/filtering happens, matching how the original UISM worked. The intermediate state sets busy on entry, performs the sort/filter, and transitions back to `:state/ready`:
 
 ```clojure
 (state {:id :state/sorting}
   (on-entry {}
-    (script {:expr (fn [env data] [(ops/assign :busy? true)])}))
-  ;; Eventless transition fires after entry actions
+    (script {:expr (fn [env data & _] [(fops/assoc-alias :busy? true)])}))
+  ;; Eventless transition fires after entry actions complete and UI has rendered busy state
   (transition {:target :state/ready}
     (script {:expr do-sort-and-clear-busy-expr})))
+
+(state {:id :state/filtering}
+  (on-entry {}
+    (script {:expr (fn [env data & _] [(fops/assoc-alias :busy? true)])}))
+  (transition {:target :state/ready}
+    (script {:expr do-filter-and-clear-busy-expr})))
 ```
 
-However, the current UISM pattern achieves the two-phase by triggering an event to itself, which defers the sort to the next event processing cycle. The simplest statechart equivalent is to keep it as two events in `:state/ready`.
+This approach is preferred because:
+1. The intermediate state is observable -- the UI can check if the chart is in `:state/sorting` or `:state/filtering` and show appropriate loading indicators
+2. It matches the original UISM behavior where the busy state was visible to the UI between the two phases
+3. It is more "statechart-native" -- state transitions are explicit rather than relying on self-send timing
 
 ### Server-Paginated Report Statechart
 
@@ -265,10 +287,9 @@ However, the current UISM pattern achieves the two-phase by triggering an event 
     (handle :event/goto-page goto-page-expr)
     (handle :event/next-page next-page-expr)
     (handle :event/prior-page prior-page-expr)
-    (handle :event/sort sort-request-expr)
-    (handle :event/do-sort do-sort-expr)
-    (handle :event/filter filter-request-expr)
-    (handle :event/do-filter do-filter-expr)
+    (on :event/sort :state/sorting
+      (script {:expr store-sort-params-expr}))
+    (on :event/filter :state/filtering)
     (handle :event/select-row select-row-expr)
     (handle :event/set-ui-parameters set-params-expr)
     (on :event/run :state/loading-chunk)
@@ -276,7 +297,20 @@ However, the current UISM pattern achieves the two-phase by triggering an event 
       (script {:expr reinitialize-params-expr}))
     (transition {:event :event/resume}
       (script {:expr resume-from-cache-expr}))
-    (handle :event/clear-sort clear-sort-expr)))
+    (handle :event/clear-sort clear-sort-expr))
+
+  ;; Observable intermediate states (same as standard report)
+  (state {:id :state/sorting}
+    (on-entry {}
+      (script {:expr (fn [env data & _] [(fops/assoc-alias :busy? true)])}))
+    (transition {:target :state/ready}
+      (script {:expr do-sort-and-clear-busy-expr})))
+
+  (state {:id :state/filtering}
+    (on-entry {}
+      (script {:expr (fn [env data & _] [(fops/assoc-alias :busy? true)])}))
+    (transition {:target :state/ready}
+      (script {:expr do-filter-and-clear-busy-expr}))))
 ```
 
 ## Actor/Alias Mapping
@@ -347,10 +381,10 @@ This produces a keyword like `:com.fulcrologic.rad.sc/report_id--myapp.ui_Accoun
 | `:event/goto-page` | `:event/goto-page` | `{:page n}` in event data |
 | `:event/next-page` | `:event/next-page` | No data |
 | `:event/prior-page` | `:event/prior-page` | No data |
-| `:event/sort` | `:event/sort` | `{::attr/attribute attr}` in event data |
-| `:event/do-sort` | `:event/do-sort` | Self-sent for deferred sort |
-| `:event/filter` | `:event/filter` | No data |
-| `:event/do-filter` | `:event/do-filter` | Self-sent for deferred filter |
+| `:event/sort` | `:event/sort` | `{::attr/attribute attr}` in event data. Transitions to `:state/sorting` |
+| `:event/do-sort` | (removed) | No longer needed -- sort runs in `:state/sorting` intermediate state |
+| `:event/filter` | `:event/filter` | No data. Transitions to `:state/filtering` |
+| `:event/do-filter` | (removed) | No longer needed -- filter runs in `:state/filtering` intermediate state |
 | `:event/select-row` | `:event/select-row` | `{:row idx}` in event data |
 | `:event/set-ui-parameters` | `:event/set-ui-parameters` | Route param update |
 | `:event/run` | `:event/run` | Reload from server |
@@ -410,10 +444,7 @@ Sorting and filtering are pure functions that operate on vectors of row data. Th
 2. Apply `ro/row-visible?` (filter) and `ro/compare-rows` (sort)
 3. Write results via `fops/assoc-alias`
 
-The two-phase sort/filter pattern (set busy, then process) can be achieved by:
-- **Option A**: Self-send pattern -- handler sets busy via `fops/assoc-alias :busy? true`, then uses event queue to send `:event/do-sort` to self
-- **Option B**: Intermediate transient state with eventless transition
-- **Recommended**: Option A, as it matches the current UISM behavior and ensures a render cycle between busy=true and the sort computation
+The two-phase sort/filter pattern (set busy, then process) uses **observable intermediate states** (`:state/sorting`, `:state/filtering`). The intermediate state sets `:busy? true` on entry, then an eventless transition performs the actual sort/filter and transitions back to `:state/ready`. This makes the processing phase observable by the UI for loading indicators, matching the original UISM behavior.
 
 ## Route Integration
 
@@ -433,7 +464,7 @@ Route param tracking stays the same -- `rad-routing/update-route-params!` is cal
 ;; Start: instead of uism/begin!, use scf/start!
 (defn start-report! [app report-class options]
   (let [session-id (report-session-id report-class options)
-        machine-key (or (comp/component-options report-class ro/machine) ::report-chart)]
+        machine-key (or (comp/component-options report-class ro/statechart) ::report-chart)]
     (scf/start! app
       {:machine    machine-key
        :session-id session-id
@@ -467,32 +498,32 @@ Global controls are stored at `[::control/id control-key ::control/value]` in th
 
 ## Custom State Machine Override
 
-Currently, reports can override the machine via `ro/machine`. The statechart equivalent:
+Currently, reports can override the machine via `ro/statechart`. The statechart equivalent:
 
 ```clojure
 (defsc-report MyReport [this props]
-  {ro/machine ::my-custom-chart  ;; keyword of registered statechart
+  {ro/statechart ::my-custom-chart  ;; keyword of registered statechart
    ...})
 ```
 
-The `defsc-report` macro reads `ro/machine` and sets it as `sfro/statechart` (or `sfro/statechart-id` if it's a keyword). See `macro-rewrites.md` for the full macro rewrite specification.
+The `defsc-report` macro reads `ro/statechart` and sets it as `sfro/statechart` (or `sfro/statechart-id` if it's a keyword). See `macro-rewrites.md` for the full macro rewrite specification.
 
 **How custom charts are specified:**
 
 ```clojure
 ;; Pattern 1: Inline chart definition
 (defsc-report MyReport [this props]
-  {ro/machine my-custom-report-chart  ;; a statechart definition
+  {ro/statechart my-custom-report-chart  ;; a statechart definition
    ...})
 ;; Macro sets: sfro/statechart my-custom-report-chart
 
 ;; Pattern 2: Pre-registered chart ID
 (defsc-report MyReport [this props]
-  {ro/machine ::my-custom-chart  ;; keyword of pre-registered chart
+  {ro/statechart ::my-custom-chart  ;; keyword of pre-registered chart
    ...})
 ;; Macro sets: sfro/statechart-id ::my-custom-chart
 
-;; Pattern 3: Default (no ro/machine)
+;; Pattern 3: Default (no ro/statechart)
 (defsc-report MyReport [this props]
   {...})
 ;; Macro sets: sfro/statechart report/report-statechart
@@ -503,7 +534,7 @@ Users who extend the default `report-machine` by `assoc-in` on the machine map (
 ## Affected Modules
 
 - `com.fulcrologic.rad.report` - Main conversion: replace `defstatemachine report-machine` with `(statechart ...)`, update `start-report!`, all public API functions
-- `com.fulcrologic.rad.report-options` - `ro/machine` semantics change (now a statechart registry key)
+- `com.fulcrologic.rad.report-options` - `ro/statechart` semantics change (now a statechart registry key)
 - `com.fulcrologic.rad.state-machines.server-paginated-report` - Full rewrite as statechart
 - `com.fulcrologic.rad.state-machines.incrementally-loaded-report` - Full rewrite as statechart
 - `com.fulcrologic.rad.control` - May need minor updates for `scf/send!` instead of `uism/trigger!`
@@ -536,12 +567,9 @@ Users who extend the default `report-machine` by `assoc-in` on the machine map (
 
 1. **Session ID strategy**: **Resolved.** Report session IDs are deterministic via `report-session-id` (see session-id-convention.md). Uses `(ident->session-id (comp/get-ident report-class {}))` to produce a keyword from the report ident.
 
-2. **Two-phase sort/filter**: Should we use the self-send pattern (matching UISM behavior) or leverage statechart intermediate states? Self-send is simpler and proven. Intermediate states are more "statechart-native" but add visual complexity to the chart.
+2. **DECIDED: Two-phase sort/filter uses observable intermediate state (NOT self-send).** The statechart uses intermediate states (`:state/sorting`, `:state/filtering`) that are observable by the UI. The intermediate state sets `:busy? true` on entry, performs the sort/filter, and transitions back to `:state/ready`. This matches how the original UISM worked and allows the UI to show loading indicators.
 
-3. **State machine composability**: The incrementally-loaded machine currently modifies the standard machine via `assoc-in`. Statecharts don't support this pattern. Should we:
-   - (a) Make each variant a completely separate statechart (code duplication)
-   - (b) Use shared expression functions with different chart structures (recommended)
-   - (c) Use `invoke` to compose sub-charts
+3. **DECIDED: Report variants use separate charts with shared expressions.** Each variant (standard, server-paginated, incrementally-loaded) is a completely separate statechart definition, but they share expression functions from a common namespace. This avoids the `assoc-in` modification pattern that statecharts don't support, while keeping expression logic DRY.
 
 4. **Routing integration**: How does the statecharts routing system handle the `will-enter` / `route-deferred` pattern? This depends on the routing spec. Reports need to know when they are the target of navigation to begin loading.
 
@@ -564,7 +592,7 @@ Users who extend the default `report-machine` by `assoc-in` on the machine map (
 9. [ ] Server-paginated report loads pages on demand with correct indexed-access params
 10. [ ] Server-paginated report caches pages and serves from cache on back-navigation
 11. [ ] Incrementally-loaded report loads all chunks before processing
-12. [ ] Custom machine override via `ro/machine` works with statechart registry keys
+12. [ ] Custom machine override via `ro/statechart` works with statechart registry keys
 13. [ ] Public API functions (`run-report!`, `filter-rows!`, etc.) work unchanged for callers
 14. [ ] Controls (buttons, inputs) correctly send events to report statechart
 15. [ ] All three variants are headless-testable (CLJC)
@@ -579,4 +607,4 @@ Users who extend the default `report-machine` by `assoc-in` on the machine map (
   - Clarified data storage strategy (prefer Fulcro state via aliases consistently; `ops/assign` only for non-rendered internal data)
   - Referenced macro-rewrites.md for defsc-report changes
   - Fleshed out incrementally-loaded report events (full event list in `:state/ready`)
-  - Specified `ro/machine` override mechanics (inline chart, pre-registered keyword, or default)
+  - Specified `ro/statechart` override mechanics (inline chart, pre-registered keyword, or default)

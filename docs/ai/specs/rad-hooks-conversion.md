@@ -25,7 +25,7 @@ Current behavior:
 6. Returns `{:form-factory, :form-props, :form-state}`
 
 Key UISM integration points:
-- `fo/machine` -- optional custom form machine override
+- `fo/statechart` -- optional custom form machine override
 - `form/form-machine` -- default UISM machine
 - `uism/begin!` with actor `:actor/form`
 - Event data includes `:on-saved`, `:on-cancel`, `::form/create?`
@@ -228,7 +228,7 @@ The statechart's on-entry for the "saved" state would look at session data for t
 ## Open Questions
 
 - Should `use-statechart` in the statecharts library be refactored to expose a lower-level `use-statechart-session` hook, or should the RAD hooks manage the lifecycle independently?
-- The current `use-form` supports a custom `:fo/machine` override on the Form component. Should this be preserved as a `:statechart` override, or should all forms use a single canonical form statechart?
+- The current `use-form` supports a custom `:fo/statechart` override on the Form component. Should this be preserved as a `:statechart` override, or should all forms use a single canonical form statechart?
 - Should the `:form-state` / `:report-state` return values be the raw statechart configuration set, or the legacy keyword mapping? Raw is more powerful but breaks backward compatibility.
 - How should `use-form`'s `:embedded? true` flag translate to the statechart model? The form statechart likely needs to know it was started by a hook (not routing) to skip route-exit behavior.
 - The current `use-report` calls `report/start-report!` which does UISM + data loading. In the statechart model, should data loading be triggered by the report statechart's initial state entry, or should the hook explicitly load?

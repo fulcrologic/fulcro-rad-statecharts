@@ -385,15 +385,15 @@ How `fo/route-prefix` maps to the routing chart: the RAD form option `fo/route-p
 
 ## Open Questions
 
-1. **`defsc-form` / `defsc-report` macros**: These macros currently generate `form-will-enter` / `report-will-enter` / route-segment. Should they instead generate `sfro/statechart` and `sfro/busy?` options? Or should the macros be simplified since routing integration is now declarative in the routing chart rather than embedded in each component?
+1. **DECIDED: Macros generate `sfro/statechart` and `sfro/busy?`.** The `defsc-form` / `defsc-report` macros no longer generate `form-will-enter` / `report-will-enter` / `:route-segment`. They instead generate `sfro/statechart`, `sfro/busy?`, and `sfro/initialize` component options. See `macro-rewrites.md`.
 
-2. **Route prefix vs route/segment**: RAD forms use `fo/route-prefix` (e.g. `"account"`). Statecharts routing uses `:route/segment` on `rstate`/`istate`. These are equivalent but configured in different places (component options vs routing chart). Where should the segment be specified?
+2. **DECIDED: Route segments live only on `istate` in the routing chart.** The `:route/segment` is specified in the user-defined routing chart, not on the component. `fo/route-prefix` is no longer used for route-segment generation in macros.
 
 3. **`update-route-params!` replacement**: Several RAD controls use `update-route-params!` to persist control values in the URL. What is the idiomatic statecharts replacement? Should controls store values in their parent chart's data model, with URL sync reflecting it?
 
 4. **Backward compatibility period**: Should `routing.cljc` include deprecation wrappers for removed functions (`install-routing!`, `absolute-path`, `can-change-route?`) that log warnings, or just remove them?
 
-5. **`defsc-form` route-segment generation**: Currently `defsc-form` auto-generates a `:route-segment` for Dynamic Router. With statecharts, route segments live in the routing chart definition. Should `defsc-form` stop generating route-segment, or should it be kept for backward compat with apps that haven't migrated their routing chart yet?
+5. **DECIDED: No `:route-segment` in macros.** `defsc-form` / `defsc-report` no longer generate `:route-segment`. Route segments live in the routing chart definition on `istate`.
 
 ## Revision History
 

@@ -64,7 +64,7 @@ The overarching pattern: functions that use `uism/trigger!` internally will swit
 
 | Function | Current Signature | New Signature | Internal Change | Breaking? |
 |---|---|---|---|---|
-| `form-machine` (defstatemachine) | UISM definition | Replaced by statechart definition | Complete rewrite from UISM to statechart | **Yes** (if referenced directly) |
+| `form-machine` (defstatemachine) | UISM definition | Replaced by `form-chart` statechart definition. Option renamed from `fo/machine` to `fo/statechart`. | Complete rewrite from UISM to statechart | **Yes** (if referenced directly) |
 | `undo-via-load!` | `[app-ish form-class form-ident]` | Unchanged | Uses `df/load!`, no direct UISM dependency | No |
 | `wrap-env` | `[handler]` | Unchanged | Pathom middleware, no UISM dependency | No |
 | `pathom-plugin` | `[save-middleware delete-middleware]` | Unchanged | Server-side, no UISM dependency | No |
@@ -229,7 +229,7 @@ The `set-parameter` mutation currently calls `rad-routing/update-route-params!` 
 
 1. **`route-to!` signature compatibility**: The current `route-to!` has two arities: `[app options-map]` and `[app RouteTarget route-params]`. The statecharts `route-to!` takes `[app-ish target]` or `[app-ish target data]`. Should we maintain a compatibility wrapper that detects the old `[app options-map]` pattern (has `:target` key)?
 
-2. **`start-form!` / `start-report!` / `start-container!` visibility**: These are currently public and called by `*-will-enter`. With statecharts, they are called from `istate` on-entry. Should they remain public (for non-routing usage like embedding a report inline) or become internal?
+2. **DECIDED: `start-form!` / `start-report!` remain public.** They are needed for non-routed use cases (e.g., embedding a form in a modal, inline subforms, hook-based usage). For routed forms, the routing system starts the chart automatically via `istate`. `start-container!` also remains public for the same reason.
 
 3. **`form/trigger!` session-id discovery**: The 4-arity `trigger!` currently takes a form ident (which is also the UISM asm-id). With statecharts, the session-id may differ from the form ident. How do callers discover the session-id? Options: (a) convention that session-id equals form ident, (b) store session-id on the component, (c) use `send-to-self!` pattern.
 

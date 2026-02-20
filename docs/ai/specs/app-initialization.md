@@ -358,7 +358,7 @@ This replaces the UISM-based `route-denied?`, `continue-abandoned-route!`, and `
 ## Open Questions
 
 - Should `fulcro-rad-app` be updated to optionally call `install-fulcro-statecharts!` automatically, or should it remain a separate step? Recommendation: keep separate for clarity and testability.
-- Should the routing chart be auto-generated from form/report definitions, or must the user manually define it? Current recommendation: user manually defines it. Auto-generation could be a v2 convenience.
+- **DECIDED: Routing chart is user-defined.** The user manually defines their routing chart using `rstate`/`istate`. RAD does NOT auto-generate the routing chart from form/report definitions. Auto-generation may be considered for a future version, but for v1 the chart is explicitly authored by the application developer.
 
 ## Verification
 
