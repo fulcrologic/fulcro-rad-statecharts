@@ -94,5 +94,6 @@ All questions resolved by human review 2026-02-20. See [critique-round-2.md](pla
 
 ## Important Notes
 
-- **fulcro-rad-datomic** is in this directory for reference — do NOT edit it, but maintain compatible names so it can reference this library
+- **fulcro-rad-datomic** is at `../fulcro-rad-datomic/` for reference — do NOT edit it, but maintain compatible names so it can reference this library
+- All sibling projects referenced by specs live in the parent directory (`../`). See [WORKFLOW.md](WORKFLOW.md) for the full convention.
 - **Classpath warning:** The demo deps.edn MUST use `:override-deps` to exclude old fulcro-rad from transitive dependencies. Old RAD on the classpath will cause conflicts.

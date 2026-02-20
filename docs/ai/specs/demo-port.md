@@ -8,8 +8,8 @@ Port the Datomic portion of fulcro-rad-demo into `src/demo` of this project, con
 
 ## Source Reference
 
-- **fulcro-rad-demo:** `/Users/tonykay/fulcrologic/fulcro-rad-demo/` — Datomic backend with forms, reports, containers, picker options, subforms, validation
-- **dataico-expansion:** `/Users/tonykay/fulcrologic/dataico-expansion/` — Reference for headless full-stack testing pattern
+- **fulcro-rad-demo:** `../fulcro-rad-demo/` — Datomic backend with forms, reports, containers, picker options, subforms, validation
+- **dataico-expansion:** `../dataico-expansion/` — Reference for headless full-stack testing pattern
 
 ## What to Port (Datomic only)
 
@@ -98,7 +98,7 @@ fulcro-rad-datomic (and other RAD database adapters) depend on old `com.fulcrolo
 
 This ensures all RAD references resolve to this project (fulcro-rad-statecharts), not the published fulcro-rad artifact. Without this, transitive deps from fulcro-rad-datomic will pull in the old RAD and cause conflicts.
 
-**Reference:** fulcro-rad-datomic source is at `/Users/tonykay/fulcrologic/fulcro-rad-datomic/` — maintain compatible namespace names so it can reference this library without modification.
+**Reference:** fulcro-rad-datomic source is at `../fulcro-rad-datomic/` — maintain compatible namespace names so it can reference this library without modification.
 
 ## Acceptance Criteria
 

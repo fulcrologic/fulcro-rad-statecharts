@@ -10,7 +10,7 @@
 
 fulcro-rad is being forked into fulcro-rad-statecharts. The new project replaces Fulcro UI State Machines (UISMs) with the fulcrologic statecharts library. This spec covers all build/project configuration changes needed before any code conversion begins.
 
-The project currently lives at `/Users/tonykay/fulcrologic/fulcro-rad-statecharts/` and was cloned from fulcro-rad. The statecharts library is developed locally at `../statecharts`.
+This project was cloned from fulcro-rad. The statecharts library is developed locally at `../statecharts`. All sibling projects (fulcro-rad-demo, fulcro-rad-datomic, etc.) live in the parent directory (`../`).
 
 ## Requirements
 

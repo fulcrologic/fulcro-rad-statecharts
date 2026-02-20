@@ -1,5 +1,9 @@
 # fulcro-rad-statecharts Workflow
 
+## Sibling Project Locations
+
+All related projects (fulcro-rad-demo, fulcro-rad-datomic, statecharts, dataico-expansion, fulcro-rad-semantic-ui, etc.) live in the **parent directory** (`../`). Specs reference them using relative paths like `../fulcro-rad-demo/`. Do not use absolute paths — developers may have the projects checked out in different locations, but the parent directory structure is consistent.
+
 ## The Conductor Pattern
 
 The main conversation orchestrates work; agents do the heavy lifting.
@@ -9,6 +13,15 @@ The main conversation orchestrates work; agents do the heavy lifting.
 - 15+ turns deep -> spawn fresh agent
 - Each agent should use < 50% context window
 - Load primary skill first when spawning agents
+
+## Maintaining Context
+
+As you work, **create and update `CLAUDE.md` files in subdirectories** to preserve decisions, patterns, and gotchas for future sessions and agents. These are compact memory files, not documentation — bullet points, not essays.
+
+- Create them close to the code: e.g. `src/main/com/fulcrologic/rad/form/CLAUDE.md`
+- Record non-obvious decisions, discovered conventions, and pitfalls
+- Update them when things change — stale notes are worse than no notes
+- Check for an existing `CLAUDE.md` in a directory before starting work there
 
 ## Spec Lifecycle
 
