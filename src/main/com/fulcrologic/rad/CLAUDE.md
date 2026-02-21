@@ -98,19 +98,21 @@ Map-based dispatch keys removed from source code:
 - **form-allow-route-change**: Reads `:abandoned?` from `[::sc/local-data session-id :abandoned?]`
 - **Chart registration**: `start-form!` registers `::form-chart` on first use if no custom chart specified
 - **on-change trigger**: New breaking signature returns ops vector: `(fn [env data form-ident key old new] -> [ops])`
-- **UISM remains in requires**: The `uism` require stays for backward compat (defstatemachine, form-machine still defined but superseded)
+- **UISM fully removed**: All `uism` requires, `form-machine` defstatemachine, and UISM helper functions have been deleted. This is a new library — backward compat with old UISM code is not a goal.
 - **invoke-remote for save**: Uses `fops/invoke-remote` with `[(list save-mutation params)]` vector pattern
 - **Query change**: `[::uism/asm-id '_]` removed from generated form query
 - **fo/\* option access**: NEVER use `::fo/keys` destructuring in expressions — `::fo/` resolves to `form-options` ns, but keys live in `form` ns. Use `(get opts fo/var-name)` instead.
 - **form-ns keywords in expressions**: Use `(keyword "com.fulcrologic.rad.form" "name")` since `::form/name` would resolve to wrong ns
 - **CLJ compat**: Use `rc/component-type` not `rc/react-type` (CLJS-only)
 
-### Files Still Containing UISM References
-- `form.cljc` still has the old `form-machine` defstatemachine and UISM helper functions (`start-edit`, `start-create`, `leave-form`, `auto-create-to-one`, etc.) for backward compatibility. These are no longer used by the default flow but remain available.
-- The UISM require remains because removing it would break any code that still references `form-machine` directly.
-
-### Stubbed Functions Status (updated)
-- `form/view!`, `form/edit!`, `form/create!` — still stubbed, pending statechart routing conversion (see routing-statechart spec)
+### UISM Removal Complete
+- All `uism` requires removed from `form.cljc`, `report.cljc`, `debugging.cljc`, `application.cljc`
+- `form-machine` defstatemachine and all UISM helper functions deleted from `form.cljc`
+- `report-machine` defstatemachine and all UISM helper functions deleted from `report.cljc`
+- `form/view!`, `form/edit!`, `form/create!` stubs removed — use `routing/edit!` and `routing/create!` instead
+- `::uism/asm-id` in `application.cljc` blacklist replaced with raw qualified keyword
+- UISM test in `form_spec.cljc` removed (tested deleted `form/start-create`)
+- `dynamic-routing` requires removed from `form.cljc` and `report.cljc`
 
 ## Container Statechart Conversion
 
@@ -147,7 +149,7 @@ Map-based dispatch keys removed from source code:
 - **`rc/nc` not `comp/nc`**: Use `fulcro.raw.components/nc` for dynamic component creation
 - **No `fops/send-self`**: Statecharts doesn't have a self-send operation; use `ops/assign` with a flag and conditional eventless transitions instead (see incrementally-loaded report)
 - **`::machine` option key**: `ro/machine` is deprecated; `ro/statechart` now exists and the macro generates sfro options from it
-- **UISM code retained**: Old `report-machine` and UISM handlers remain in `report.cljc` for backward compat
+- **UISM fully removed**: Old `report-machine` and all UISM handlers deleted from `report.cljc`
 - **Server-paginated aliases**: Adds `:page-cache`, `:loaded-page`, `:total-results`, `:point-in-time` aliases beyond the standard set
 - **Incrementally-loaded data model**: Uses `ops/assign` for `:last-load-time` and `:raw-items-in-table` (session-local cache tracking)
 
