@@ -36,7 +36,8 @@
    [com.fulcrologic.statecharts :as sc]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.rad.sc.session :as sc.session]
-   [com.fulcrologic.rad.form-chart :as form-chart]))
+   [com.fulcrologic.rad.form-chart :as form-chart]
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
 
 (def ^:dynamic *default-save-form-mutation* `save-form)
 
@@ -444,6 +445,13 @@
         dirty?          (and (not abandoned?) (fs/dirty? form-props))]
     (or silent-abandon? read-only? (not dirty?))))
 
+(defn form-busy?
+  "Returns true if the form has unsaved changes. Used by the routing system
+   (via `sfro/busy?`) to guard against navigating away from dirty forms."
+  [env data & _]
+  (let [{:actor/keys [form]} (scf/resolve-actors env :actor/form)]
+    (boolean (and form (fs/dirty? form)))))
+
 (defn form-pre-merge
   "Generate a pre-merge for a component that has the given for attribute map. Returns a proper
   pre-merge fn, or `nil` if none is needed"
@@ -482,8 +490,9 @@
   [get-class location options]
   (required! location options ::attributes vector?)
   (required! location options ::id attr/attribute?)
-  (let [{::keys [id attributes route-prefix query-inclusion]
-         :keys  [will-enter]} options
+  (let [{::keys [id attributes query-inclusion]} options
+        will-enter                 (:will-enter options)
+        user-statechart            (::statechart options)
         id-key                     (::attr/qualified-key id)
         form-field?                (fn [{::attr/keys [identity? computed-value]}] (and
                                                                                    (not computed-value)
@@ -493,19 +502,7 @@
         Form                       (get-class)
         base-options               (merge
                                     {::validator        (attr/make-attribute-validator (form-and-subform-attributes Form) true)
-                                     ::control/controls standard-controls
-                                     :route-denied      (fn [this relative-root proposed-route timeouts-and-params]
-                                                          (let [rroot (cond
-                                                                        (comp/component-class? relative-root) (comp/class->registry-key relative-root)
-                                                                        (keyword? relative-root) relative-root
-                                                                        :else (some-> relative-root (comp/react-type) (comp/class->registry-key)))
-                                                                session-id (sc.session/form-session-id this)]
-                                                            (scf/send! this session-id
-                                                                       :event/route-denied
-                                                                       {:form                (some-> (get-class) (comp/class->registry-key))
-                                                                        :relative-root       rroot
-                                                                        :route               proposed-route
-                                                                        :timeouts-and-params timeouts-and-params})))}
+                                     ::control/controls standard-controls}
                                     options
                                     (cond->
                                      {:ident               (fn [_ props] [id-key (get props id-key)])
@@ -515,18 +512,16 @@
                                                                  (comp
                                                                   (filter form-field?)
                                                                   (map ::attr/qualified-key))
-                                                                 attributes)}
+                                                                 attributes)
+                                      sfro/busy?           form-busy?
+                                      sfro/initialize      :always}
                                       pre-merge (assoc :pre-merge pre-merge)
-                                      route-prefix (merge {:route-segment       [route-prefix :action :id]
-                                                           :allow-route-change? form-allow-route-change
-                                                           :will-leave          (fn [this props] (form-will-leave this))
-                                                           :will-enter          (or will-enter
-                                                                                    (fn [app route-params]
-                                                                                      (form-will-enter app route-params (get-class))))})))
+                                      (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
+                                      (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart form-chart/form-chart))))
         attribute-query-inclusions (set (mapcat ::query-inclusion attributes))
         inclusions                 (set/union attribute-query-inclusions (set query-inclusion))]
-    (when (and #?(:cljs goog.DEBUG :clj true) will-enter (not route-prefix))
-      (warn-once! "NOTE: There's a :will-enter option in form/defsc-form" location "that will be ignored because ::report/route-prefix is not specified"))
+    (when (and #?(:cljs goog.DEBUG :clj true) will-enter)
+      (warn-once! "WARNING: :will-enter in defsc-form" location "is ignored. Routing lifecycle is managed by statecharts routing."))
     (assoc base-options :query (fn [_] (cond-> (form-options->form-query base-options)
                                          (seq inclusions) (into inclusions))))))
 
@@ -586,21 +581,19 @@
 
 #?(:clj
    (defmacro defsc-form
-     "Create a UISM-managed RAD form. The interactions are tunable by redefining the state machine using the
-      `fo/machine` option, and the rendering can either be generated (if you specify no body and have a UI
-      plugin), or can be hand-coded as the body. See `render-layout` and `render-field`.
+     "Create a statechart-managed RAD form. The interactions are tunable by providing a custom statechart
+      via the `fo/statechart` option, and the rendering can either be generated (if you specify no body and
+      have a UI plugin), or can be hand-coded as the body. See `render-layout` and `render-field`.
 
       This macro supports most of the same options as the normal `defsc` macro (you can use component lifecycle, hooks,
       etc.), BUT it generates the query/ident/initial state for you.
 
-      If you do specify a `fo/route-prefix` then it also generate dynamic routing configuration, of which
-      you may ONLY override :route-denied to supply a more appropriate
-      UI interaction for notifying the user there are unsaved changes, but all other dynamic routing options
-      will be defined by the macro. If you do not specify a route-prefix then you MAY supply dynamic routing options, but
-      you should understand how they are meant to interact by reading the state machine definition (see form-machine
-      source code in this namespace).
+      Routing lifecycle is managed by the statecharts routing system via `sfro/statechart`, `sfro/busy?`,
+      and `sfro/initialize`. The macro does NOT generate `:will-enter`, `:will-leave`, `:route-segment`,
+      or `:allow-route-change?` — route segments are defined on `istate` in the routing chart.
 
-      In general if you want to augment the form I/O then you should override `fo/machine` and integrate your logic into there.
+      In general if you want to augment the form I/O then you should override `fo/statechart` and integrate
+      your logic into the statechart definition.
       "
      [& args]
      (try

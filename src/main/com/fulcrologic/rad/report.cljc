@@ -43,7 +43,8 @@
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [edn-query-language.core :as eql]
    [taoensso.encore :as enc]
-   [taoensso.timbre :as log]))
+   [taoensso.timbre :as log]
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
 
 (defn report-ident
   "Returns the ident of a RAD report. The parameter can be a react instance, a class, or the registry key(word)
@@ -629,38 +630,41 @@
          subquery          `(comp/get-query ~ItemClass)
          nspc              (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
          fqkw              (keyword (str nspc) (name sym))
+         user-statechart   (::statechart options)
          query             (into [::id
                                   :ui/parameters
                                   :ui/cache
                                   :ui/busy?
                                   :ui/page-count
                                   :ui/current-page
-                                  [::uism/asm-id [::id fqkw]]
                                   [::picker-options/options-cache (quote '_)]
                                   {:ui/controls `(comp/get-query Control)}
                                   {:ui/current-rows subquery}
                                   [df/marker-table '(quote _)]]
                                  query-inclusions)
+         _                 (when (contains? options :will-enter)
+                             (log/warn "defsc-report" sym ":will-enter is ignored. Routing lifecycle is managed by statecharts routing."))
          options           (merge
-                            {::compare-rows `default-compare-rows
-                             :will-enter    `(fn [app# route-params#] (report-will-enter app# route-params# ~sym))}
+                            {::compare-rows `default-compare-rows}
                             options
-                            {:route-segment (if (vector? route) route [route])
-                             ::BodyItem     ItemClass
-                             :query         query
-                             :initial-state (list 'fn ['params]
-                                                  `(let [user-ui-props# (?! ~initialize-ui-props ~sym ~'params)]
-                                                     (cond-> {:ui/parameters   {}
-                                                              :ui/cache        {}
-                                                              :ui/controls     (mapv #(select-keys % #{::control/id})
-                                                                                     (remove :local? (control/control-map->controls ~controls)))
-                                                              :ui/busy?        false
-                                                              :ui/current-page 1
-                                                              :ui/page-count   1
-                                                              :ui/current-rows []}
-                                                       (contains? ~'params ::id) (assoc ::id (::id ~'params))
-                                                       (seq user-ui-props#) (merge user-ui-props#))))
-                             :ident         (list 'fn [] [::id `(or (::id ~props-sym) ~fqkw)])})
+                            (cond-> {::BodyItem      ItemClass
+                                     sfro/initialize :once
+                                     :query          query
+                                     :initial-state  (list 'fn ['params]
+                                                           `(let [user-ui-props# (?! ~initialize-ui-props ~sym ~'params)]
+                                                              (cond-> {:ui/parameters   {}
+                                                                       :ui/cache        {}
+                                                                       :ui/controls     (mapv #(select-keys % #{::control/id})
+                                                                                              (remove :local? (control/control-map->controls ~controls)))
+                                                                       :ui/busy?        false
+                                                                       :ui/current-page 1
+                                                                       :ui/page-count   1
+                                                                       :ui/current-rows []}
+                                                                (contains? ~'params ::id) (assoc ::id (::id ~'params))
+                                                                (seq user-ui-props#) (merge user-ui-props#))))
+                                     :ident          (list 'fn [] [::id `(or (::id ~props-sym) ~fqkw)])}
+                              (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
+                              (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart report-chart/report-statechart))))
          body              (if (seq (rest args))
                              (rest args)
                              [`(render-layout ~this-sym)])
@@ -686,9 +690,9 @@
                                  ~body-options
                                  (render-row (:report-instance computed#) ~generated-row-sym ~props-sym))
                               `(comp/defsc ~sym ~arglist ~options ~@body)]
-                             [`(comp/defsc ~sym ~arglist ~options ~@body)])]
+                             [`(comp/defsc ~sym ~arglist ~options ~@body)])
          `(do
-            ~@defs)))))
+            ~@defs)]))))
 
 #?(:clj (s/fdef defsc-report :args ::comp/args))
 

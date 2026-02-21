@@ -23,6 +23,7 @@
    #?@(:clj
        [[cljs.analyzer :as ana]])
    [com.fulcrologic.fulcro.data-fetch :as df]
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
    [taoensso.timbre :as log]
    [taoensso.encore :as enc]
    [clojure.spec.alpha :as s]))
@@ -98,24 +99,27 @@
          (throw (ana/error &env (str "defsc-container " sym " has no declared children."))))
        (when (and route (not (string? route)))
          (throw (ana/error &env (str "defsc-container " sym " ::route, when defined, must be a string."))))
-       (let [query-expr (into [:ui/parameters
-                               {:ui/controls `(comp/get-query Control)}
-                               [df/marker-table '(quote _)]]
-                              (map (fn [[id child-sym]] `{~id (comp/get-query ~child-sym)}) children))
-             query      (list 'fn '[] query-expr)
-             nspc       (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
-             fqkw       (keyword (str nspc) (name sym))
-             options    (cond-> (assoc options
-                                       :query query
-                                       :initial-state (list 'fn '[_]
-                                                            `(into {:ui/parameters {}
-                                                                    :ui/controls   (mapv #(select-keys % #{::control/id}) (control/control-map->controls ~controls))}
-                                                                   (map (fn [[id# c#]] [id# (comp/get-initial-state c# {::report/id id#})]) ~children)))
-                                       :ident (list 'fn [] [::id fqkw]))
-                          (string? route) (assoc
-                                           :route-segment [route]
-                                           :will-enter `(fn [app# route-params#] (container-will-enter app# route-params# ~sym))))
-             body       (if (seq (rest args))
-                          (rest args)
-                          [`(render-layout ~this-sym)])]
+       (when (contains? options :will-enter)
+         (log/warn "defsc-container" sym ":will-enter is ignored. Routing lifecycle is managed by statecharts routing."))
+       (let [query-expr       (into [:ui/parameters
+                                     {:ui/controls `(comp/get-query Control)}
+                                     [df/marker-table '(quote _)]]
+                                    (map (fn [[id child-sym]] `{~id (comp/get-query ~child-sym)}) children))
+             query            (list 'fn '[] query-expr)
+             nspc             (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
+             fqkw             (keyword (str nspc) (name sym))
+             user-statechart  (::statechart options)
+             options          (cond-> (assoc options
+                                             :query query
+                                             :initial-state (list 'fn '[_]
+                                                                  `(into {:ui/parameters {}
+                                                                          :ui/controls   (mapv #(select-keys % #{::control/id}) (control/control-map->controls ~controls))}
+                                                                         (map (fn [[id# c#]] [id# (comp/get-initial-state c# {::report/id id#})]) ~children)))
+                                             :ident (list 'fn [] [::id fqkw])
+                                             sfro/initialize :once)
+                                (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
+                                (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart container-chart/container-statechart)))
+             body             (if (seq (rest args))
+                                (rest args)
+                                [`(render-layout ~this-sym)])]
          `(comp/defsc ~sym ~arglist ~options ~@body)))))

@@ -12,10 +12,10 @@
   at *compile* time. No dynamic tricks please. The form and report macros must be able to resolve the option
   symbols during evaluation."
   (:require
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.options-util :refer [?! defoption]]
-    [taoensso.timbre :as log]))
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.options-util :refer [?! defoption]]
+   [taoensso.timbre :as log]))
 
 (def id
   "RForm option. EQUIRED: The *attribute* that will act as the primary key for this form."
@@ -373,9 +373,14 @@
   :com.fulcrologic.rad.form/can-add?)
 
 (def machine
-  "Override the state machine definition that is used to control this form. Defaults to form/form-machine, which
-   you can use as a basis of your replacement (a state machine definition is just a map)."
+  "DEPRECATED: Use `statechart` instead. Override the state machine definition that is used to control this form."
   :com.fulcrologic.rad.form/machine)
+
+(def statechart
+  "Override the statechart definition that is used to control this form. Defaults to `form/form-statechart`.
+   Can be either a statechart definition (the output of `statechart`) or a keyword referencing a pre-registered
+   chart ID. When a keyword is given, the macro sets `sfro/statechart-id` instead of `sfro/statechart`."
+  :com.fulcrologic.rad.form/statechart)
 
 (def debug?
   "Indicate a desire to show debug information about the form. Requires support from the rendering plugin."
@@ -466,13 +471,13 @@
   ([form-options]
    (let [ref-attrs (filterv #(= :ref (ao/type %)) (attributes form-options))]
      (reduce
-       (fn [acc attr]
-         (let [opts (subform-options form-options attr)]
-           (if (seq opts)
-             (assoc acc (ao/qualified-key attr) opts)
-             acc)))
-       {}
-       ref-attrs)))
+      (fn [acc attr]
+        (let [opts (subform-options form-options attr)]
+          (if (seq opts)
+            (assoc acc (ao/qualified-key attr) opts)
+            acc)))
+      {}
+      ref-attrs)))
   ([form-options ref-attr-or-key]
    (let [k->a         (:com.fulcrologic.rad.form/key->attribute form-options)
          ref-attr     (cond-> ref-attr-or-key
@@ -488,13 +493,13 @@
   "Use form/get-field-options instead."
   ([form-options]
    (reduce
-     (fn [acc attr]
-       (let [opts (get-field-options form-options attr)]
-         (if (seq opts)
-           (assoc acc (ao/qualified-key attr) opts)
-           acc)))
-     {}
-     (attributes form-options)))
+    (fn [acc attr]
+      (let [opts (get-field-options form-options attr)]
+        (if (seq opts)
+          (assoc acc (ao/qualified-key attr) opts)
+          acc)))
+    {}
+    (attributes form-options)))
   ([form-options attr-or-key]
    (let [k->a         (:com.fulcrologic.rad.form/key->attribute form-options)
          attr         (cond-> attr-or-key
@@ -513,7 +518,7 @@
         sfoptions     (subform-options form-options attribute)
         SubForm       (?! (ui sfoptions) form-options k)]
     (or
-      (?! (get-in form-options [default-values k]) form-options attribute)
-      (?! (default-values (subform-options form-options attribute)) form-options attribute)
-      (?! (get-in (some-> SubForm rc/component-options) [default-values k]) form-options attribute)
-      (?! default-value form-options attribute))))
+     (?! (get-in form-options [default-values k]) form-options attribute)
+     (?! (default-values (subform-options form-options attribute)) form-options attribute)
+     (?! (get-in (some-> SubForm rc/component-options) [default-values k]) form-options attribute)
+     (?! default-value form-options attribute))))

@@ -397,9 +397,14 @@
   :com.fulcrologic.rad.report/rotate?)
 
 (def machine
-  "Override the state machine definition that is used to control this report. Defaults to report/report-machine, which
-   you can use as a basis of your replacement (a state machine definition is just a map)."
+  "DEPRECATED: Use `statechart` instead. Override the state machine definition that is used to control this report."
   :com.fulcrologic.rad.report/machine)
+
+(def statechart
+  "Override the statechart definition that is used to control this report. Defaults to `report/report-statechart`.
+   Can be either a statechart definition (the output of `statechart`) or a keyword referencing a pre-registered
+   chart ID. When a keyword is given, the macro sets `sfro/statechart-id` instead of `sfro/statechart`."
+  :com.fulcrologic.rad.report/statechart)
 
 (def post-process
   "A `(fn [uism-env] new-env)` that will be called just after rows have been sorted/filtered/paginated, but before
