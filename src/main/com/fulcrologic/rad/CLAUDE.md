@@ -151,6 +151,15 @@ Map-based dispatch keys removed from source code:
 - **Server-paginated aliases**: Adds `:page-cache`, `:loaded-page`, `:total-results`, `:point-in-time` aliases beyond the standard set
 - **Incrementally-loaded data model**: Uses `ops/assign` for `:last-load-time` and `:raw-items-in-table` (session-local cache tracking)
 
+### Critical Bug Fix: `fops/apply-action` with `(constantly snapshot)` (Feb 2026)
+- **NEVER** use `(fops/apply-action (constantly snapshot))` where `snapshot` is a captured state-map
+- `fops/apply-action` runs via `transact!!` containing `do-apply-action` mutation, which does `(swap! state (fn [s] (apply f s args)))`
+- If `f` is `(constantly snapshot)`, it replaces the ENTIRE Fulcro state including statechart working memory
+- In headless/immediate mode, the ok-action callback may have already updated working memory (e.g. #{:state/ready}) between when the snapshot was captured and when the deferred `transact!!` executes
+- The snapshot overwrites working memory back to its old value (e.g. #{:state/loading}), causing the statechart to appear stuck
+- **Fix**: Pass a transform function that applies changes to the current state at swap-time, not a snapshot replacement
+- Example: `(fops/apply-action (fn [current] (-> current (transform1 data) (transform2 data))))` instead of `(fops/apply-action (constantly pre-computed))`
+
 ## Macro Rewrites (Statecharts Routing Integration)
 
 ### defsc-form
