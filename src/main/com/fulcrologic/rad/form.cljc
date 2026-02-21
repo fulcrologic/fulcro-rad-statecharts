@@ -433,10 +433,34 @@
 
 (defn form-busy?
   "Returns true if the form has unsaved changes. Used by the routing system
-   (via `sfro/busy?`) to guard against navigating away from dirty forms."
-  [env data & _]
-  (let [{:actor/keys [form]} (scf/resolve-actors env :actor/form)]
-    (boolean (and form (fs/dirty? form)))))
+   (via `sfro/busy?`) to guard against navigating away from dirty forms.
+
+   Works in two contexts:
+   - Form's own statechart: resolves `:actor/form` from the session actors
+   - Routing statechart: falls back to `:route/idents` + `ui->props` when actors
+     aren't available (requires `FormClass` to be passed)"
+  ([env data & _]
+   (let [{:actor/keys [form]} (scf/resolve-actors env :actor/form)]
+     (boolean (and form (fs/dirty? form))))))
+
+(defn make-form-busy-fn
+  "Creates a busy? function for `FormClass` that works in both the form's own
+   statechart context (via actor resolution) and the routing statechart context
+   (via :route/idents from routing local data)."
+  [FormClass]
+  (fn [env data & _]
+    (let [{:actor/keys [form]} (scf/resolve-actors env :actor/form)]
+      (if form
+        (boolean (fs/dirty? form))
+        ;; Routing context: no actors, use route/idents fallback
+        (let [{:route/keys [idents]} data
+              reg-key    (comp/class->registry-key FormClass)
+              form-ident (get idents reg-key)
+              app        (:fulcro/app env)
+              state-map  (when app (raw.app/current-state app))
+              form-props (when (and state-map form-ident)
+                           (fns/ui->props state-map FormClass form-ident))]
+          (boolean (and form-props (fs/dirty? form-props))))))))
 
 (defn form-pre-merge
   "Generate a pre-merge for a component that has the given for attribute map. Returns a proper
@@ -499,7 +523,7 @@
                                                                   (filter form-field?)
                                                                   (map ::attr/qualified-key))
                                                                  attributes)
-                                      sfro/busy?           form-busy?
+                                      sfro/busy?           (make-form-busy-fn Form)
                                       sfro/initialize      :always}
                                       pre-merge (assoc :pre-merge pre-merge)
                                       (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
