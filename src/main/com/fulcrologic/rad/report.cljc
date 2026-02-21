@@ -241,7 +241,6 @@
      Instead, use report-options (aliased as ro below):
 
      ro/columns
-     ro/route
      ro/row-pk
      ro/source-attribute
 
