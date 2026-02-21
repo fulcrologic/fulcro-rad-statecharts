@@ -1,6 +1,6 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-21 | Active: 0 | Blocked: 0 | Backlog: 0 | Done: 17 | Deferred: 3 -->
+<!-- Last updated: 2026-02-21 | Active: 0 | Blocked: 0 | Backlog: 3 | Done: 17 | Deferred: 3 -->
 
 ## Active
 
@@ -12,7 +12,13 @@
 
 ## Backlog
 
-(none)
+### Phase 3: Production Readiness (from critique team audit)
+
+| Spec | Priority | Created | Depends-on | Summary |
+|------|----------|---------|------------|---------|
+| routing-form-integration | P0 | 2026-02-21 | — | Wire routing statechart to use RAD form statechart instead of deprecated `sfr/start-form!` (UISM). The `sfr/` namespace in `../statecharts/` uses `uism/begin!`; routing should call `form/start-form!` (which uses `scf/start!`) instead. This is the #1 gap — forms work through direct API but NOT through routing path. Causes 22/34 form E2E test failures. |
+| fix-e2e-test-failures | P1 | 2026-02-21 | routing-form-integration | Fix remaining E2E test failures: (1) form tests — 22/34 fail, likely fixed by routing-form-integration; (2) routing tests — 8/32 fail on route-guard/dirty-form (HTTP 500 / transit parse errors); (3) remove `(when ...)` guards that skip assertions silently; (4) fix invoice form render exception root cause |
+| headless-load-callback | P1 | 2026-02-21 | — | Fix `fops/load` ok-action not firing in headless mode. Report E2E tests manually send `:event/loaded` as workaround. Likely an event-loop/callback issue in `:immediate` mode. Library-level fix needed in `../statecharts/` or Fulcro headless. |
 
 ## Deferred
 
@@ -63,6 +69,7 @@
 | 1 | 2026-02-20 | 7 critical, 7 important, 5 suggested | [critique-round-1](plans/critique-round-1.md) |
 | 2 | 2026-02-20 | 0 critical, 2 important, 4 suggested -- READY | [critique-round-2](plans/critique-round-2.md) |
 | 3 | 2026-02-21 | 0 critical (after fix), 5 important, 4 suggested | Phase 2 demo-port critique |
+| 4 | 2026-02-21 | 1 critical, 2 important | Full quality audit (5-agent team): compile/test, API, architecture, test validity, ecosystem |
 
 ## Implementation Order (Recommended)
 
@@ -93,13 +100,25 @@
 
 All questions resolved by human review 2026-02-20. See [critique-round-2.md](plans/critique-round-2.md) Section "Consolidated Open Questions for Human Review" for the full list with DECIDED annotations. Only 2 minor items remain open (ident->session-id separator edge case, statecharts release version).
 
-## Known Issues (from Phase 2 Critique)
+## Known Issues (from Critique Rounds 3+4)
 
-- **Form/report lifecycle via routing still uses UISM**: The routing integration (`rad_integration/start-form!`) calls `uism/begin!`, not `scf/start!`. The statechart path (`form_chart.cljc`) exists but is only used when `form/start-form!` is called directly. Wiring the routing integration to use statecharts instead of UISM is a future task.
+### Critical
+- **Routing→form integration still uses UISM** (P0 backlog): `sfr/start-form!` in `../statecharts/` deprecated `rad-integration` ns calls `uism/begin!`. The new form statechart (`form_chart.cljc`) works via direct `form/start-form!` → `scf/start!`, but the routing path bypasses it. Causes 22/34 form E2E test failures.
+
+### Important
 - **`sfr/edit!` sends to wrong session**: Sends to the form's own session instead of the routing session. Workaround: use `scr/route-to!` directly.
-- **`fops/load` ok-action doesn't fire in headless mode**: Reports require manual `:event/loaded` send after HTTP response. Library-level fix needed.
-- **`scf/current-configuration` returns nil in headless Root render**: Route-denied modal can't be tested via hiccup; tests verify state instead.
-- **8 routing E2E test failures**: Route-guard/dirty-form tests fail due to JSON parse errors (server returns HTML instead of transit). Pre-existing issue.
+- **`fops/load` ok-action doesn't fire in headless mode** (P1 backlog): Reports require manual `:event/loaded` send. Library-level fix needed.
+- **8 routing E2E test failures**: Route-guard/dirty-form tests fail (HTTP 500 / transit parse errors from server returning HTML).
+- **Form E2E tests have silent `(when ...)` guards**: 2 tests skip assertions if data is nil, masking failures.
+- **`scf/current-configuration` returns nil in headless Root render**: Route-denied modal can't be tested via hiccup.
+
+### Verified Working
+- Library: 62 tests, 397 assertions, 0 failures
+- Report E2E: 3/3 tests, 21/21 assertions pass
+- Demo startup: compiles, seeds Datomic, serves on port 3000
+- Statechart conversion: confirmed real by architecture review (all `scf/send!`, no active UISM paths)
+- API: coherent and complete for RAD apps; fulcro-rad-datomic fully compatible
+- Ecosystem: all `scf/`/`scr/`/`sfr/`/`sfro/` calls verified against `../statecharts/`
 
 ## Important Notes
 
