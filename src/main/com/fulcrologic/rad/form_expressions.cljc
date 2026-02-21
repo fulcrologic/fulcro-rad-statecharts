@@ -62,7 +62,7 @@
         form-ident (actor-ident data)
         {{:keys [started]} :com.fulcrologic.rad.form/triggers} (some-> FormClass rc/component-options)
         base-ops   [(ops/assign :options (or (:options data) event-data {}))]
-        ;; Note: options may already be in data if passed at start!, or in event-data for UISM compat
+        ;; Note: options may already be in data if passed at start!, or in event-data
         trigger-ops (when (fn? started)
                       (started env data form-ident))]
     (into base-ops (when (seq trigger-ops) trigger-ops))))
@@ -128,22 +128,15 @@
 
 ;; ===== On Loaded Expression =====
 
-(defn on-loaded-expr
-  "Expression that runs when form data has been loaded successfully.
-   Clears errors, handles autocreate, sets up form config, and marks complete."
-  [env data _event-name _event-data]
-  (let [FormClass  (actor-class data)
-        form-ident (actor-ident data)
-        state-map  (:fulcro/state-map data)
-        auto-create-to-one-fn (resolve-form-fn 'auto-create-to-one)
-        handle-user-ui-props-fn (resolve-form-fn 'handle-user-ui-props)
-        ;; Build the ops that would be auto-create-to-one
-        ;; Since auto-create-to-one manipulates state-map directly, we wrap it
-        form-options (rc/component-options FormClass)
-        attributes (get form-options fo/attributes)
-        subforms     (subform-options form-options nil)
+(defn- build-autocreate-ops
+  "Builds ops to auto-create to-one subform entities that are nil and marked with autocreate-on-load?.
+   Returns a sequence of `fops/apply-action` ops, or nil."
+  [FormClass form-ident state-map]
+  (let [form-options  (rc/component-options FormClass)
+        attributes    (get form-options fo/attributes)
+        subforms      (subform-options form-options nil)
         possible-keys (when subforms (set (keys subforms)))
-        form-value   (get-in state-map form-ident)
+        form-value    (get-in state-map form-ident)
         attrs-to-create (when (and attributes possible-keys)
                           (into []
                                 (filter (fn [{::attr/keys [qualified-key type cardinality]}]
@@ -153,51 +146,66 @@
                                            (contains? possible-keys qualified-key)
                                            (= :ref type)
                                            (or (= :one cardinality) (nil? cardinality)))))
-                                attributes))
-        ;; Build autocreate ops
-        autocreate-ops (when (seq attrs-to-create)
-                         (let [default-state-fn (resolve-form-fn 'default-state)]
-                           (mapcat (fn [{::attr/keys [qualified-key target]}]
-                                     (let [ui-class (fo/ui (get subforms qualified-key))
-                                           id (tempid/tempid)
-                                           new-entity (default-state-fn ui-class id)
-                                           new-ident [target id]]
-                                       [(fops/apply-action assoc-in (conj form-ident qualified-key) new-ident)
-                                        (fops/apply-action assoc-in new-ident new-entity)]))
-                                   attrs-to-create)))
-        ;; Build initialize-ui-props ops
-        initialize-ui-props (get form-options fo/initialize-ui-props)
-        ui-props-ops (when initialize-ui-props
-                       [(fops/apply-action
-                         (fn [state-map]
-                           (let [denorm-props    (fns/ui->props state-map FormClass form-ident)
-                                 predefined-keys (set (keys denorm-props))
-                                 ui-props        (?! initialize-ui-props FormClass denorm-props)
-                                 query           (rc/get-query FormClass state-map)
-                                 k->component    (into {}
-                                                       (keep (fn [{:keys [key component]}]
-                                                               (when component {key component})))
-                                                       (:children (eql/query->ast query)))
-                                 all-ks          (set (keys ui-props))
-                                 allowed-keys    (set/difference all-ks predefined-keys)]
-                             (reduce
-                              (fn [s k]
-                                (let [raw-value       (get ui-props k)
-                                      c               (k->component k)
-                                      component-ident (when c (rc/get-ident c raw-value))
-                                      value-to-place  (if (and c (vector? component-ident) (some? (second component-ident)))
-                                                        component-ident
-                                                        raw-value)]
-                                  (cond-> (assoc-in s (conj form-ident k) value-to-place)
-                                    c (merge/merge-component c raw-value))))
-                              state-map
-                              allowed-keys))))])]
+                                attributes))]
+    (when (seq attrs-to-create)
+      (let [default-state-fn (resolve-form-fn 'default-state)]
+        (mapcat (fn [{::attr/keys [qualified-key target]}]
+                  (let [ui-class   (fo/ui (get subforms qualified-key))
+                        id         (tempid/tempid)
+                        new-entity (default-state-fn ui-class id)
+                        new-ident  [target id]]
+                    [(fops/apply-action assoc-in (conj form-ident qualified-key) new-ident)
+                     (fops/apply-action assoc-in new-ident new-entity)]))
+                attrs-to-create)))))
+
+(defn- build-ui-props-ops
+  "Builds ops to initialize user-defined UI props on a loaded form entity.
+   Denormalizes current props, calls the `fo/initialize-ui-props` function, then merges
+   only the new keys (not already present) back into state, normalizing any component values.
+   Returns a vector of ops, or nil."
+  [FormClass form-ident]
+  (let [initialize-ui-props (some-> FormClass rc/component-options (get fo/initialize-ui-props))]
+    (when initialize-ui-props
+      [(fops/apply-action
+        (fn [state-map]
+          (let [denorm-props    (fns/ui->props state-map FormClass form-ident)
+                predefined-keys (set (keys denorm-props))
+                ui-props        (?! initialize-ui-props FormClass denorm-props)
+                query           (rc/get-query FormClass state-map)
+                k->component    (into {}
+                                      (keep (fn [{:keys [key component]}]
+                                              (when component {key component})))
+                                      (:children (eql/query->ast query)))
+                all-ks          (set (keys ui-props))
+                allowed-keys    (set/difference all-ks predefined-keys)]
+            (reduce
+             (fn [s k]
+               (let [raw-value       (get ui-props k)
+                     c               (k->component k)
+                     component-ident (when c (rc/get-ident c raw-value))
+                     value-to-place  (if (and c (vector? component-ident) (some? (second component-ident)))
+                                       component-ident
+                                       raw-value)]
+                 (cond-> (assoc-in s (conj form-ident k) value-to-place)
+                   c (merge/merge-component c raw-value))))
+             state-map
+             allowed-keys))))])))
+
+(defn on-loaded-expr
+  "Expression that runs when form data has been loaded successfully.
+   Clears errors, handles autocreate, sets up form config, and marks complete."
+  [_env data _event-name _event-data]
+  (let [FormClass  (actor-class data)
+        form-ident (actor-ident data)
+        state-map  (:fulcro/state-map data)]
     (log/debug "Loaded. Marking the form complete.")
     (into
      [(fops/assoc-alias :server-errors [])
       (fops/apply-action fs/add-form-config* FormClass form-ident {:destructive? true})
       (fops/apply-action fs/mark-complete* form-ident)]
-     (concat autocreate-ops ui-props-ops))))
+     (concat
+      (build-autocreate-ops FormClass form-ident state-map)
+      (build-ui-props-ops FormClass form-ident)))))
 
 ;; ===== On Load Failed Expression =====
 
@@ -359,16 +367,12 @@
                                                       (assoc-in node [:params id-key] id)
                                                       node))
                                                   children))
-                             txn (eql/ast->query new-ast)]
-                         ;; We need to transact the on-saved txn. Use apply-action to schedule it.
-                         [(fops/apply-action
-                           (fn [state-map]
-                             ;; Side effect: schedule the transaction via the app
-                             (let [app (:fulcro/app env)]
-                               (when app
-                                 (log/debug "Running on-saved tx:" txn)
-                                 (rc/transact! app txn)))
-                             state-map))]))]
+                             txn (eql/ast->query new-ast)
+                             app (:fulcro/app env)]
+                         (when app
+                           (log/debug "Running on-saved tx:" txn)
+                           (rc/transact! app txn))
+                         nil))]
     (into base-ops (concat (or saved-ops []) (or on-saved-ops [])))))
 
 ;; ===== On Save Failed Expression =====
@@ -391,14 +395,11 @@
                         [(fops/assoc-alias :server-errors errors)])
         trigger-ops   (when (fn? save-failed)
                         (save-failed env data form-ident))
-        txn-ops       (when (seq on-save-failed)
-                        [(fops/apply-action
-                          (fn [state-map]
-                            (let [app (:fulcro/app env)]
-                              (when app
-                                (rc/transact! app on-save-failed)))
-                            state-map))])]
-    (into (or base-ops []) (concat (or trigger-ops []) (or txn-ops [])))))
+        _             (when (seq on-save-failed)
+                        (let [app (:fulcro/app env)]
+                          (when app
+                            (rc/transact! app on-save-failed))))]
+    (into (or base-ops []) (or trigger-ops []))))
 
 ;; ===== Undo All Expression =====
 
@@ -430,30 +431,23 @@
         app          (:fulcro/app env)
         base-ops     [(ops/assign :abandoned? true)
                       (fops/apply-action fs/pristine->entity* form-ident)]
-        cancel-ops   (when (seq on-cancel)
-                       [(fops/apply-action
-                         (fn [state-map]
-                           (when app
-                             (rc/transact! app on-cancel))
-                           state-map))])
-        ;; Route away from the form
-        route-ops    (when (and app (not embedded?))
-                       [(fops/apply-action
-                         (fn [state-map]
-                           (when cancel-route
-                             (let [routing-ns (requiring-resolve 'com.fulcrologic.rad.routing/route-to!)]
-                               (cond
-                                 (map? cancel-route)
-                                 (let [{:keys [route]} cancel-route]
-                                   (when (and (seq route) (every? string? route))
-                                     (routing-ns app {:target nil :route-params {:route route}})))
+        ;; Execute on-cancel transaction outside of swap!
+        _            (when (and app (seq on-cancel))
+                       (rc/transact! app on-cancel))
+        ;; Route away from the form outside of swap!
+        _            (when (and app (not embedded?) cancel-route)
+                       (let [route-to! (requiring-resolve 'com.fulcrologic.rad.routing/route-to!)]
+                         (cond
+                           (map? cancel-route)
+                           (let [{:keys [route]} cancel-route]
+                             (when (and (seq route) (every? string? route))
+                               (route-to! app {:target nil :route-params {:route route}})))
 
-                                 (= :none cancel-route) nil
+                           (= :none cancel-route) nil
 
-                                 (and (seq cancel-route) (every? string? cancel-route))
-                                 (routing-ns app {:target nil :route-params {:route cancel-route}}))))
-                           state-map))])]
-    (into base-ops (concat (or cancel-ops []) (or route-ops [])))))
+                           (and (seq cancel-route) (every? string? cancel-route))
+                           (route-to! app {:target nil :route-params {:route cancel-route}}))))]
+    base-ops))
 
 ;; ===== Route Denied Expression =====
 
@@ -485,16 +479,12 @@
   (let [form-ident   (actor-ident data)
         {:keys [form relative-root route timeouts-and-params]} (:desired-route data)
         app          (:fulcro/app env)]
-    (into
-     [(fops/assoc-alias :route-denied? false)
-      (fops/apply-action fs/pristine->entity* form-ident)]
-     (when app
-       [(fops/apply-action
-         (fn [state-map]
-           ;; Retry route via routing system
-           (when-let [routing-ns (requiring-resolve 'com.fulcrologic.statecharts.integration.fulcro.routing/force-continue-routing!)]
-             (routing-ns app))
-           state-map))]))))
+    ;; Retry route via routing system outside of swap!
+    (when app
+      (when-let [force-continue! (requiring-resolve 'com.fulcrologic.statecharts.integration.fulcro.routing/force-continue-routing!)]
+        (force-continue! app)))
+    [(fops/assoc-alias :route-denied? false)
+     (fops/apply-action fs/pristine->entity* form-ident)]))
 
 ;; ===== Clear Route Denied Expression =====
 

@@ -261,19 +261,6 @@
           (assoc-in pc-path 1)
           (assoc-in cr-path sorted-rows)))))
 
-(defn postprocess-page-state
-  "Pure function: Apply post-process transform if defined. Returns updated state-map."
-  [state-map data]
-  (let [Report (report-class data)
-        xform  (comp/component-options Report ro/post-process)]
-    (if xform
-      ;; The post-process fn currently receives a uism-env. In the statechart world,
-      ;; we pass it the state-map and data, and it should return an updated state-map.
-      ;; For backward compatibility we'll call it with a pseudo-env.
-      ;; TODO: Update post-process signature in a future version
-      state-map
-      state-map)))
-
 (defn process-loaded-data-expr
   "Expression: Process loaded data — preprocess, filter, sort, paginate.
    Called on entry to :state/processing."
