@@ -17,3 +17,9 @@
                           line-item/attributes)))
 
 (def all-attribute-validator (attr/make-attribute-validator all-attributes))
+
+#?(:clj
+   (def all-resolvers
+     (vec (concat
+           account/resolvers
+           invoice/resolvers))))

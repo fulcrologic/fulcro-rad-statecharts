@@ -1,0 +1,26 @@
+{:taoensso.timbre/logging-config {:min-level :info}
+
+ :org.httpkit.server/config {:port 3000}
+
+ :ring.middleware/defaults-config
+ {:params    {:urlencoded true
+              :multipart true
+              :nested    true
+              :keywordize true}
+  :cookies   true
+  :session   {:flash true
+              :cookie-attrs {:http-only true :same-site :lax}}
+  :security  {:anti-forgery   true
+              :xss-protection {:enable? true :mode :block}
+              :frame-options  :sameorigin
+              :content-type-options :nosniff}
+  :responses {:not-modified-responses true
+              :absolute-redirects     true
+              :content-types          true
+              :default-charset        "utf-8"}}
+
+ :com.fulcrologic.rad.database-adapters.datomic-cloud/databases
+ {:main {:datomic/schema   :production
+         :datomic/client   {:server-type :dev-local
+                            :system      "demo"}
+         :datomic/database "rad-demo"}}}
