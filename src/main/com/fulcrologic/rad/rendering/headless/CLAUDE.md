@@ -21,6 +21,12 @@ Sparse headless rendering plugin for REPL-based testing. No CSS, no React compon
 - **Field rendering**: Uses `form/field-context` for unified field state (value, validation, read-only, visibility)
 - **Data attributes**: All meaningful elements have `data-rad-type` and contextual `data-rad-*` attributes for headless test selection
 
+## Added Field Renderers (Feb 2026)
+- `:decimal` — renders as `<input type="number" step="any">`
+- `:ref :default` — renders nothing for subforms (handled by `render-subforms`), shows value for non-subform refs
+- `:ref :pick-one` — same as `:ref :default` (headless display only; no interactive picker)
+- `:instant :date-at-noon` — delegates to the standard instant renderer (date input)
+
 ## Data Attribute Conventions
 - `data-rad-type` — element role: "form-field", "field-error", "field-label", "busy", "form", "report", "report-row", "report-cell", "control", etc.
 - `data-rad-field` — stringified qualified keyword of the attribute

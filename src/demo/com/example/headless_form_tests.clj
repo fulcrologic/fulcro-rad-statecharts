@@ -212,10 +212,12 @@
                  (let [account     (entity-data app ident)
                        addr-ident  (:account/primary-address account)
                        addr-data   (entity-data app addr-ident)]
-                   (when addr-data
-                     (assertions
-                      "primary address entity exists in state"
-                      (some? (:address/id addr-data)) => true)))))
+                   (assertions
+                    "primary address data was loaded (not nil)"
+                    (some? addr-data) => true
+
+                    "primary address entity exists in state"
+                    (some? (:address/id addr-data)) => true))))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Item Form — Edit Existing
@@ -286,37 +288,32 @@
                (let [app        (test-client 9846)
                      connection  (:main datomic-connections)
                      ;; Query Datomic for the seeded invoice ID (random UUID)
-                     inv-ids    (when connection
-                                  (d/q '[:find ?id
-                                         :where [?e :invoice/id ?id]]
-                                       (d/db connection)))
+                     inv-ids    (d/q '[:find ?id
+                                       :where [?e :invoice/id ?id]]
+                                     (d/db connection))
                      inv-id     (ffirst inv-ids)]
                  (h/render-frame! app)
 
-                 (when inv-id
-                   (let [ident [:invoice/id inv-id]
-                         first-error (atom nil)]
-                     ;; Route to form. Use try-catch on render-frame! because the headless
-                     ;; form renderer throws on complex subforms (line items + customer picker).
-                     ;; TODO: Fix the root cause — likely a missing CLJ stub for a JS-only
-                     ;; rendering dependency in the invoice form's subform components.
-                     (scr/route-to! app InvoiceForm {:id inv-id})
-                     (dotimes [_ 30]
-                       (try (h/render-frame! app)
-                            (catch Throwable t
-                              (when (compare-and-set! first-error nil t)
-                                (log/warn "Invoice form render error (first of possibly many):" (.getMessage t))))))
+                 (assertions
+                  "datomic connection is available"
+                  (some? connection) => true
 
-                     (assertions
-                      "routes to InvoiceForm state"
-                      (in-route-state? app :com.example.ui.invoice-forms/InvoiceForm) => true
+                  "seeded invoice exists in database"
+                  (some? inv-id) => true)
 
-                      "form enters editing state"
-                      (form-in-state? app ident :state/editing) => true
+                 (let [ident [:invoice/id inv-id]]
+                   (wait-for-form! app InvoiceForm {:id inv-id})
 
-                      "invoice has line items"
-                      (let [invoice (entity-data app ident)]
-                        (vector? (:invoice/line-items invoice))) => true)))))
+                   (assertions
+                    "routes to InvoiceForm state"
+                    (in-route-state? app :com.example.ui.invoice-forms/InvoiceForm) => true
+
+                    "form enters editing state"
+                    (form-in-state? app ident :state/editing) => true
+
+                    "invoice has line items"
+                    (let [invoice (entity-data app ident)]
+                      (vector? (:invoice/line-items invoice))) => true))))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Sequential Form Navigation

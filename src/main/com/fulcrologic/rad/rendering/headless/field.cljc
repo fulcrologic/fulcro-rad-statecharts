@@ -163,6 +163,42 @@
                                      (or (get enumerated-labels ev) (name ev))))
                        enumerated-values)))))
 
+(defn render-decimal-field
+  "Render a decimal field as a number input with step='any'."
+  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key] :as attribute}]
+  (let [{:keys [value field-label visible? invalid? validation-message
+                read-only? omit-label?]} (form/field-context env attribute)
+        required? (ao/required? attribute)]
+    (field-wrapper
+     {:qualified-key qualified-key :field-label field-label :omit-label? omit-label?
+      :required? required? :visible? visible? :invalid? invalid?
+      :validation-message validation-message}
+     (dom/input (-> (common-input-attrs qualified-key (str (or value "")) read-only? required?
+                                        (fn [evt]
+                                          #?(:cljs (com.fulcrologic.fulcro.mutations/set-string! form-instance qualified-key :event evt)
+                                             :clj  nil)))
+                    (assoc :type "number" :step "any"))))))
+
+(defn render-ref-field
+  "Render a reference field. For picker-style refs, shows the current value as a read-only display.
+   For subform refs, renders nothing (subforms are handled by the form body container)."
+  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key cardinality] :as attribute}]
+  (let [options    (comp/component-options form-instance)
+        subforms   (fo/subforms options)
+        is-subform? (contains? subforms qualified-key)]
+    (if is-subform?
+      nil ;; Subform rendering is handled by render-subforms in form.cljc
+      (let [{:keys [value field-label visible? invalid? validation-message
+                    read-only? omit-label?]} (form/field-context env attribute)
+            required? (ao/required? attribute)]
+        (field-wrapper
+         {:qualified-key qualified-key :field-label field-label :omit-label? omit-label?
+          :required? required? :visible? visible? :invalid? invalid?
+          :validation-message validation-message}
+         (dom/span {:data-rad-type "ref-display"
+                    :data-rad-field (str qualified-key)}
+                   (str (or value ""))))))))
+
 ;; -- Multimethod registrations -----------------------------------------------
 
 (defmethod fr/render-field [:string :default] [env attr]
@@ -183,5 +219,17 @@
 (defmethod fr/render-field [:instant :default] [env attr]
   (render-instant-field env attr))
 
+(defmethod fr/render-field [:instant :date-at-noon] [env attr]
+  (render-instant-field env attr))
+
 (defmethod fr/render-field [:enum :default] [env attr]
   (render-enum-field env attr))
+
+(defmethod fr/render-field [:decimal :default] [env attr]
+  (render-decimal-field env attr))
+
+(defmethod fr/render-field [:ref :default] [env attr]
+  (render-ref-field env attr))
+
+(defmethod fr/render-field [:ref :pick-one] [env attr]
+  (render-ref-field env attr))
