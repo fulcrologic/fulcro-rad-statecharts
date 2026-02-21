@@ -57,7 +57,7 @@
                              "Includes the ID of the form in the query"
                              (contains? eql-items :address/id) => true
                              "No longer includes the ASM table (removed during statecharts conversion)"
-                             (contains? eql-items [::uism/asm-id '_]) => false
+                             (contains? eql-items [:com.fulcrologic.fulcro.ui-state-machines/asm-id '_]) => false
                              "Includes the form config join"
                              (contains? eql-items fs/form-config-join) => true
                              "Includes the scalar attribute keys"
