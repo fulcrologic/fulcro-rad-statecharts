@@ -17,7 +17,7 @@
    sorting, pagination, row selection, and cache-aware resume."
   (statechart {:id :com.fulcrologic.rad.report-chart/report-chart :initial :state/initializing}
 
-              (data-model {:expr (fn [_ _]
+              (data-model {:expr (fn [_env _data _event-name _event-data]
                                    {:last-load-time      nil
                                     :raw-items-in-table  nil})})
 

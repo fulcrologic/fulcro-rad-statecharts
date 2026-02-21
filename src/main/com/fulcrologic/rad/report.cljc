@@ -136,14 +136,11 @@
                       "")})
           columns)))
 
-;; Multimethod rendering defaults
-(defmethod rr/render-row :default [report-instance options row-props]
-  (let [row-class (ro/BodyItem options)]
-    (default-render-row report-instance row-class row-props)))
-(defmethod rr/render-report :default [report-instance options]
-  (default-render-layout report-instance))
-(defmethod rr/render-controls :default [this options]
-  ((control-renderer this) this))
+;; NOTE: Do NOT register :default defmethods here. Rendering plugins register
+;; their own :default implementations via defmethod. Any :default registered
+;; here would silently overwrite plugin renderers if this namespace is loaded
+;; after the plugin (which happens during namespace reloading or when the
+;; require order varies between REPL and production).
 
 (def render-control
   "[control-type style instance control-key]
@@ -980,7 +977,7 @@
                             options
                             (cond-> {:render        render
                                      ::BodyItem     ItemClass
-                                     :query         (fn [] query)
+                                     :query         (fn [_] query)
                                      :initial-state (fn [params]
                                                       (let [user-initial-state (?! initialize-ui-props (get-class) params)]
                                                         (cond-> {:ui/parameters   {}

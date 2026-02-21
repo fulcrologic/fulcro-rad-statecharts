@@ -121,7 +121,11 @@
   [env data _event-name _event-data]
   (let [Report         (report-class data)
         report-ident   (actor-ident data :actor/report)
-        {::ro/keys [BodyItem source-attribute load-options before-load]} (comp/component-options Report)
+        opts             (comp/component-options Report)
+        BodyItem         (get opts ro/BodyItem)
+        source-attribute (get opts ro/source-attribute)
+        load-options     (get opts ro/load-options)
+        before-load      (get opts ro/before-load)
         load-options   (?! load-options env)
         current-params (current-control-parameters data)
         path           (conj report-ident :ui/loaded-data)]
@@ -183,7 +187,8 @@
   (let [Report     (report-class data)
         all-rows   (read-alias state-map data :raw-rows)
         parameters (current-control-parameters data)
-        {::ro/keys [row-visible? skip-filtering?]} (comp/component-options Report)
+        row-visible?     (comp/component-options Report ro/row-visible?)
+        skip-filtering?  (comp/component-options Report ro/skip-filtering?)
         filtered   (if (and row-visible? (not (true? (?! skip-filtering? parameters))))
                      (let [normalized?  (some-> all-rows first eql/ident?)
                            BodyItem     (comp/component-options Report ro/BodyItem)]
@@ -275,7 +280,8 @@
   [env data _event-name _event-data]
   (let [state-map (:fulcro/state-map data)
         Report    (report-class data)
-        {::ro/keys [row-pk report-loaded]} (comp/component-options Report)
+        row-pk         (comp/component-options Report ro/row-pk)
+        report-loaded  (comp/component-options Report ro/report-loaded)
         table-name (::attr/qualified-key row-pk)
         updated    (-> state-map
                        (preprocess-raw-result data)
@@ -283,6 +289,7 @@
                        (sort-rows-state data)
                        (populate-page-state data))]
     [(fops/apply-action (constantly updated))
+     (fops/assoc-alias :busy? false)
      (ops/assign :last-load-time (inst-ms (dt/now)))
      (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))
 
@@ -381,7 +388,9 @@
   [_env data _event-name _event-data]
   (let [state-map  (:fulcro/state-map data)
         Report     (report-class data)
-        {::ro/keys [load-cache-seconds load-cache-expired? row-pk]} (comp/component-options Report)
+        load-cache-seconds   (comp/component-options Report ro/load-cache-seconds)
+        load-cache-expired?  (comp/component-options Report ro/load-cache-expired?)
+        row-pk               (comp/component-options Report ro/row-pk)
         now-ms             (inst-ms (dt/now))
         last-load-time     (:last-load-time data)
         last-table-count   (:raw-items-in-table data)
