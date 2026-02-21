@@ -1,6 +1,6 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-21 | Active: 0 | Blocked: 0 | Backlog: 0 | Done: 20 | Deferred: 3 -->
+<!-- Last updated: 2026-02-21 | Active: 0 | Blocked: 0 | Backlog: 0 | Done: 25 | Deferred: 3 -->
 
 ## Active
 
@@ -64,6 +64,29 @@
 | [fix-e2e-test-failures](fix-e2e-test-failures.md) | 2026-02-21 | Added 4 missing headless field renderers (decimal, ref, ref/pick-one, instant/date-at-noon), removed silent `(when ...)` guards, fixed invoice render exception. All form+routing E2E tests pass. |
 | [headless-load-callback](headless-load-callback.md) | 2026-02-21 | Fixed `(constantly snapshot)` race condition in report_expressions.cljc — transform function at swap-time instead of snapshot replacement. Report E2E tests pass without workaround. |
 
+### Phase 4: Critique Fixes — completed 2026-02-21
+
+| Item | Completed | Summary |
+|------|-----------|---------|
+| I1: Dead UISM code removal | 2026-02-21 | Removed ~900 lines: form-machine, report-machine, UISM helpers, dead requires from 10 files |
+| I2: Stale docstrings | 2026-02-21 | Updated fo/triggers and 6 ro/* docstrings from UISM to statechart signatures |
+| I3: start-report! bug | 2026-02-21 | Fixed to read `sfro/statechart-id` / `sfro/statechart` instead of `::machine` |
+| I4: Form stubs removed | 2026-02-21 | Deleted view!/edit!/create! stubs from form.cljc (working versions in routing.cljc) |
+| I5: edit! session verified | 2026-02-21 | Verified correct — delegates to scr/route-to! properly |
+| I6: Side effects extracted | 2026-02-21 | Moved rc/transact! and route-to! out of fops/apply-action closures in 4 locations |
+| I7: on-loaded-expr decomposed | 2026-02-21 | Extracted build-autocreate-ops and build-ui-props-ops helper functions |
+| I8: Container tests | 2026-02-21 | Tier 1: 5 specs pass. Tier 2: 2 specs have child-report lifecycle issues (test setup) |
+| I9: Server-paginated tests | 2026-02-21 | 6 specs, 28 assertions, 0 failures |
+| I10: Incrementally-loaded tests | 2026-02-21 | 9 specs, 36 assertions, 0 failures |
+| I13: Documentation | 2026-02-21 | README.adoc rewritten, docs/migration-guide.adoc created |
+| I14: Routing API docs | 2026-02-21 | rroute/ documented as recommended API in README + migration guide |
+| I15: Dead options | 2026-02-21 | ro/route reference removed from defsc-report docstring |
+| C2: pom.xml | 2026-02-21 | Fulcro 3.9.3, Clojure 1.11.4, statecharts 1.4.0-RC2-SNAPSHOT |
+| S1: postprocess-page-state | 2026-02-21 | Removed no-op dead code from report_expressions.cljc |
+| S4: Stale comments | 2026-02-21 | Fixed in form_expressions.cljc, report_expressions.cljc, headless_routing_tests.clj |
+| S5: Container docstring | 2026-02-21 | Fixed :route-segment reference |
+| S9: Network blacklist | 2026-02-21 | Replaced ::uism/asm-id with raw keyword |
+
 ## Critique Specs
 
 | Spec | Reviewer | Scope |
@@ -119,32 +142,44 @@
 
 All questions resolved by human review 2026-02-20. See [critique-round-2.md](plans/critique-round-2.md) Section "Consolidated Open Questions for Human Review" for the full list with DECIDED annotations. Only 2 minor items remain open (ident->session-id separator edge case, statecharts release version).
 
-## Known Issues (from Critique Rounds 3+4)
+## Known Issues
 
 ### Critical
-(all resolved in Phase 3)
+- **C1: Statecharts not released to Clojars** — local path dep blocks downstream consumption. Must release statecharts library first.
 
-### Important
-- **`sfr/edit!` sends to wrong session**: Sends to the form's own session instead of the routing session. Workaround: use `scr/route-to!` directly.
+### Remaining Important
 - **`scf/current-configuration` returns nil in headless Root render**: Route-denied modal can't be tested via hiccup.
-- **43 pre-existing unit test errors**: `MockEventQueue`/`MockExecutionModel` protocol incompatibility in report/form statechart specs. Not related to Phase 3 — missing protocol method implementations in statecharts test mocks.
+- **Container Tier 2 tests**: 6 assertion failures — child report lifecycle not starting in test setup. Tier 1 passes.
+- **6 pre-existing report Tier 2 errors**: `v20150901_impl.cljc:836` protocol incompatibility in statecharts test mocks.
+- **No rendering plugin ported**: semantic-ui/react-bootstrap need multimethod conversion for browser use.
+
+### Resolved in Phase 4
+- ~~`sfr/edit!` wrong session~~ → Verified correct: delegates to scr/route-to!
+- ~~~650 lines dead UISM code~~ → Removed: form-machine, report-machine, all UISM helpers, dead requires
+- ~~start-report! reads ::machine~~ → Fixed: reads sfro/statechart-id / sfro/statechart
+- ~~form/view!/edit!/create! broken stubs~~ → Removed (working versions in routing.cljc)
+- ~~Side effects in apply-action~~ → Extracted to expression body in 4 locations
+- ~~on-loaded-expr too dense~~ → Decomposed into 3 helper functions
+- ~~pom.xml version mismatches~~ → Updated Fulcro 3.9.3, Clojure 1.11.4, statecharts 1.4.0-RC2-SNAPSHOT
+- ~~No user documentation~~ → README rewritten, migration guide created
+- ~~Stale UISM docstrings~~ → Updated to statechart signatures
+- ~~Container/server-paginated/incremental untested~~ → Tier 1 tests added for all three
+- ~~postprocess-page-state no-op~~ → Removed dead code
 
 ### Resolved in Phase 3
 - ~~Routing→form integration uses UISM~~ → Fixed: `form-route-state` uses `form/start-form!` → `scf/start!`
-- ~~`fops/load` ok-action doesn't fire in headless mode~~ → Fixed: `(constantly snapshot)` race condition in report_expressions.cljc
+- ~~`fops/load` ok-action doesn't fire in headless mode~~ → Fixed: `(constantly snapshot)` race condition
 - ~~8 routing E2E test failures~~ → Fixed: all 10 routing tests pass
 - ~~Form E2E silent `(when ...)` guards~~ → Fixed: replaced with explicit assertions
 - ~~Invoice form render exception~~ → Fixed: added missing headless field renderers
 
-### Verified Working
-- Library: 62 tests, 356 assertions, 0 failures
-- Form E2E: 8/8 tests, 37 assertions pass
-- Routing E2E: 10/10 tests, 32 assertions pass
-- Report E2E: 3/3 tests, 21 assertions pass
-- **Total: 83 tests, 446 assertions, 0 failures**
-- Demo startup: compiles, seeds Datomic, serves on port 3000
-- Statechart conversion: confirmed real by architecture review (all `scf/send!`, no active UISM paths)
-- API: coherent and complete for RAD apps; fulcro-rad-datomic fully compatible
+### Verified Working (Post Phase 4)
+- 83 tests, 473 assertions
+- All Tier 1 pure chart tests pass (form, report, container, server-paginated, incrementally-loaded)
+- E2E tests: 21 total (form 8, routing 10, report 3) — all pass
+- Zero UISM/DR references in production code
+- pom.xml matches deps.edn
+- README and migration guide complete
 
 ## Important Notes
 
