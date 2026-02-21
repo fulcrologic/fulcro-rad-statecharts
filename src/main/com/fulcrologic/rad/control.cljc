@@ -27,6 +27,8 @@
    [com.fulcrologic.rad.errors :refer [warn-once!]]
    [com.fulcrologic.rad.form-render :as fr]
    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce child-classes]]
+   [com.fulcrologic.rad.sc.session :refer [ident->session-id]]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [taoensso.timbre :as log]))
 
 (defsc Control
@@ -54,14 +56,14 @@
     (warn-once! "NOTE: No renderer is installed to support control " control-key " with type/style " control-type style))
   nil)
 
-;; TODO: Reconnect run! during statechart conversion. Previously triggered :event/run on the UISM.
 (def run!
   "[this]
 
    Run the controlled content with the current values of the controlled parameters."
   (debounce
-   (fn [_instance]
-     nil)
+   (fn [instance]
+     (let [session-id (ident->session-id (comp/get-ident instance))]
+       (scf/send! instance session-id :event/run)))
    100))
 
 (defmutation set-parameter [{:keys [k value]}]
