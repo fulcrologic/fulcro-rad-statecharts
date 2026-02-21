@@ -153,6 +153,13 @@ All questions resolved by human review 2026-02-20. See [critique-round-2.md](pla
 - **6 pre-existing report Tier 2 errors**: `v20150901_impl.cljc:836` protocol incompatibility in statecharts test mocks.
 - **No rendering plugin ported**: semantic-ui/react-bootstrap need multimethod conversion for browser use.
 
+### Resolved in Phase 5 (CLJS Compat)
+- ~~CLJS keyword encoding invalid~~ → `ident->session-id` now uses `KW.ns..name` encoding (no colons in keyword names)
+- ~~`requiring-resolve` CLJS warnings~~ → Registry pattern for form fn cross-ns resolution; direct requires for routing/scr
+- ~~closure-compiler-unshaded conflict~~ → Removed override; shadow-cljs 3.3.6 bundles its own
+- CLJS compiles with 0 warnings (396 files)
+- All 24 deps upgraded to latest versions
+
 ### Resolved in Phase 4
 - ~~`sfr/edit!` wrong session~~ → Verified correct: delegates to scr/route-to!
 - ~~~650 lines dead UISM code~~ → Removed: form-machine, report-machine, all UISM helpers, dead requires
@@ -160,7 +167,7 @@ All questions resolved by human review 2026-02-20. See [critique-round-2.md](pla
 - ~~form/view!/edit!/create! broken stubs~~ → Removed (working versions in routing.cljc)
 - ~~Side effects in apply-action~~ → Extracted to expression body in 4 locations
 - ~~on-loaded-expr too dense~~ → Decomposed into 3 helper functions
-- ~~pom.xml version mismatches~~ → Updated Fulcro 3.9.3, Clojure 1.11.4, statecharts 1.4.0-RC2-SNAPSHOT
+- ~~pom.xml version mismatches~~ → Updated Fulcro 3.9.3, Clojure 1.12.4, statecharts 1.4.0-RC2-SNAPSHOT
 - ~~No user documentation~~ → README rewritten, migration guide created
 - ~~Stale UISM docstrings~~ → Updated to statechart signatures
 - ~~Container/server-paginated/incremental untested~~ → Tier 1 tests added for all three
@@ -173,12 +180,15 @@ All questions resolved by human review 2026-02-20. See [critique-round-2.md](pla
 - ~~Form E2E silent `(when ...)` guards~~ → Fixed: replaced with explicit assertions
 - ~~Invoice form render exception~~ → Fixed: added missing headless field renderers
 
-### Verified Working (Post Phase 4)
-- 83 tests, 473 assertions
+### Verified Working (Post Phase 5)
+- 83 tests, 473 assertions (CLJ)
+- CLJS compilation: 396 files, 0 warnings
 - All Tier 1 pure chart tests pass (form, report, container, server-paginated, incrementally-loaded)
 - E2E tests: 21 total (form 8, routing 10, report 3) — all pass
 - Zero UISM/DR references in production code
+- Zero `requiring-resolve` in CLJS code paths
 - pom.xml matches deps.edn
+- All 24 deps at latest versions
 - README and migration guide complete
 
 ## Important Notes
