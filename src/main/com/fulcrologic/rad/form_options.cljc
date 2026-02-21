@@ -275,21 +275,14 @@
   form config if it does so). The `new-props` must be a tree of props that matches the correct shape of the form
   and is non-destructive to the form config and other non-field attributes on that tree.
 
-  * `:on-change` - Called when an individual field changes. A `(fn [uism-env form-ident qualified-key old-value new-value] uism-env)`.
-  The change handler has access to the UISM env (which contains `::uism/fulcro-app` and `::uism/state-map`). This
-  function is allowed to side-effect (trigger loads for dependent dropdowns, etc.). It must return
-  the (optionally updated) `uism-env`. This means you can trigger state machine events, and use the various
-  facilities of UISM to accomplish your tasks. If you define your own custom state machine this can be useful for
-  triggering very complex behavior. Typically you'll do something like
-  `(uism/apply-action uism-env assoc-in (conj form-ident :line-item/quantity) 1)` to update the form state. See UISM
-  documentation for more details.
+  * `:on-change` - Called when an individual field changes. A `(fn [env data form-ident qualified-key old-value new-value])` that
+  returns a vector of statechart operations (e.g. `fops/apply-action`, `fops/assoc-alias`). The `env` is the statechart
+  expression env and `data` contains `:fulcro/state-map` and session data. Use `fops/apply-action` to modify state.
 
-  * `:started` - A (fn [uism-env ident]). Called after the form has been initialized. Note, new instances (create) will
-    have a tempid. Edits will have issued a load on the form, so if you're trying to load things that are in query
-    inclusions (that have a global resolver) then you only need to do so if the entity is new.  Must return UISM env.
-  * `:saved` - A (fn [uism-env ident]). Called after a successful save. Must return a UISM env.
-  * `:save-failed` - A (fn [uism-env ident]). Called after a failed save. Must return a UISM env.
-  * `:started` - A `(fn [uism-env ident])`. Called as a form starts (state machine started, but load may still be in progress).
+  * `:started` - A `(fn [env data form-ident])`. Called after the form statechart session has been initialized. Returns
+    a vector of ops. New instances (create) will have a tempid.
+  * `:saved` - A `(fn [env data form-ident])`. Called after a successful save. Returns a vector of ops.
+  * `:save-failed` - A `(fn [env data form-ident])`. Called after a failed save. Returns a vector of ops.
   "
   :com.fulcrologic.rad.form/triggers)
 

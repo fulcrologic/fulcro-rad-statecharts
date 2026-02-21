@@ -333,7 +333,7 @@
 
 (def page-size
   "The number of results per page, if your rendering plugin supports pagination and it is turned on. Can also be a
-   `(fn [uism-env] page-size)`"
+   `(fn [report-env] page-size)` resolved via `?!`."
   :com.fulcrologic.rad.report/page-size)
 
 (def column-heading
@@ -407,9 +407,11 @@
   :com.fulcrologic.rad.report/statechart)
 
 (def post-process
-  "A `(fn [uism-env] new-env)` that will be called just after rows have been sorted/filtered/paginated, but before
-  they have been rendered.  This option is particularly useful in mobile where you might want to transform the page
-  into a js data array for use with list views."
+  "A `(fn [state-map data] state-map)` that will be called just after rows have been sorted/filtered/paginated, but before
+  they have been rendered. Receives the current Fulcro state map and statechart data. This option is particularly useful
+  in mobile where you might want to transform the page into a js data array for use with list views.
+
+  NOTE: Not currently wired into the standard report statechart expressions."
   :com.fulcrologic.rad.report/post-process)
 
 (def BodyItem
@@ -495,15 +497,13 @@
   :com.fulcrologic.rad.report/load-cache-seconds)
 
 (def report-loaded
-  "A `(fn [uism-env] uism-env)` that will be threaded into the UISM handler of the report after it loads new data. This
-   function will be called as the *last* step, so all report data will be constructed (filtering, sorting, pagination).
+  "A hook called after the report loads new data and all processing (filtering, sorting, pagination) is complete.
 
-   You can do anything in this hook that you can do in a normal state machine. If you activate a new state different
-   from the default, it will override the default target state after load."
+   NOTE: Not currently wired into the standard report statechart expressions. Reserved for future use."
   :com.fulcrologic.rad.report/report-loaded)
 
 (def load-cache-expired?
-  "A `(fn [uism-env cache-looks-stale?] boolean?)`.
+  "A `(fn [report-env cache-looks-stale?] boolean?)` resolved via `?!`.
 
   The load cache normally expires based on:
 
@@ -513,7 +513,7 @@
   If this option is specified AND it returns a non-nil result, THEN it will be used as the cache expiration logic.
   (NO NIL PUNNING!)
 
-  The function will receive the UISM env and a boolean indicating if the default
+  The function receives the statechart expression env (or nil) and a boolean indicating if the default
   algorithm thinks the cache should be expired.
   "
   :com.fulcrologic.rad.report/load-cache-expired?)
@@ -535,8 +535,8 @@
   :com.fulcrologic.rad.report/skip-filtering?)
 
 (def load-options
-  "A map (or `(fn [uism-env] map?)`) whose value will be merged with the options sent to the `uism/load` that
-   the default state machine uses to pull in the report data.
+  "A map (or `(fn [report-env] map?)`) whose value will be merged with the load options sent by the report
+   statechart when pulling in report data. Resolved via `?!`.
 
    An example of where you might want to use this is when a row contains sub-elements that could be large
    (data points, history, comments, etc.) that you wish to let the user expand and load on demand. In this
@@ -544,7 +544,7 @@
    the row rendering and use `load-field` to fill in the missing details on demand.
 
    WARNING: These options allow you to OVERRIDE those that are normally sent. You should carefully review the
-   report machine's source code before using this option.
+   report statechart expression source before using this option.
    "
   :com.fulcrologic.rad.report/load-options)
 
@@ -559,7 +559,7 @@
   :com.fulcrologic.rad.report/column-infos)
 
 (def before-load
-  "A UISM handler (fn [env] env') that will be run before loading the report's data."
+  "A `(fn [state-map] state-map)` that will be applied via `fops/apply-action` before loading the report's data."
   :com.fulcrologic.rad.report/before-load)
 
 (def track-in-url?

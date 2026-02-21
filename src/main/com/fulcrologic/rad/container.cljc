@@ -86,7 +86,7 @@
      "Define a container, which is a specialized component that holds and coordinates more than one report under
       a common set of controls.
 
-      If you want this to be a route target, then you must add `:route-segment`.
+      To make this a route target, include it in your routing statechart definition.
 
       You should at least specify a ::children option.
 

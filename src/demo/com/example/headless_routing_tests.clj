@@ -254,10 +254,10 @@
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Route Guard (dirty form)
-;; Route guard tests rely on the form UISM marking the form as dirty.
+;; Route guard tests rely on the form statechart marking the form as dirty.
 ;; After navigating to a form, we need the form data to load from the
 ;; server. Multiple render-frame! calls are needed to process the async
-;; HTTP response and let the form UISM transition to :state/editing.
+;; HTTP response and let the form statechart transition to :state/editing.
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — route guard on dirty form"
