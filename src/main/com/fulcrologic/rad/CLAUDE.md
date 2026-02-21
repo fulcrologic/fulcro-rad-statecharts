@@ -23,6 +23,12 @@ The following namespaces were deleted and all references removed from remaining 
 - `force-continue-routing!`, `abandon-route-change!`, `route-denied?` — direct delegation
 - Removed: `install-routing!`, `absolute-path`, `can-change-route?`, `update-route-params!`
 
+### Route State Builders (Phase 3)
+- `form-route-state` — creates `scr/rstate` with on-entry calling `form/start-form!` (statechart-based) and on-exit calling `form/abandon-form!`. Replaces `sfr/form-state` which used deprecated `uism/begin!`.
+- `report-route-state` — creates `scr/rstate` with on-entry calling `report/start-report!`. Replaces `sfr/report-state`.
+- `create!` / `edit!` — convenience functions that route to a form with a tempid (create) or existing id (edit). Replace `sfr/create!` / `sfr/edit!`.
+- These functions use `entry-fn`/`exit-fn` macros from `statecharts.elements` as additional children of `scr/rstate` (SCXML allows multiple on-entry/on-exit blocks per state).
+
 ### Known Issue: Clojure 1.10.3 + malli
 The statecharts dep chain pulls in malli which uses `random-uuid` (Clojure 1.11+). The routing ns cannot load in a 1.10.3 REPL. This is a project-wide dep issue, not routing-specific.
 
