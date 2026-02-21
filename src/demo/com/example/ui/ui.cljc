@@ -12,10 +12,10 @@
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
    [com.fulcrologic.rad.ids :refer [new-uuid]]
+   [com.fulcrologic.rad.routing :as rroute]
    [com.fulcrologic.statecharts :as sc]
    [com.fulcrologic.statecharts.chart :refer [statechart]]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.statecharts.integration.fulcro.rad-integration :as sfr]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
 
 ;; ---------------------------------------------------------------------------
@@ -59,18 +59,18 @@
                            (scr/rstate {:route/target `LandingPage})
 
         ;; Reports
-                           (sfr/report-state {:route/target InventoryReport})
-                           (sfr/report-state {:route/target InvoiceReport})
-                           (sfr/report-state {:route/target AccountInvoices
-                                              :route/params #{:account/id}})
+                           (rroute/report-route-state {:route/target InventoryReport})
+                           (rroute/report-route-state {:route/target InvoiceReport})
+                           (rroute/report-route-state {:route/target AccountInvoices
+                                                       :route/params #{:account/id}})
 
         ;; Forms
-                           (sfr/form-state {:route/target AccountForm
-                                            :route/params #{:account/id}})
-                           (sfr/form-state {:route/target ItemForm
-                                            :route/params #{:item/id}})
-                           (sfr/form-state {:route/target InvoiceForm
-                                            :route/params #{:invoice/id}})))))
+                           (rroute/form-route-state {:route/target AccountForm
+                                                     :route/params #{:account/id}})
+                           (rroute/form-route-state {:route/target ItemForm
+                                                     :route/params #{:item/id}})
+                           (rroute/form-route-state {:route/target InvoiceForm
+                                                     :route/params #{:invoice/id}})))))
 
 ;; ---------------------------------------------------------------------------
 ;; Root component
@@ -101,17 +101,17 @@
                         (dom/span {:data-rad-type "app-title"} "RAD Demo")
 
                         (nav-button "New Account"
-                                    (fn [] (sfr/create! this AccountForm)))
+                                    (fn [] (rroute/create! this AccountForm)))
 
                         (nav-button "Inventory"
                                     (fn [] (scr/route-to! this InventoryReport)))
                         (nav-button "New Item"
-                                    (fn [] (sfr/create! this ItemForm)))
+                                    (fn [] (rroute/create! this ItemForm)))
 
                         (nav-button "Invoices"
                                     (fn [] (scr/route-to! this InvoiceReport)))
                         (nav-button "New Invoice"
-                                    (fn [] (sfr/create! this InvoiceForm)))
+                                    (fn [] (rroute/create! this InvoiceForm)))
 
                         (nav-button "Acct 101 Invoices"
                                     (fn [] (scr/route-to! this AccountInvoices {:account/id (new-uuid 101)})))
