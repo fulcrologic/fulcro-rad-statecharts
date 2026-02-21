@@ -49,7 +49,7 @@
                                   :appenders {:console (console-appender)}}))
      (app/mount! spa Root #?(:clj :app :cljs "app"))
      #?(:cljs (sys/start! spa)
-        :clj  (deref (sys/start! spa {:event-loop? :immediate})))
+        :clj  (sys/start! spa {:event-loop? :immediate}))
      spa)))
 
 (defn refresh

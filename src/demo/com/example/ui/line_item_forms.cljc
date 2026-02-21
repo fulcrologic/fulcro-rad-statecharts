@@ -3,9 +3,9 @@
    UISM on-change converted to statechart ops-returning convention."
   (:require
    [com.example.model :as model]
-   [com.example.model.category :as category]
    [com.example.model.line-item :as line-item]
    [com.example.ui.item-forms :as item-forms]
+   [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.raw.components :as rc]
    [com.fulcrologic.rad.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
@@ -31,7 +31,7 @@
                                         (case qualified-key
                                           :line-item/category
                                           (let [app        (:fulcro/app env)
-                                                form-class (some-> (rc/ident->any app form-ident) rc/component-type)
+                                                form-class (some-> (comp/ident->any app form-ident) rc/component-type)
                                                 props      (get-in state-map form-ident)]
                                             (when (and app form-class)
                                               (po/load-options! app form-class props line-item/item))
@@ -45,7 +45,7 @@
    fo/field-styles  {:line-item/item     :pick-one
                      :line-item/category :pick-one}
    fo/field-options {:line-item/category {po/query-key       :category/all-categories
-                                          po/query-component category/Category
+                                          po/query-component (rc/nc [:category/id :category/label])
                                           po/options-xform   (fn [_ options]
                                                                (mapv
                                                                 (fn [{:category/keys [id label]}]

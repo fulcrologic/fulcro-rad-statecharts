@@ -3,6 +3,7 @@
    Installs headless renderers, statecharts, and starts routing."
   (:require
    [com.example.ui.ui :refer [routing-chart]]
+   [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.rad.application :as rad-app]
    [com.fulcrologic.rad.rendering.headless.plugin]
    [com.fulcrologic.rad.type-support.date-time :as dt]
@@ -28,6 +29,6 @@
    (setup-RAD app)
    (rad-app/install-statecharts! app {:event-loop? event-loop?})
    (let [result (rad-app/start-routing! app routing-chart)]
-     #?(:clj (when result (deref result)))
      #?(:cljs (rad-app/install-url-sync! app))
+     (swap! (::app/state-atom app) assoc :ui/ready? true)
      result)))
