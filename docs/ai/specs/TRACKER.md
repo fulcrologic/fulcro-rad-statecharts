@@ -1,6 +1,6 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-21 | Active: 0 | Blocked: 0 | Backlog: 1 (demo-port, 11 tasks) | Done: 16 | Deferred: 3 -->
+<!-- Last updated: 2026-02-21 | Active: 0 | Blocked: 0 | Backlog: 0 | Done: 17 | Deferred: 3 -->
 
 ## Active
 
@@ -12,11 +12,7 @@
 
 ## Backlog
 
-### Phase 2: Demo & Validation
-
-| Spec | Priority | Created | Depends-on | Summary |
-|------|----------|---------|------------|---------|
-| [demo-port](demo-port.md) | P1 | 2026-02-20 | all Phase 0+1 | Port Datomic demo to src/demo with all-CLJC headless support (11 sub-tasks) |
+(none)
 
 ## Deferred
 
@@ -54,12 +50,19 @@
 | [app-initialization](app-initialization.md) | 2026-02-21 | Added install-statecharts!, start-routing!, test helpers |
 | [public-api-mapping](public-api-mapping.md) | 2026-02-21 | Final API audit: fixed 6 gaps, added deprecation stubs, 62 tests/397 assertions pass |
 
+### Phase 2: Demo & Validation — completed 2026-02-21
+
+| Spec | Completed | Summary |
+|------|-----------|---------|
+| [demo-port](demo-port.md) | 2026-02-21 | Ported Datomic demo to src/demo (11 sub-tasks): model, server, UI forms/reports, routing, REPL startup, E2E tests (39 tests, ~87 assertions) |
+
 ## Critique History
 
 | Round | Date | Result | Link |
 |-------|------|--------|------|
 | 1 | 2026-02-20 | 7 critical, 7 important, 5 suggested | [critique-round-1](plans/critique-round-1.md) |
 | 2 | 2026-02-20 | 0 critical, 2 important, 4 suggested -- READY | [critique-round-2](plans/critique-round-2.md) |
+| 3 | 2026-02-21 | 0 critical (after fix), 5 important, 4 suggested | Phase 2 demo-port critique |
 
 ## Implementation Order (Recommended)
 
@@ -83,12 +86,20 @@
 15. headless-testing (depends on all above)
 16. public-api-mapping (update after all conversions)
 
-### Phase 2: Demo & Validation — IN PROGRESS
-17. demo-port (Datomic demo with headless testing) — split into 11 sub-tasks
+### Phase 2: Demo & Validation — DONE
+17. demo-port (Datomic demo with headless testing) — 11 sub-tasks completed
 
 ## Open Questions for Human Review
 
 All questions resolved by human review 2026-02-20. See [critique-round-2.md](plans/critique-round-2.md) Section "Consolidated Open Questions for Human Review" for the full list with DECIDED annotations. Only 2 minor items remain open (ident->session-id separator edge case, statecharts release version).
+
+## Known Issues (from Phase 2 Critique)
+
+- **Form/report lifecycle via routing still uses UISM**: The routing integration (`rad_integration/start-form!`) calls `uism/begin!`, not `scf/start!`. The statechart path (`form_chart.cljc`) exists but is only used when `form/start-form!` is called directly. Wiring the routing integration to use statecharts instead of UISM is a future task.
+- **`sfr/edit!` sends to wrong session**: Sends to the form's own session instead of the routing session. Workaround: use `scr/route-to!` directly.
+- **`fops/load` ok-action doesn't fire in headless mode**: Reports require manual `:event/loaded` send after HTTP response. Library-level fix needed.
+- **`scf/current-configuration` returns nil in headless Root render**: Route-denied modal can't be tested via hiccup; tests verify state instead.
+- **8 routing E2E test failures**: Route-guard/dirty-form tests fail due to JSON parse errors (server returns HTML instead of transit). Pre-existing issue.
 
 ## Important Notes
 
