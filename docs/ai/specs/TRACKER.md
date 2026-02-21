@@ -64,6 +64,16 @@
 | [fix-e2e-test-failures](fix-e2e-test-failures.md) | 2026-02-21 | Added 4 missing headless field renderers (decimal, ref, ref/pick-one, instant/date-at-noon), removed silent `(when ...)` guards, fixed invoice render exception. All form+routing E2E tests pass. |
 | [headless-load-callback](headless-load-callback.md) | 2026-02-21 | Fixed `(constantly snapshot)` race condition in report_expressions.cljc — transform function at swap-time instead of snapshot replacement. Report E2E tests pass without workaround. |
 
+## Critique Specs
+
+| Spec | Reviewer | Scope |
+|------|----------|-------|
+| [critique-uism-remnants](critique-uism-remnants.md) | uism-critic | Dead UISM/DR code audit (~650 removable lines) |
+| [critique-api-design](critique-api-design.md) | api-critic | Public API surface, user experience, routing clarity |
+| [critique-architecture](critique-architecture.md) | arch-critic | Statechart design, Fulcro principles, expression quality |
+| [critique-production-readiness](critique-production-readiness.md) | prod-critic | Test coverage, ecosystem gaps, deployment blockers |
+| [critique-consolidated](critique-consolidated.md) | cross-critic | Cross-review: 2 critical, 15 important, 12 suggested |
+
 ## Critique History
 
 | Round | Date | Result | Link |
@@ -73,6 +83,7 @@
 | 3 | 2026-02-21 | 0 critical (after fix), 5 important, 4 suggested | Phase 2 demo-port critique |
 | 4 | 2026-02-21 | 1 critical, 2 important | Full quality audit (5-agent team): compile/test, API, architecture, test validity, ecosystem |
 | 5 | 2026-02-21 | 0 critical, 0 issues | Phase 3 final verification: 83 tests, 446 assertions, 0 failures |
+| 6 | 2026-02-21 | 2 critical, 15 important, 12 suggested | [critique-consolidated](critique-consolidated.md) — 4-agent deep critique + cross-review |
 
 ## Implementation Order (Recommended)
 
