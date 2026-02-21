@@ -1,6 +1,6 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-20 | Active: 0 | Blocked: 0 | Backlog: 18 | Done: 0 | Deferred: 3 -->
+<!-- Last updated: 2026-02-21 | Active: 0 | Blocked: 0 | Backlog: 12 | Done: 5 | Deferred: 3 -->
 
 ## Active
 
@@ -11,16 +11,6 @@
 (none)
 
 ## Backlog
-
-### Phase 0: Library Cleanup (pre-conversion)
-
-| Spec | Priority | Created | Depends-on | Summary |
-|------|----------|---------|------------|---------|
-| [cleanup-deletions](cleanup-deletions.md) | P0 | 2026-02-20 | none | Delete auth, blob, hooks, pathom3, DR routing, UISMs, deprecated files (~22 files) |
-| [dead-reference-cleanup](dead-reference-cleanup.md) | P0 | 2026-02-20 | cleanup-deletions | Remove all requires/references to deleted namespaces |
-| [control-multimethod-conversion](control-multimethod-conversion.md) | P0 | 2026-02-20 | dead-reference-cleanup | Convert control.cljc from map-based to multimethod dispatch |
-| [headless-plugin](headless-plugin.md) | P0 | 2026-02-20 | control-multimethod-conversion | Create sparse headless rendering plugin (multimethod-based) |
-| [cleanup-verification](cleanup-verification.md) | P0 | 2026-02-20 | headless-plugin | Verify cleanup: compile, grep dead refs, run tests |
 
 ### Phase 1: Statechart Conversion
 
@@ -54,7 +44,15 @@
 
 ## Done
 
-(none)
+### Phase 0: Library Cleanup (pre-conversion) — completed 2026-02-21
+
+| Spec | Completed | Summary |
+|------|-----------|---------|
+| [cleanup-deletions](cleanup-deletions.md) | 2026-02-21 | Deleted ~22 files (auth, blob, hooks, pathom3, DR routing, UISMs, deprecated) |
+| [dead-reference-cleanup](dead-reference-cleanup.md) | 2026-02-21 | Removed all requires/references to deleted namespaces from 8 files |
+| [control-multimethod-conversion](control-multimethod-conversion.md) | 2026-02-21 | Converted control.cljc to multimethod dispatch on [control-type style] |
+| [headless-plugin](headless-plugin.md) | 2026-02-21 | Created headless rendering plugin (5 files, plain HTML, all CLJC) |
+| [cleanup-verification](cleanup-verification.md) | 2026-02-21 | Verified: 0 dead refs, CLJ compiles, 33 tests/271 assertions pass, full multimethod coverage |
 
 ## Critique History
 

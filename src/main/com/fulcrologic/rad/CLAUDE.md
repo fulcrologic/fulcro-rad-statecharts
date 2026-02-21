@@ -14,6 +14,18 @@ The following namespaces were deleted and all references removed from remaining 
 - `dynamic.generator`, `dynamic.generator-options` - dynamic form/report generation
 - `pathom3`, `resolvers-pathom3` - Pathom 3 resolver generation
 
+## Routing Layer (Statecharts Conversion)
+
+`routing.cljc` was recreated as a thin delegation to `com.fulcrologic.statecharts.integration.fulcro.routing`:
+- `route-to!` — compatibility adapter accepting old RAD map pattern `{:target X :route-params {}}` AND new `(route-to! app target data)` pattern
+- `back!` → `scr/route-back!`
+- `route-forward!` → `scr/route-forward!`
+- `force-continue-routing!`, `abandon-route-change!`, `route-denied?` — direct delegation
+- Removed: `install-routing!`, `absolute-path`, `can-change-route?`, `update-route-params!`
+
+### Known Issue: Clojure 1.10.3 + malli
+The statecharts dep chain pulls in malli which uses `random-uuid` (Clojure 1.11+). The routing ns cannot load in a 1.10.3 REPL. This is a project-wide dep issue, not routing-specific.
+
 ## Stubbed Functions (pending statechart conversion)
 
 These functions were stripped of deleted-namespace dependencies and stubbed:
@@ -64,3 +76,71 @@ Map-based dispatch keys removed from source code:
 - `::row-style->row-layout` in report.cljc
 - `::control-style->control` in report.cljc
 - `::type->style->formatter` in report.cljc
+
+## Form Statechart Conversion
+
+### Architecture
+- `form_chart.cljc` — Statechart definition replacing `form-machine` UISM
+- `form_expressions.cljc` — All expression functions (4-arg convention: `[env data event-name event-data]`)
+- `form_machines.cljc` — Reusable chart fragments and helper ops for custom charts
+- `form.cljc` — Public API updated to use `scf/send!` instead of `uism/trigger!`
+
+### Key Design Decisions
+- **Circular dependency avoidance**: `form_expressions.cljc` uses `requiring-resolve` to access functions from `form.cljc` (like `default-state`, `optional-fields`, `valid?`) to avoid circular requires
+- **Session ID**: Uses `sc.session/ident->session-id` and `sc.session/form-session-id` to convert form idents to statechart session IDs
+- **view-mode?**: Now reads from `[::sc/local-data session-id :options :action]` instead of UISM internal storage
+- **form-allow-route-change**: Reads `:abandoned?` from `[::sc/local-data session-id :abandoned?]`
+- **Chart registration**: `start-form!` registers `::form-chart` on first use if no custom chart specified
+- **on-change trigger**: New breaking signature returns ops vector: `(fn [env data form-ident key old new] -> [ops])`
+- **UISM remains in requires**: The `uism` require stays for backward compat (defstatemachine, form-machine still defined but superseded)
+- **invoke-remote for save**: Uses `fops/invoke-remote` with `[(list save-mutation params)]` vector pattern
+- **Query change**: `[::uism/asm-id '_]` removed from generated form query
+- **fo/\* option access**: NEVER use `::fo/keys` destructuring in expressions — `::fo/` resolves to `form-options` ns, but keys live in `form` ns. Use `(get opts fo/var-name)` instead.
+- **form-ns keywords in expressions**: Use `(keyword "com.fulcrologic.rad.form" "name")` since `::form/name` would resolve to wrong ns
+- **CLJ compat**: Use `rc/component-type` not `rc/react-type` (CLJS-only)
+
+### Files Still Containing UISM References
+- `form.cljc` still has the old `form-machine` defstatemachine and UISM helper functions (`start-edit`, `start-create`, `leave-form`, `auto-create-to-one`, etc.) for backward compatibility. These are no longer used by the default flow but remain available.
+- The UISM require remains because removing it would break any code that still references `form-machine` directly.
+
+### Stubbed Functions Status (updated)
+- `form/view!`, `form/edit!`, `form/create!` — still stubbed, pending statechart routing conversion (see routing-statechart spec)
+
+## Container Statechart Conversion
+
+### Architecture
+- `container_chart.cljc` — Container statechart replacing `container-machine` UISM
+- `container_expressions.cljc` — Expression functions (4-arg convention)
+- `container.cljc` — Public API updated to use `scf/start!`/`scf/send!` instead of UISM
+
+### Key Design Decisions
+- **Option A (side-effect)**: Children are started via `report/start-report!` side-effect in on-entry, not via statechart `invoke`
+- **Session ID**: Uses `sc.session/ident->session-id` for the container, and `sc.session/ident->session-id (comp/get-ident child-class {::report/id id})` for children
+- **Broadcast**: `broadcast-to-children!` uses `scf/send!` to each child's session
+- **Cleanup**: on-exit of `:state/ready` sends `:event/unmount` to all children
+- **UISM removed**: `container-machine`, `merge-children`, `start-children!`, `initialize-parameters` (UISM versions) all removed
+- **New public fn**: `broadcast-to-children!` added to public API for external use
+- **Macro unchanged**: `defsc-container` macro NOT modified (handled by macro-rewrites spec)
+- **No circular dep**: `container_expressions.cljc` requires `report.cljc` directly (report doesn't require container)
+
+## Report Statechart Conversion
+
+### Architecture
+- `report_chart.cljc` — Standard report statechart replacing `report-machine` UISM
+- `report_expressions.cljc` — All shared expression functions (4-arg convention)
+- `server_paginated_report.cljc` — Server-paginated report statechart (self-contained)
+- `incrementally_loaded_report.cljc` — Incrementally-loaded report statechart (self-contained)
+- `report.cljc` — Public API updated to use `scf/send!` instead of `uism/trigger!`
+
+### Key Design Decisions
+- **Expression helpers in report_expressions**: `report-class`, `actor-ident`, `resolve-alias-path`, `read-alias`, `current-control-parameters` provide data access without UISM env
+- **Pure state-map functions**: `preprocess-raw-result`, `filter-rows-state`, `sort-rows-state`, `populate-page-state` take `(state-map data)` and return updated state-map, used via `fops/apply-action`
+- **Observable intermediate states**: `:state/sorting` and `:state/filtering` are separate states with eventless transitions to `:state/ready`, enabling UI feedback
+- **Session ID**: Uses `sc.session/ident->session-id` via `report-session-id` helper
+- **`::sc/ok-event` not `::scf/ok-event`**: Load options use `com.fulcrologic.statecharts` namespace, not the Fulcro integration namespace
+- **`rc/nc` not `comp/nc`**: Use `fulcro.raw.components/nc` for dynamic component creation
+- **No `fops/send-self`**: Statecharts doesn't have a self-send operation; use `ops/assign` with a flag and conditional eventless transitions instead (see incrementally-loaded report)
+- **`::machine` option key**: Report component options use `::report/machine` (existing) not `ro/statechart` (doesn't exist)
+- **UISM code retained**: Old `report-machine` and UISM handlers remain in `report.cljc` for backward compat
+- **Server-paginated aliases**: Adds `:page-cache`, `:loaded-page`, `:total-results`, `:point-in-time` aliases beyond the standard set
+- **Incrementally-loaded data model**: Uses `ops/assign` for `:last-load-time` and `:raw-items-in-table` (session-local cache tracking)

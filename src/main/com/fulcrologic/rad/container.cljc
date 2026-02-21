@@ -12,12 +12,14 @@
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-   [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-   [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
+   [com.fulcrologic.rad.container-chart :as container-chart]
+   [com.fulcrologic.rad.container-expressions :as cexpr]
    [com.fulcrologic.rad.report :as report]
    [com.fulcrologic.rad.control :as control :refer [Control]]
    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
+   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
    #?@(:clj
        [[cljs.analyzer :as ana]])
    [com.fulcrologic.fulcro.data-fetch :as df]
@@ -35,73 +37,11 @@
   [container]
   (set (vals (comp/component-options container ::children))))
 
-(defn- merge-children [env]
-  (let [container-class (uism/actor-class env :actor/container)
-        container-ident (uism/actor->ident env :actor/container)
-        merge-children* (fn [s]
-                          (reduce
-                           (fn [state [id cls]]
-                             (let [k    (comp/class->registry-key cls)
-                                   path (conj container-ident k)]
-                               (merge/merge-component state cls (or (comp/get-initial-state cls {::report/id id}) {}) :replace path)))
-                           s
-                           (id-child-pairs container-class)))]
-    (uism/apply-action env merge-children*)))
-
-(defn- start-children! [{::uism/keys [app event-data] :as env}]
-  (let [container-class (uism/actor-class env :actor/container)
-        id-children     (id-child-pairs container-class)]
-    (doseq [[id c] id-children]
-      (report/start-report! app c (assoc event-data
-                                         ::report/id id
-                                         ::report/externally-controlled? true)))
-    env))
-
-(defn container-options
-  "Returns the report options from the current report actor."
-  [uism-env & k-or-ks]
-  (apply comp/component-options (uism/actor-class uism-env :actor/container) k-or-ks))
-
-(defn- initialize-parameters [{::uism/keys [app event-data] :as env}]
-  ;; TODO: Re-add history-based parameter initialization during statechart routing conversion
-  (let [{:keys [route-params]} event-data
-        controls (control/component-controls (uism/actor-class env :actor/container))]
-    (reduce-kv
-     (fn [new-env control-key {:keys [default-value]}]
-       (let [v (cond
-                 (contains? route-params control-key) (get route-params control-key)
-                 (not (nil? default-value)) (?! default-value app))]
-         (if-not (nil? v)
-           (uism/apply-action new-env assoc-in [::control/id control-key ::control/value] v)
-           new-env)))
-     env
-     controls)))
-
-(defstatemachine container-machine
-  {::uism/actors
-   #{:actor/container}
-
-   ::uism/aliases
-   {:parameters [:actor/container :ui/parameters]}
-
-   ::uism/states
-   {:initial
-    {::uism/events
-     {::uism/started
-      {::uism/handler
-       (fn [env]
-         (-> env
-             (merge-children)
-             (initialize-parameters)
-             (start-children!)))}
-
-      :event/run
-      {::uism/handler (fn [env]
-                        (reduce
-                         (fn [env [id c]]
-                           (uism/trigger env (comp/get-ident c {::report/id id}) :event/run))
-                         env
-                         (id-child-pairs (uism/actor-class env :actor/container))))}}}}})
+(defn broadcast-to-children!
+  "Sends `event` to all child report statecharts of the given `container-class`."
+  [app container-class event & [event-data]]
+  (doseq [[id child-class] (id-child-pairs container-class)]
+    (scf/send! app (cexpr/child-report-session-id child-class id) event (or event-data {}))))
 
 (defn render-layout
   "Auto-render the content of a container. This is the automatic body of a container. If you supply no render body
@@ -115,17 +55,28 @@
              (or (some-> container-instance comp/component-options ::layout-style) :default))
   nil)
 
-(defn start-container! [app container-class options]
+(defn start-container!
+  "Starts the container statechart. Initializes parameters, merges children, and starts
+   child report statecharts."
+  [app container-class options]
   (log/info "Starting container!")
-  (let [container-ident (comp/get-ident container-class {})]
-    (uism/begin! app container-machine container-ident {:actor/container container-class} options)))
+  (let [container-ident (comp/get-ident container-class {})
+        session-id      (sc.session/ident->session-id container-ident)
+        running?        (seq (scf/current-configuration app session-id))]
+    (scf/register-statechart! app ::container-chart container-chart/container-statechart)
+    (if (not running?)
+      (scf/start! app
+                  {:machine    ::container-chart
+                   :session-id session-id
+                   :data       {:fulcro/actors  {:actor/container (scf/actor container-class container-ident)}
+                                :fulcro/aliases {:parameters [:actor/container :ui/parameters]}
+                                :route-params   (:route-params options)}})
+      (scf/send! app session-id :event/resume (merge options {:route-params (:route-params options)})))))
 
-(defn container-will-enter [app route-params container-class]
-  (let [container-ident (comp/get-ident container-class {})]
-    (dr/route-deferred container-ident
-                       (fn []
-                         (start-container! app container-class {:route-params route-params})
-                         (comp/transact! app [(dr/target-ready {:target container-ident})])))))
+(defn container-will-enter
+  "Route lifecycle handler for containers. Starts or resumes the container statechart."
+  [app route-params container-class]
+  (start-container! app container-class {:route-params route-params}))
 
 #?(:clj
    (defmacro defsc-container
