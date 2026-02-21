@@ -9,15 +9,10 @@
    `scf/current-configuration app session-id` (passing app, not component
    instance) for routing state.
 
-   NOTE: Form lifecycle is managed by UISM (ui-state-machines), NOT the form
-   statechart. The routing integration in
-   com.fulcrologic.statecharts.integration.fulcro.rad-integration/start-form!
-   calls uism/begin!, not scf/start!. The form statechart in form_chart.cljc
-   exists but is only used when form/start-form! is called directly (not via
-   routing). Therefore tests correctly use uism/trigger! and ::uism/asm-id for
-   form lifecycle state.
-   TODO: Migrate rad_integration/start-form! to use RAD form statechart
-   (form/start-form!) instead of UISM, completing the form lifecycle conversion."
+   Form lifecycle is managed by the form statechart (form_chart.cljc) via
+   `form/start-form!` which uses `scf/start!`. The routing integration in
+   `com.fulcrologic.rad.routing/form-route-state` calls `form/start-form!`
+   on entry, so forms are started as statechart sessions."
   (:require
    [clojure.test :refer [use-fixtures]]
    [com.example.components.datomic :refer [datomic-connections]]
@@ -28,8 +23,8 @@
    [com.example.ui.invoice-forms :refer [InvoiceForm]]
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.headless :as h]
-   [com.fulcrologic.fulcro.ui-state-machines :as uism]
    [com.fulcrologic.rad.ids :refer [new-uuid]]
+   [com.fulcrologic.rad.sc.session :as sc.session]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [datomic.client.api :as d]
@@ -56,12 +51,16 @@
   [app state-kw]
   (contains? (routing-config app) state-kw))
 
-(defn form-state
-  "Returns the active state of the form UISM (e.g. :state/editing, :state/loading).
-   Forms use UISM internally (via rad_integration/start-form!), not a standalone
-   statechart session, for lifecycle state."
+(defn form-config
+  "Returns the set of active statechart states for the form session."
   [app ident]
-  (get-in (app/current-state app) [::uism/asm-id ident ::uism/active-state]))
+  (let [session-id (sc.session/ident->session-id ident)]
+    (scf/current-configuration app session-id)))
+
+(defn form-in-state?
+  "Returns true if the form's statechart is in the given state."
+  [app ident state-kw]
+  (contains? (form-config app ident) state-kw))
 
 (defn entity-data
   "Get the normalized entity data from the app state."
@@ -93,7 +92,7 @@
                   (in-route-state? app :com.example.ui.account-forms/AccountForm) => true
 
                   "form statechart enters editing state"
-                  (form-state app ident) => :state/editing
+                  (form-in-state? app ident :state/editing) => true
 
                   "loads the account name from the server"
                   (:account/name (entity-data app ident)) => "Tony"
@@ -118,7 +117,7 @@
 
                  (assertions
                   "form is in editing state before modification"
-                  (form-state app ident) => :state/editing)
+                  (form-in-state? app ident :state/editing) => true)
 
     ;; Modify the name field directly in app state
                  (swap! (::app/state-atom app) assoc-in
@@ -129,15 +128,15 @@
                   "name is updated in local state"
                   (:account/name (entity-data app ident)) => "Tony Updated")
 
-    ;; Trigger save via the form UISM
-                 (uism/trigger! app ident :event/save)
+    ;; Trigger save via the form statechart
+                 (scf/send! app (sc.session/ident->session-id ident) :event/save {})
                  (dotimes [_ 10] (h/render-frame! app))
                  (h/wait-for-idle! app)
                  (dotimes [_ 10] (h/render-frame! app))
 
                  (assertions
                   "form returns to editing state after save"
-                  (form-state app ident) => :state/editing
+                  (form-in-state? app ident :state/editing) => true
 
                   "saved name persists in state"
                   (:account/name (entity-data app ident)) => "Tony Updated")
@@ -166,7 +165,7 @@
                   "form loads Sam's data"
                   (:account/name (entity-data app ident)) => "Sam"
                   "form is in editing state"
-                  (form-state app ident) => :state/editing)
+                  (form-in-state? app ident :state/editing) => true)
 
     ;; Modify the name
                  (swap! (::app/state-atom app) assoc-in
@@ -178,12 +177,12 @@
                   (:account/name (entity-data app ident)) => "Sam Modified")
 
     ;; Trigger reset (undo all changes without leaving form)
-                 (uism/trigger! app ident :event/reset)
+                 (scf/send! app (sc.session/ident->session-id ident) :event/reset {})
                  (dotimes [_ 30] (h/render-frame! app))
 
                  (assertions
                   "after reset, form is still in editing state"
-                  (form-state app ident) => :state/editing
+                  (form-in-state? app ident :state/editing) => true
 
                   "name reverts to original value"
                   (:account/name (entity-data app ident)) => "Sam")))
@@ -235,7 +234,7 @@
                   (in-route-state? app :com.example.ui.item-forms/ItemForm) => true
 
                   "form statechart enters editing state"
-                  (form-state app ident) => :state/editing
+                  (form-in-state? app ident :state/editing) => true
 
                   "loads the item name"
                   (:item/name (entity-data app ident)) => "Widget"
@@ -259,7 +258,7 @@
                   "form loads Screwdriver data"
                   (:item/name (entity-data app ident)) => "Screwdriver"
                   "form is in editing state"
-                  (form-state app ident) => :state/editing)
+                  (form-in-state? app ident :state/editing) => true)
 
     ;; Modify the name
                  (swap! (::app/state-atom app) assoc-in
@@ -267,14 +266,14 @@
                  (h/render-frame! app)
 
     ;; Save
-                 (uism/trigger! app ident :event/save)
+                 (scf/send! app (sc.session/ident->session-id ident) :event/save {})
                  (dotimes [_ 10] (h/render-frame! app))
                  (h/wait-for-idle! app)
                  (dotimes [_ 10] (h/render-frame! app))
 
                  (assertions
                   "form returns to editing after save"
-                  (form-state app ident) => :state/editing
+                  (form-in-state? app ident :state/editing) => true
 
                   "saved name persists"
                   (:item/name (entity-data app ident)) => "Screwdriver Pro")))
@@ -313,7 +312,7 @@
                       (in-route-state? app :com.example.ui.invoice-forms/InvoiceForm) => true
 
                       "form enters editing state"
-                      (form-state app ident) => :state/editing
+                      (form-in-state? app ident :state/editing) => true
 
                       "invoice has line items"
                       (let [invoice (entity-data app ident)]
