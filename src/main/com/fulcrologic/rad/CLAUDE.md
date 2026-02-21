@@ -120,7 +120,7 @@ Map-based dispatch keys removed from source code:
 - **Cleanup**: on-exit of `:state/ready` sends `:event/unmount` to all children
 - **UISM removed**: `container-machine`, `merge-children`, `start-children!`, `initialize-parameters` (UISM versions) all removed
 - **New public fn**: `broadcast-to-children!` added to public API for external use
-- **Macro unchanged**: `defsc-container` macro NOT modified (handled by macro-rewrites spec)
+- **Macro updated**: `defsc-container` macro updated with sfro options (macro-rewrites spec)
 - **No circular dep**: `container_expressions.cljc` requires `report.cljc` directly (report doesn't require container)
 
 ## Report Statechart Conversion
@@ -140,7 +140,32 @@ Map-based dispatch keys removed from source code:
 - **`::sc/ok-event` not `::scf/ok-event`**: Load options use `com.fulcrologic.statecharts` namespace, not the Fulcro integration namespace
 - **`rc/nc` not `comp/nc`**: Use `fulcro.raw.components/nc` for dynamic component creation
 - **No `fops/send-self`**: Statecharts doesn't have a self-send operation; use `ops/assign` with a flag and conditional eventless transitions instead (see incrementally-loaded report)
-- **`::machine` option key**: Report component options use `::report/machine` (existing) not `ro/statechart` (doesn't exist)
+- **`::machine` option key**: `ro/machine` is deprecated; `ro/statechart` now exists and the macro generates sfro options from it
 - **UISM code retained**: Old `report-machine` and UISM handlers remain in `report.cljc` for backward compat
 - **Server-paginated aliases**: Adds `:page-cache`, `:loaded-page`, `:total-results`, `:point-in-time` aliases beyond the standard set
 - **Incrementally-loaded data model**: Uses `ops/assign` for `:last-load-time` and `:raw-items-in-table` (session-local cache tracking)
+
+## Macro Rewrites (Statecharts Routing Integration)
+
+### defsc-form
+- **Query**: `[::uism/asm-id '_]` already removed (from form-statechart conversion)
+- **Component options**: Generates `sfro/statechart` (or `sfro/statechart-id` for keyword), `sfro/busy?` → `form-busy?`, `sfro/initialize` → `:always`
+- **Removed**: `:route-segment`, `:will-enter`, `:will-leave`, `:allow-route-change?`, `:route-denied`
+- **`form-busy?`**: New function that checks `fs/dirty?` on the form actor
+- **`fo/statechart`**: New option (keyword `:com.fulcrologic.rad.form/statechart`) for user-specified statecharts
+- **Compile-time warning**: Emitted when `:will-enter` is specified
+
+### defsc-report
+- **Query**: `[::uism/asm-id [::id fqkw]]` removed
+- **Component options**: Generates `sfro/statechart` (or `sfro/statechart-id`), `sfro/initialize` → `:once`
+- **Removed**: `:will-enter`, `:route-segment`
+- **`ro/statechart`**: New option (keyword `:com.fulcrologic.rad.report/statechart`)
+
+### defsc-container
+- **Component options**: Generates `sfro/statechart` (or `sfro/statechart-id`), `sfro/initialize` → `:once`
+- **Removed**: `:will-enter`, `:route-segment`
+- **Compile-time warning**: Emitted when `:will-enter` is specified
+
+### sfro Namespace
+- Require: `[com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]`
+- Keys: `sfro/initialize`, `sfro/busy?`, `sfro/statechart`, `sfro/statechart-id`, `sfro/actors`, `sfro/initial-props`
