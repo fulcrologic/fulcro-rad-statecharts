@@ -32,7 +32,11 @@
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.form-render :as fr]
    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
-   [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]))
+   [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
+   [com.fulcrologic.statecharts :as sc]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.form-chart :as form-chart]))
 
 (def ^:dynamic *default-save-form-mutation* `save-form)
 
@@ -45,14 +49,12 @@
   "Returns true if the main form was started in view mode. `form-instance` can be from main form or any subform."
   [form-instance]
   (let [master-form (or (::master-form (comp/get-computed form-instance))
-                        form-instance)]
-    (= view-action (-> master-form
-                       comp/props
-                       ::uism/asm-id
-                       (get (comp/get-ident master-form))
-                       ::uism/local-storage
-                       :options
-                       :action))))
+                        form-instance)
+        form-ident  (comp/get-ident master-form)
+        session-id  (sc.session/ident->session-id form-ident)
+        state-map   (raw.app/current-state master-form)
+        local-data  (get-in state-map [::sc/local-data session-id])]
+    (= view-action (get-in local-data [:options :action]))))
 
 (def standard-action-buttons
   "The standard ::form/action-buttons button layout. Requires you include stardard-controls in your ::control/controls key."
@@ -341,7 +343,6 @@
                              ::errors
                              [::picker-options/options-cache '_]
                              [:com.fulcrologic.fulcro.application/active-remotes '_]
-                             [::uism/asm-id '_]
                              fs/form-config-join]
                             (map ::attr/qualified-key)
                              ;; Make sure id isn't included twice, if it is also to be displayed in the for
@@ -361,36 +362,44 @@
     full-query))
 
 (defn start-form!
-  "Forms use a state machine to control their behavior. Normally that state machine is started when you route to
-  it using Fulcro's dynamic router system. If you start with a form on-screen, or do not use routing, then you will
+  "Forms use a statechart to control their behavior. Normally that statechart is started when you route to
+  it using the statecharts routing system. If you start with a form on-screen, or do not use routing, then you will
   have to call this function when the form first appears in order to ensure it operates. Calling this function is
-  *destructive* and will re-start the form's machine and destroy any current state in that form.
+  *destructive* and will re-start the form's statechart and destroy any current state in that form.
 
   * app - The app
   * id - The ID of the form, in the correct type (i.e. int, UUID, etc.). Use a `tempid` to create something new, otherwise
   the form will attempt to load the current value from the server.
   * form-class - The component class that will render the form and has the form's configuration.
-  * params - Extra parameters to include in the initial event data. The state machine definition you're using will
-    determine the meanings of these (if any). The default machine supports:
+  * params - Extra parameters to include in the initial data. The statechart definition you're using will
+    determine the meanings of these (if any). The default chart supports:
     ** `:on-saved fulcro-txn` A transaction to run when the form is successfully saved. Exactly what you'd pass to `transact!`.
     ** `:on-cancel fulcro-txn` A transaction to run when the edit is cancelled.
     ** `:on-save-failed fulcro-txn` A transaction to run when the server refuses to save the data.
     ** `:embedded? boolean` Disable history and routing for embedded forms. Default false.
 
-  The state machine definition used by this method can be overridden by setting `::form/machine` in component options
-  to a different Fulcro uism state machine definition. Machines do *not* run in subforms, only in the master, which
-  is what `form-class` will become for that machine.
+  The statechart definition used by this method can be overridden by setting `::form/statechart` in component options
+  to a different statechart definition. Charts do *not* run in subforms, only in the master, which
+  is what `form-class` will become for that chart.
   "
   ([app id form-class] (start-form! app id form-class {}))
   ([app id form-class params]
    (let [{::attr/keys [qualified-key]} (comp/component-options form-class ::id)
-         machine    (or (comp/component-options form-class ::machine) form-machine)
+         chart-id   (or (comp/component-options form-class ::statechart) ::form-chart)
          new?       (tempid/tempid? id)
-         form-ident [qualified-key id]]
-     (uism/begin! app machine
-                  form-ident
-                  {:actor/form (uism/with-actor-class form-ident form-class)}
-                  (merge params {::create? new?})))))
+         form-ident [qualified-key id]
+         session-id (sc.session/ident->session-id form-ident)]
+     ;; Register the chart if it hasn't been registered yet
+     (when-not (comp/component-options form-class ::statechart)
+       (scf/register-statechart! app ::form-chart form-chart/form-chart))
+     (scf/start! app {:machine    chart-id
+                      :session-id session-id
+                      :data       {:fulcro/actors  {:actor/form (scf/actor form-class form-ident)}
+                                   :fulcro/aliases {:confirmation-message [:actor/form :ui/confirmation-message]
+                                                    :route-denied?        [:actor/form :ui/route-denied?]
+                                                    :server-errors        [:actor/form ::errors]}
+                                   ::create?       new?
+                                   :options        params}}))))
 
 (defn form-will-enter
   "Used as the implementation and return value of a form target's will-enter dynamic routing hook."
@@ -404,31 +413,34 @@
     (dr/route-deferred form-ident (fn [] (start-form! app coerced-id form-class route-params)))))
 
 (defn abandon-form!
-  "Stop the state machine for the given form without warning. Does not reset the form or give any warnings: just exits the state machine.
+  "Stop the statechart for the given form without warning. Does not reset the form or give any warnings: just exits the statechart.
    You should only use this when you are embedding the form in something, and you are controlling the form directly. Usually,
    you will combine this with `undo-all!` and some kind of UI routing change."
-  [app-ish form-ident] (uism/trigger! app-ish form-ident :event/exit {}))
+  [app-ish form-ident]
+  (let [session-id (sc.session/ident->session-id form-ident)]
+    (scf/send! app-ish session-id :event/exit {})))
 
 (defn form-will-leave
-  "Checks to see if the UISM is still running (indicating an exit via routing) and cleans up the machine."
+  "Checks to see if the statechart is still running (indicating an exit via routing) and cleans up."
   [this]
   (let [master-form     (or (comp/get-computed this ::master-form) this)
-        state-map       (raw.app/current-state this)
         form-ident      (comp/get-ident master-form)
-        silent-abandon? (?! (comp/component-options this ::silent-abandon?) this)
-        machine         (get-in state-map [::uism/asm-id form-ident])]
-    (when machine
-      (uism/trigger! master-form form-ident :event/exit {}))
+        session-id      (sc.session/ident->session-id form-ident)
+        config          (scf/current-configuration this session-id)]
+    (when (seq config)
+      (scf/send! master-form session-id :event/exit {}))
     true))
 
 (defn form-allow-route-change [this]
   "Used as a form route target's :allow-route-change?"
-  (let [id              (comp/get-ident this)
+  (let [form-ident      (comp/get-ident this)
         form-props      (comp/props this)
         read-only?      (?! (comp/component-options this ::read-only?) this)
         silent-abandon? (?! (comp/component-options this ::silent-abandon?) this)
-        current-state   (raw.app/current-state this)
-        abandoned?      (get-in current-state [::uism/asm-id id ::uism/local-storage :abandoned?] false)
+        session-id      (sc.session/ident->session-id form-ident)
+        state-map       (raw.app/current-state this)
+        local-data      (get-in state-map [::sc/local-data session-id])
+        abandoned?      (get local-data :abandoned? false)
         dirty?          (and (not abandoned?) (fs/dirty? form-props))]
     (or silent-abandon? read-only? (not dirty?))))
 
@@ -486,13 +498,14 @@
                                                           (let [rroot (cond
                                                                         (comp/component-class? relative-root) (comp/class->registry-key relative-root)
                                                                         (keyword? relative-root) relative-root
-                                                                        :else (some-> relative-root (comp/react-type) (comp/class->registry-key)))]
-                                                            (uism/trigger!! this (comp/get-ident this)
-                                                                            :event/route-denied
-                                                                            {:form                (some-> (get-class) (comp/class->registry-key))
-                                                                             :relative-root       rroot
-                                                                             :route               proposed-route
-                                                                             :timeouts-and-params timeouts-and-params})))}
+                                                                        :else (some-> relative-root (comp/react-type) (comp/class->registry-key)))
+                                                                session-id (sc.session/form-session-id this)]
+                                                            (scf/send! this session-id
+                                                                       :event/route-denied
+                                                                       {:form                (some-> (get-class) (comp/class->registry-key))
+                                                                        :relative-root       rroot
+                                                                        :route               proposed-route
+                                                                        :timeouts-and-params timeouts-and-params})))}
                                     options
                                     (cond->
                                      {:ident               (fn [_ props] [id-key (get props id-key)])
@@ -969,7 +982,8 @@
                                             (uism/apply-action env fs/mark-complete* form-ident)))}})
 
 (defn mark-all-complete! [master-form-instance]
-  (uism/trigger! master-form-instance (comp/get-ident master-form-instance) :event/mark-complete))
+  (let [session-id (sc.session/form-session-id master-form-instance)]
+    (scf/send! master-form-instance session-id :event/mark-complete)))
 
 (defn auto-create-to-one
   "Create any to-one referenced entities that did not load, but which are marked as auto-create."
@@ -1376,18 +1390,21 @@
          params      (or (?! save-params form-rendering-env) {})]
      (save! form-rendering-env params)))
   ([{this ::master-form :as _form-rendering-env} addl-save-params]
-   (uism/trigger! this (comp/get-ident this) :event/save addl-save-params)))
+   (let [session-id (sc.session/form-session-id this)]
+     (scf/send! this session-id :event/save addl-save-params))))
 
 (defn undo-all!
   "Trigger an undo of all changes on the given form rendering env."
   [{this ::master-form}]
-  (uism/trigger! this (comp/get-ident this) :event/reset {}))
+  (let [session-id (sc.session/form-session-id this)]
+    (scf/send! this session-id :event/reset {})))
 
 (defn cancel!
   "Trigger a cancel of all changes on the given form rendering env. This is like undo, but attempts to route away from
    the form."
   [{this ::master-form}]
-  (uism/trigger! this (comp/get-ident this) :event/cancel {}))
+  (let [session-id (sc.session/form-session-id this)]
+    (scf/send! this session-id :event/cancel {})))
 
 (defn add-child!
   "Add a child.
@@ -1421,8 +1438,8 @@
   namespace when passed through to the state machine.
   "
   ([{::keys [master-form] :as env}]
-   (let [asm-id (comp/get-ident master-form)]
-     (uism/trigger! master-form asm-id :event/add-row env)))
+   (let [session-id (sc.session/form-session-id master-form)]
+     (scf/send! master-form session-id :event/add-row env)))
   ([form-instance parent-relation ChildForm]
    (add-child! form-instance parent-relation ChildForm {}))
   ([form-instance parent-relation ChildForm {:keys [order initial-state default-overrides] :as options}]
@@ -1457,8 +1474,8 @@
    (let [{::keys [master-form] :as env} (if (comp/component-instance? this-or-rendering-env)
                                           (rendering-env this-or-rendering-env)
                                           this-or-rendering-env)
-         asm-id (comp/get-ident master-form)]
-     (uism/trigger! master-form asm-id :event/delete-row env)))
+         session-id (sc.session/form-session-id master-form)]
+     (scf/send! master-form session-id :event/delete-row env)))
   ([parent-instance relation-key child-ident]
    (let [env (assoc (rendering-env parent-instance)
                     ::parent parent-instance
@@ -1598,18 +1615,18 @@
      (comp/transact! this [(delete-entity {id-key entity-id})])))
 
 (defn input-blur!
-  "Helper: Informs the form's state machine that focus has left an input. Requires a form rendering env, attr keyword,
+  "Helper: Informs the form's statechart that focus has left an input. Requires a form rendering env, attr keyword,
    and the current value."
   [{::keys [form-instance master-form]} k value]
   (let [form-ident (comp/get-ident form-instance)
-        asm-id     (comp/get-ident master-form)]
-    (uism/trigger! master-form asm-id :event/blur
-                   {::attr/qualified-key k
-                    :form-ident          form-ident
-                    :value               value})))
+        session-id (sc.session/form-session-id master-form)]
+    (scf/send! master-form session-id :event/blur
+               {::attr/qualified-key k
+                :form-ident          form-ident
+                :value               value})))
 
 (defn input-changed!
-  "Helper: Informs the form's state machine that an input's value has changed. Requires a form rendering env, attr keyword,
+  "Helper: Informs the form's statechart that an input's value has changed. Requires a form rendering env, attr keyword,
    and the current value.
 
    Using a value of `nil` will cause the field to become empty in an attribute-aware way:
@@ -1622,13 +1639,13 @@
   [{::keys [form-instance master-form] :as _env} k value]
   (let [form-ident (comp/get-ident form-instance)
         old-value  (get (comp/props form-instance) k)
-        asm-id     (comp/get-ident master-form)]
-    (uism/trigger!! form-instance asm-id :event/attribute-changed
-                    {::attr/qualified-key k
-                     :form-ident          form-ident
-                     :form-key            (comp/class->registry-key (comp/react-type form-instance))
-                     :old-value           old-value
-                     :value               value})))
+        session-id (sc.session/form-session-id master-form)]
+    (scf/send! form-instance session-id :event/attribute-changed
+               {::attr/qualified-key k
+                :form-ident          form-ident
+                :form-key            (comp/class->registry-key (comp/react-type form-instance))
+                :old-value           old-value
+                :value               value})))
 
 (defn computed-value
   "Returns the computed value of the given attribute on the form from `env` (if it is a computed attribute).
@@ -1921,7 +1938,8 @@
 (defn undo-via-load!
   "Undo all changes to the current form by reloading it from the server."
   [{::keys [master-form] :as _rendering-env}]
-  (uism/trigger! master-form (comp/get-ident master-form) :event/reload))
+  (let [session-id (sc.session/form-session-id master-form)]
+    (scf/send! master-form session-id :event/reload)))
 
 #?(:clj
    (defmacro defunion
