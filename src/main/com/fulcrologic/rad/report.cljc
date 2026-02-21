@@ -690,9 +690,9 @@
                                  ~body-options
                                  (render-row (:report-instance computed#) ~generated-row-sym ~props-sym))
                               `(comp/defsc ~sym ~arglist ~options ~@body)]
-                             [`(comp/defsc ~sym ~arglist ~options ~@body)])
+                             [`(comp/defsc ~sym ~arglist ~options ~@body)])]
          `(do
-            ~@defs)]))))
+            ~@defs)))))
 
 #?(:clj (s/fdef defsc-report :args ::comp/args))
 
