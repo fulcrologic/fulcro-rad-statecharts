@@ -10,7 +10,13 @@
    NOTE: The fops/load ok-action callback does not reliably fire the statechart
    :event/loaded event in headless mode. Data DOES arrive in Fulcro state via
    the load's auto-merge, but the statechart stays in :state/loading. We work
-   around this by manually sending :event/loaded after waiting for HTTP."
+   around this by using h/wait-for-idle! to wait for HTTP responses, then
+   manually sending :event/loaded to advance the statechart.
+   TODO: Investigate why fops/load ok-action doesn't fire in headless mode.
+   Likely the ok-action callback in the load options isn't being invoked after
+   the HTTP remote response merges. This may be a timing issue with the headless
+   event loop or a missing integration point between fops/load and the
+   headless HTTP driver."
   (:require
    [clojure.test :refer [use-fixtures]]
    [com.fulcrologic.fulcro.application :as app]
@@ -26,7 +32,7 @@
    [fulcro-spec.core :refer [=> assertions specification component]]))
 
 (use-fixtures :once
-  (with-test-system {:port 9845}))
+  (with-test-system {:port 9847}))
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
@@ -53,13 +59,14 @@
 
 (defn wait-for-report!
   "Route to a report and wait for data to load. Returns the app.
-   Routes via statechart routing, waits for HTTP, then manually sends
-   :event/loaded to complete the report statechart lifecycle."
+   Routes via statechart routing, waits for HTTP via wait-for-idle!, then
+   manually sends :event/loaded to complete the report statechart lifecycle
+   (see TODO in ns docstring about fops/load ok-action not firing)."
   [app report-class route-params]
   (scr/route-to! app report-class route-params)
   (dotimes [_ 5] (h/render-frame! app))
-  ;; Wait for HTTP response to arrive and auto-merge
-  (Thread/sleep 2000)
+  ;; Wait for all pending HTTP requests to complete
+  (h/wait-for-idle! app)
   (dotimes [_ 5] (h/render-frame! app))
   ;; Manually trigger the statechart callback that fops/load doesn't fire in headless mode
   (let [sid (sc-session/report-session-id report-class {})]
@@ -72,7 +79,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Inventory report"
-               (let [app     (test-client 9845)
+               (let [app     (test-client 9847)
                      rpt-key :com.example.ui.inventory-report/InventoryReport
                      sid     (sc-session/report-session-id InventoryReport {})]
                  (h/render-frame! app)
@@ -131,7 +138,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Invoice report"
-               (let [app     (test-client 9845)
+               (let [app     (test-client 9847)
                      rpt-key :com.example.ui.invoice-report/InvoiceReport
                      sid     (sc-session/report-session-id InvoiceReport {})]
                  (h/render-frame! app)
@@ -170,7 +177,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Account invoices report"
-               (let [app     (test-client 9845)
+               (let [app     (test-client 9847)
                      rpt-key :com.example.ui.invoice-forms/AccountInvoices
                      sid     (sc-session/report-session-id AccountInvoices {})]
                  (h/render-frame! app)

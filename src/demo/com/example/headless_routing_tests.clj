@@ -160,8 +160,14 @@
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Form Navigation (via scr/route-to! API)
-;; NOTE: sfr/edit! currently sends to the wrong statechart session
-;; (ui-routes/session vs routing/session). Using scr/route-to! directly.
+;; TODO: sfr/edit! (com.fulcrologic.rad.form/edit!) sends events to the wrong
+;; statechart session. It targets the form's own session (derived from the
+;; form ident via sc.session/ident->session-id) instead of the routing session
+;; (scr/session-id). The routing session is what controls navigation state
+;; transitions. Until edit! is fixed to route through the routing statechart,
+;; use scr/route-to! directly for form navigation in tests.
+;; See also: form.cljc `edit!` and `start-form!` — the fix likely involves
+;; having edit! call scr/route-to! instead of directly starting the form session.
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — navigate to Account form via route-to!"

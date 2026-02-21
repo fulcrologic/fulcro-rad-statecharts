@@ -7,96 +7,44 @@
    with `scf/current-configuration` in Root's render body failing in headless
    CLJ mode. Tests therefore use state-map assertions for form data and
    `scf/current-configuration app session-id` (passing app, not component
-   instance) for routing state."
+   instance) for routing state.
+
+   NOTE: Form lifecycle is managed by UISM (ui-state-machines), NOT the form
+   statechart. The routing integration in
+   com.fulcrologic.statecharts.integration.fulcro.rad-integration/start-form!
+   calls uism/begin!, not scf/start!. The form statechart in form_chart.cljc
+   exists but is only used when form/start-form! is called directly (not via
+   routing). Therefore tests correctly use uism/trigger! and ::uism/asm-id for
+   form lifecycle state.
+   TODO: Migrate rad_integration/start-form! to use RAD form statechart
+   (form/start-form!) instead of UISM, completing the form lifecycle conversion."
   (:require
-   [com.example.client :as client]
+   [clojure.test :refer [use-fixtures]]
    [com.example.components.datomic :refer [datomic-connections]]
-   [com.example.components.ring-middleware]
-   [com.example.components.server]
-   [com.example.model.seed :as seed]
+   [com.example.headless-client :refer [test-client]]
+   [com.example.test-server :refer [with-test-system]]
    [com.example.ui.account-forms :refer [AccountForm]]
    [com.example.ui.item-forms :refer [ItemForm]]
    [com.example.ui.invoice-forms :refer [InvoiceForm]]
-   [com.fulcrologic.fulcro.algorithms.form-state :as fs]
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.headless :as h]
    [com.fulcrologic.fulcro.ui-state-machines :as uism]
-   [com.fulcrologic.rad.form :as form]
    [com.fulcrologic.rad.ids :refer [new-uuid]]
-   [com.fulcrologic.rad.type-support.date-time :as dt]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [datomic.client.api :as d]
    [fulcro-spec.core :refer [=> assertions component specification]]
-   [mount.core :as mount]))
+   [taoensso.timbre :as log]))
 
 ;; ---------------------------------------------------------------------------
-;; Test Server Fixture
+;; Fixture — uses shared test_server.clj with unique port 9846
 ;; ---------------------------------------------------------------------------
 
-(def ^:dynamic *test-port* nil)
-
-(defn with-test-system
-  "clojure.test fixture: starts mount system with anti-forgery disabled,
-   seeds data, runs tests. Uses a unique port to avoid conflicts with
-   routing tests."
-  ([] (with-test-system {}))
-  ([{:keys [port] :or {port 9845}}]
-   (fn [tests]
-     (mount/start-with-args
-      {:config    "config/dev.edn"
-       :overrides {:org.httpkit.server/config        {:port port}
-                   :ring.middleware/defaults-config
-                   {:params    {:urlencoded true
-                                :multipart true
-                                :nested    true
-                                :keywordize true}
-                    :cookies   true
-                    :session   {:flash true
-                                :cookie-attrs {:http-only true
-                                               :same-site :lax}}
-                    :security  {:anti-forgery        false
-                                :xss-protection      {:enable? true :mode :block}
-                                :frame-options       :sameorigin
-                                :content-type-options :nosniff}
-                    :static    {:resources "public"}
-                    :responses {:not-modified-responses true
-                                :absolute-redirects    true
-                                :content-types         true
-                                :default-charset       "utf-8"}}}})
-     (try
-       (dt/set-timezone! "America/Los_Angeles")
-       (let [connection (:main datomic-connections)]
-         (when connection
-           (d/transact connection
-                       {:tx-data
-                        [(seed/new-account (new-uuid 100) "Tony" "tony@example.com" "letmein")
-                         (seed/new-account (new-uuid 101) "Sam" "sam@example.com" "letmein")
-                         (seed/new-category (new-uuid 1000) "Tools")
-                         (seed/new-category (new-uuid 1002) "Toys")
-                         (seed/new-item (new-uuid 200) "Widget" 33.99
-                                        :item/category "Tools")
-                         (seed/new-item (new-uuid 201) "Screwdriver" 4.99
-                                        :item/category "Tools")
-                         (seed/new-invoice "invoice-1"
-                                           (dt/html-datetime-string->inst "2020-01-01T12:00")
-                                           "Tony"
-                                           [(seed/new-line-item "Widget" 1 33.0M)])]})))
-       (binding [*test-port* port]
-         (tests))
-       (finally
-         (mount/stop))))))
-
-(clojure.test/use-fixtures :once (with-test-system {:port 9845}))
+(use-fixtures :once (with-test-system {:port 9846}))
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
 ;; ---------------------------------------------------------------------------
-
-(defn test-client
-  "Create a headless client pointing at the test server."
-  [port]
-  (client/init port))
 
 (defn routing-config
   "Returns the current statechart configuration for the routing session."
@@ -110,7 +58,8 @@
 
 (defn form-state
   "Returns the active state of the form UISM (e.g. :state/editing, :state/loading).
-   Forms use UISM internally, not statechart sessions, for lifecycle state."
+   Forms use UISM internally (via rad_integration/start-form!), not a standalone
+   statechart session, for lifecycle state."
   [app ident]
   (get-in (app/current-state app) [::uism/asm-id ident ::uism/active-state]))
 
@@ -132,7 +81,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing account"
-               (let [app   (test-client 9845)
+               (let [app   (test-client 9846)
                      ident [:account/id (new-uuid 100)]]
                  (h/render-frame! app)
 
@@ -160,7 +109,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — modify account and save"
-               (let [app   (test-client 9845)
+               (let [app   (test-client 9846)
                      ident [:account/id (new-uuid 100)]]
                  (h/render-frame! app)
 
@@ -180,9 +129,11 @@
                   "name is updated in local state"
                   (:account/name (entity-data app ident)) => "Tony Updated")
 
-    ;; Trigger save via the form statechart
+    ;; Trigger save via the form UISM
                  (uism/trigger! app ident :event/save)
-                 (dotimes [_ 30] (h/render-frame! app))
+                 (dotimes [_ 10] (h/render-frame! app))
+                 (h/wait-for-idle! app)
+                 (dotimes [_ 10] (h/render-frame! app))
 
                  (assertions
                   "form returns to editing state after save"
@@ -192,7 +143,7 @@
                   (:account/name (entity-data app ident)) => "Tony Updated")
 
     ;; Verify persistence: create a fresh client and re-load
-                 (let [app2   (test-client 9845)
+                 (let [app2   (test-client 9846)
                        _      (h/render-frame! app2)
                        _      (wait-for-form! app2 AccountForm {:id (new-uuid 100)})]
                    (assertions
@@ -204,7 +155,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — cancel account edit"
-               (let [app   (test-client 9845)
+               (let [app   (test-client 9846)
                      ident [:account/id (new-uuid 101)]]
                  (h/render-frame! app)
 
@@ -242,7 +193,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — account with address subform"
-               (let [app   (test-client 9845)
+               (let [app   (test-client 9846)
                      ident [:account/id (new-uuid 100)]]
                  (h/render-frame! app)
 
@@ -272,7 +223,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing item"
-               (let [app   (test-client 9845)
+               (let [app   (test-client 9846)
                      ident [:item/id (new-uuid 200)]]
                  (h/render-frame! app)
 
@@ -297,7 +248,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — modify item price and save"
-               (let [app   (test-client 9845)
+               (let [app   (test-client 9846)
                      ident [:item/id (new-uuid 201)]]
                  (h/render-frame! app)
 
@@ -317,7 +268,9 @@
 
     ;; Save
                  (uism/trigger! app ident :event/save)
-                 (dotimes [_ 30] (h/render-frame! app))
+                 (dotimes [_ 10] (h/render-frame! app))
+                 (h/wait-for-idle! app)
+                 (dotimes [_ 10] (h/render-frame! app))
 
                  (assertions
                   "form returns to editing after save"
@@ -331,7 +284,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing invoice"
-               (let [app        (test-client 9845)
+               (let [app        (test-client 9846)
                      connection  (:main datomic-connections)
                      ;; Query Datomic for the seeded invoice ID (random UUID)
                      inv-ids    (when connection
@@ -342,13 +295,18 @@
                  (h/render-frame! app)
 
                  (when inv-id
-                   (let [ident [:invoice/id inv-id]]
+                   (let [ident [:invoice/id inv-id]
+                         first-error (atom nil)]
                      ;; Route to form. Use try-catch on render-frame! because the headless
-                     ;; form renderer throws on complex subforms (line items + customer picker)
+                     ;; form renderer throws on complex subforms (line items + customer picker).
+                     ;; TODO: Fix the root cause — likely a missing CLJ stub for a JS-only
+                     ;; rendering dependency in the invoice form's subform components.
                      (scr/route-to! app InvoiceForm {:id inv-id})
                      (dotimes [_ 30]
                        (try (h/render-frame! app)
-                            (catch Throwable _)))
+                            (catch Throwable t
+                              (when (compare-and-set! first-error nil t)
+                                (log/warn "Invoice form render error (first of possibly many):" (.getMessage t))))))
 
                      (assertions
                       "routes to InvoiceForm state"
@@ -366,7 +324,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — sequential navigation between forms"
-               (let [app (test-client 9845)]
+               (let [app (test-client 9846)]
                  (h/render-frame! app)
 
                  (assertions
