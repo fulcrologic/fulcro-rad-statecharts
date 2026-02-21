@@ -77,7 +77,7 @@
         <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>clojure</artifactId>
-            <version>1.10.3</version>
+            <version>1.11.4</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
@@ -122,7 +122,7 @@
         <dependency>
             <groupId>com.fulcrologic</groupId>
             <artifactId>fulcro</artifactId>
-            <version>3.7.0-RC3</version>
+            <version>3.9.3</version>
         </dependency>
         <dependency>
             <groupId>com.taoensso</groupId>
@@ -142,7 +142,7 @@
         <dependency>
             <groupId>com.fulcrologic</groupId>
             <artifactId>statecharts</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.4.0-RC2-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>

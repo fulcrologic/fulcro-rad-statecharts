@@ -1,74 +1,210 @@
-= Fulcro Rapid Application Development Tools
+= Fulcro RAD Statecharts
+:toc: macro
+:toclevels: 3
 
-A library using Fulcro and Pathom to create full-stack single-page web, mobile, and
-desktop applications with a rich (and potentially federated) data model quickly.
+A fork of https://github.com/fulcrologic/fulcro-rad[Fulcro RAD] that replaces UI State Machines (UISM) and Dynamic Router with https://github.com/fulcrologic/statecharts[fulcrologic/statecharts] for all form, report, container, and routing lifecycle management.
 
-== Usage
+toc::[]
 
-image:https://img.shields.io/clojars/v/com.fulcrologic/fulcro-rad.svg[link=https://clojars.org/com.fulcrologic/fulcro-rad]
-image:https://circleci.com/gh/fulcrologic/fulcro-rad/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro-rad/tree/develop"]
+== Status
 
-NOTE: The latest version requires at least Fulcro 3.5.1.
+image:https://img.shields.io/clojars/v/com.fulcrologic/fulcro-rad-statecharts.svg[link=https://clojars.org/com.fulcrologic/fulcro-rad-statecharts]
 
-Documentation is currently available in the docstrings of the namespaces (most up-to-date), and you can refer to the
-https://github.com/fulcrologic/fulcro-rad-demo[Fulcro RAD Demo] project.
+This library requires Fulcro 3.9.3+ and Clojure 1.11.4+. Everything is CLJC, enabling headless testing of the full application lifecycle without a browser.
 
-There is a start on a book at http://book.fulcrologic.com/RAD.html.
-At the moment your best bet for knowing exactly what works is to look at the
-https://github.com/fulcrologic/fulcro-rad-demo[RAD Demo project].
+== Why Statecharts?
+
+Fulcro RAD originally used UI State Machines (UISM) for form and report lifecycle and Dynamic Router for navigation. This worked, but had limitations:
+
+* **UISMs are ad-hoc** -- they lack formal semantics, making complex state logic hard to reason about.
+* **Dynamic Router couples routing to components** -- route segments are declared on components, mixing concerns.
+* **Testing required a browser** -- CLJS-only code paths made headless testing difficult.
+
+Statecharts provide formal state management with hierarchical states, guards, and actions. Combined with statechart-based routing, all lifecycle and navigation logic is testable from a plain Clojure REPL.
+
+== Quick Start
+
+=== 1. Define Attributes
+
+Attributes are unchanged from standard RAD:
+
+[source,clojure]
+----
+(ns com.example.model.account
+  (:require
+   [com.fulcrologic.rad.attributes :as attr :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]))
+
+(defattr id :account/id :uuid
+  {ao/identity? true
+   ao/schema    :production})
+
+(defattr name :account/name :string
+  {ao/identities #{:account/id}
+   ao/schema     :production})
+----
+
+=== 2. Define a Form
+
+`defsc-form` works the same as before. The macro generates statechart options automatically:
+
+[source,clojure]
+----
+(ns com.example.ui.account-forms
+  (:require
+   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.example.model.account :as account]))
+
+(form/defsc-form AccountForm [this props]
+  {fo/id           account/id
+   fo/attributes   [account/name]
+   fo/route-prefix "account"
+   fo/title        "Edit Account"})
+----
+
+=== 3. Define a Report
+
+`defsc-report` also works the same:
+
+[source,clojure]
+----
+(ns com.example.ui.account-report
+  (:require
+   [com.fulcrologic.rad.report :as report]
+   [com.fulcrologic.rad.report-options :as ro]
+   [com.example.model.account :as account]))
+
+(report/defsc-report AccountReport [this props]
+  {ro/title      "Accounts"
+   ro/source-attribute :account/all-accounts
+   ro/row-pk     account/id
+   ro/columns    [account/name]
+   ro/route-prefix "accounts"})
+----
+
+=== 4. Define the Routing Chart
+
+Instead of Dynamic Router, you declare a statechart that defines all routes:
+
+[source,clojure]
+----
+(ns com.example.ui.ui
+  (:require
+   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+   [com.fulcrologic.rad.routing :as rroute]
+   [com.fulcrologic.statecharts.chart :refer [statechart]]
+   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
+
+;; A container component that renders the current route
+(defsc Routes [this props]
+  {:query                   [:ui/placeholder]
+   :preserve-dynamic-query? true
+   :initial-state           {}
+   :ident                   (fn [] [:component/id ::Routes])}
+  (scr/ui-current-subroute this comp/factory))
+
+(def routing-chart
+  (statechart {:initial :state/route-root}
+    (scr/routing-regions
+      (scr/routes {:id :state/root :routing/root `Routes}
+
+        ;; Landing page (plain route state)
+        (scr/rstate {:route/target `LandingPage})
+
+        ;; Reports
+        (rroute/report-route-state {:route/target `AccountReport})
+
+        ;; Forms (with route params for the entity id)
+        (rroute/form-route-state {:route/target `AccountForm
+                                  :route/params #{:account/id}})))))
+----
+
+=== 5. Bootstrap the Application
+
+[source,clojure]
+----
+(ns com.example.system
+  (:require
+   [com.example.ui.ui :refer [routing-chart]]
+   [com.fulcrologic.rad.application :as rad-app]
+   [com.fulcrologic.rad.rendering.headless.plugin]))  ;; or your UI plugin
+
+(defn start! [app]
+  ;; 1. Install statechart infrastructure
+  (rad-app/install-statecharts! app)
+  ;; 2. Start routing with your chart
+  (rad-app/start-routing! app routing-chart)
+  ;; 3. (CLJS only) Enable URL synchronization
+  #?(:cljs (rad-app/install-url-sync! app)))
+----
+
+=== 6. Navigate
+
+Use `com.fulcrologic.rad.routing` for all navigation:
+
+[source,clojure]
+----
+(require '[com.fulcrologic.rad.routing :as rroute])
+
+;; Navigate to a report
+(rroute/route-to! this AccountReport)
+
+;; Edit an existing entity
+(rroute/edit! this AccountForm account-id)
+
+;; Create a new entity
+(rroute/create! this AccountForm)
+----
+
+== Routing API
+
+`com.fulcrologic.rad.routing` is the recommended namespace for RAD applications. It provides:
+
+* `route-to!` -- Navigate to any route target (form, report, or plain component).
+* `edit!` -- Route to a form and start editing an existing entity.
+* `create!` -- Route to a form and start creating a new entity.
+* `back!` / `route-forward!` -- Browser history navigation.
+* `force-continue-routing!` -- Override a route-denied guard (e.g., unsaved changes).
+* `abandon-route-change!` -- Cancel a denied route change.
+
+For advanced use, `com.fulcrologic.statecharts.integration.fulcro.routing` (`scr/`) provides the lower-level statecharts routing API. Most RAD applications should use `rroute/` exclusively.
+
+== Rendering Plugins
+
+The old `install-ui-controls!` pattern has been replaced by multimethods. Rendering plugins register via `defmethod` on:
+
+* `fr/render-field` -- Field rendering (by `[type style]`)
+* `fr/render-form` -- Form layout rendering
+* `rr/render-report` -- Report layout rendering
+* `form/render-element` -- Generic form element rendering (by `[element style]`)
+* `control/render-control` -- Control rendering (by `[control-type style]`)
+
+Simply requiring the plugin namespace is sufficient -- no explicit `install-ui-controls!` call needed.
+
+A headless rendering plugin is included at `com.fulcrologic.rad.rendering.headless.plugin` for testing.
+
+== Demo Application
+
+A complete working demo is included in `src/demo/`. It shows:
+
+* Attribute definitions (`com.example.model.*`)
+* Form and report definitions (`com.example.ui.*`)
+* Routing chart with forms, reports, and a landing page
+* Bootstrap sequence with `install-statecharts!` and `start-routing!`
+* Both CLJS (browser) and CLJ (headless test) entry points
+
+== Migration from fulcro-rad
+
+If you are migrating from the original `fulcro-rad`, see link:docs/migration-guide.adoc[the migration guide].
 
 == Support
 
-Unpaid questions, issue reports, or requests should go through the #fulcro channel of http://clojurians.net/[Clojurians Slack].
+Questions, issue reports, or requests should go through the #fulcro channel of http://clojurians.net/[Clojurians Slack].
 
-Paid support for RAD and related libraries is available from http://www.fulcrologic.com[Fulcrologic, LLC].
+Paid support is available from http://www.fulcrologic.com[Fulcrologic, LLC].
 
-== Project Goals
-
-The RAD project has ambitious goals, but only one primary contributor who is very busy.
-
-The general goals of this project are:
-
-. Establish extensible patterns with pre-written components where almost any aspect of RAD can be tuned to fit your
-needs, and can also be escaped from entirely with minimal impact to your project when the pre-written
-components prove insufficient to your needs. RAD is built to be easy to grow, and easy to leave if you manage to outgrow it.
-** The only aspect of RAD that is "core" is the description of your data model in attributes. Those are
-nothing more than fully-open maps describing your data model, and it is difficult to imagine those causing harm since
-they tie your program to nothing more than your own global description of your data.
-. Provide a central data model around the concept of *attributes*. An attribute in RAD is pretty much just like
-a Datomic attribute: it has a fully-qualified name (e.g. `:account/email`) that can be globally distinct in its meaning,
-a type, a cardinality, and must be combined with an identity and value to fully represent a fact in the world.
-** Identity itself (e.g. `:account/id`) is nothing more than an attribute that can help you find others.
-** Non-identity attributes may appear under any number of identities, making for an open data model.
-** Attributes can represent virtual things: edges in the graph that are not reified (require queries to calculate),
-   values in reports that are aggregates, etc.
-** All attributes can be given an arbitrary set of user/plugin defined information, which can be used by your code
-or the code of plugins to provide features around the data model (they can even define how to obtain or calculate the data itself).
-** They define the structure for fully federated data systems: that is to say your data can live in any number of places,
-and can be seamlessly combined into the user-interface. Most of this is accomplished by the combined abilities of
-raw Fulcro and Pathom, but attributes play a central role in describing your data model to RAD itself.
-. Provide the ability to use an automated database layer that:
-** is *easy to escape from*. If you outgrow it, the layer won't lock you in.
-** can generate some amount of schema that is useful for at least early-stage projects.
-** allows you to leverage your own schema.
-** can integrate into RAD in order to *serve and save* data around common forms and reports.
-. Provide a system for the rendering and interaction with forms and reports.
-** A Form is any screen where a tree of data is loaded and saved "together", and where validation and free-form inputs are
-common.
-** A Report is any screen where the data contains a mix of read-only, derived, and aggregate data. This data may be
-organized in many ways (graphically, in columns, in rows, as a kanban board). Interactions with the data commonly include
-linking (navigation), filtering, pagination, and abstract actions that can affect arbitrary things (e.g. delete this item,
-move that card, zoom that chart).
-. Any generated rendering must be easy to escape, but when used it must also be extensible in four dimensions: data type,
-  data style, visual appearance, and platform.
-** Data type: If you extend the data model with a new type, you can also extend the rendering system to support it.
-** Data style: A single type (e.g. decimal) may represent different visual things: USD, percentage, etc.
-** Visual appearance: Beyond simple data style: a report might need to be a chart, or you may simply want to take
-fine-grained control of rendering.
-** Platform: Assuming you're having RAD generate UI, it should be possible to specify the platform (e.g. Mobile vs Web).
-This allows RAD to stand up apps with different targets with minimal changes to your application code.
-
-== LICENSE
+== License
 
 The MIT License (MIT)
 Copyright (c), Fulcrologic, LLC
