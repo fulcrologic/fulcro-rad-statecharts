@@ -51,6 +51,18 @@
 - AccountInvoices runtime report for per-customer invoice listing
 - **Removed from original**: InvoiceList report (replaced by standalone invoice_report.cljc)
 
+### ui.cljc (Root + routing)
+- Root component with statecharts routing — no dynamic router (`dr/`), no `defrouter`
+- `Routes` component with `:preserve-dynamic-query? true` uses `scr/ui-current-subroute`
+- `routing-chart` defines all route targets using `scr/routing-regions` + `scr/routes`
+- Forms use `sfr/form-state` with `:route/params`, reports use `sfr/report-state`
+- Landing page uses plain `scr/rstate` with backtick-quoted symbol
+- Navigation uses `scr/route-to!` and `sfr/create!` (not `form/create!` or `rroute/route-to!`)
+- Route denial handled via `scf/current-configuration` checking for `:routing-info/open`
+- No auth layer — kept simple for demo purposes
+- `[::sc/session-id '_]` link query in Root needed for routing state reactivity
+- No `AccountList` report — original demo had one, not ported (nav goes directly to forms/reports)
+
 ### General Patterns
 - All files are CLJC — no reader conditionals needed for pure form declarations
 - No `install-ui-controls!` — headless plugin auto-registers via multimethods
