@@ -140,7 +140,7 @@
         ;; Build the ops that would be auto-create-to-one
         ;; Since auto-create-to-one manipulates state-map directly, we wrap it
         form-options (rc/component-options FormClass)
-        {::fo/keys [attributes]} form-options
+        attributes (get form-options fo/attributes)
         subforms     (subform-options form-options nil)
         possible-keys (when subforms (set (keys subforms)))
         form-value   (get-in state-map form-ident)
@@ -166,7 +166,7 @@
                                         (fops/apply-action assoc-in new-ident new-entity)]))
                                    attrs-to-create)))
         ;; Build initialize-ui-props ops
-        {::fo/keys [initialize-ui-props]} form-options
+        initialize-ui-props (get form-options fo/initialize-ui-props)
         ui-props-ops (when initialize-ui-props
                        [(fops/apply-action
                          (fn [state-map]
@@ -317,17 +317,20 @@
   (let [FormClass      (actor-class data)
         form-ident     (actor-ident data)
         state-map      (:fulcro/state-map data)
-        {::fo/keys [id save-mutation]} (rc/component-options FormClass)
+        form-options   (rc/component-options FormClass)
+        id             (get form-options fo/id)
+        save-mutation-sym (get form-options fo/save-mutation)
         master-pk      (::attr/qualified-key id)
         props          (fns/ui->props state-map FormClass form-ident)
         delta          (fs/dirty-fields props true)
-        save-mutation  (or save-mutation
+        save-mutation  (or save-mutation-sym
                            (symbol "com.fulcrologic.rad.form" "save-form"))
-        params         (merge event-data {::fo/delta     delta
-                                          ::fo/master-pk master-pk
-                                          ::fo/id        (second form-ident)})]
+        params         (merge event-data
+                              {(keyword "com.fulcrologic.rad.form" "delta")     delta
+                               (keyword "com.fulcrologic.rad.form" "master-pk") master-pk
+                               (keyword "com.fulcrologic.rad.form" "id")        (second form-ident)})]
     [(fops/assoc-alias :server-errors [])
-     (fops/invoke-remote `(~save-mutation ~params)
+     (fops/invoke-remote [(list save-mutation params)]
                          {:returning   :actor/form
                           :ok-event    :event/saved
                           :error-event :event/save-failed})]))
@@ -376,8 +379,9 @@
   (let [FormClass     (actor-class data)
         form-ident    (actor-ident data)
         options       (:options data)
-        {::fo/keys [save-mutation]
-         {:keys [save-failed]} :com.fulcrologic.rad.form/triggers} (rc/component-options FormClass)
+        comp-options  (rc/component-options FormClass)
+        save-mutation (get comp-options fo/save-mutation)
+        {:keys [save-failed]} (get comp-options fo/triggers)
         save-mutation (or save-mutation
                           (symbol "com.fulcrologic.rad.form" "save-form"))
         result        (scf/mutation-result data)
@@ -546,7 +550,7 @@
                                      ;; We'll handle this differently
                                      ]
                                  state-map)))])
-        derive-event-data {:form-key  (when parent (rc/class->registry-key (rc/react-type parent)))
+        derive-event-data {:form-key  (when parent (rc/class->registry-key (rc/component-type parent)))
                            :form-ident parent-ident}
         derive-ops       (derive-fields-ops data derive-event-data)]
     (when-not relation-attr
@@ -571,7 +575,7 @@
         delete-ops      (if many?
                           [(fops/apply-action fns/remove-ident child-ident target-path)]
                           [(fops/apply-action update-in parent-ident dissoc parent-relation)])
-        derive-event-data {:form-key  (when parent (rc/class->registry-key (rc/react-type parent)))
+        derive-event-data {:form-key  (when parent (rc/class->registry-key (rc/component-type parent)))
                            :form-ident parent-ident}
         derive-ops       (derive-fields-ops data derive-event-data)]
     (into delete-ops derive-ops)))
