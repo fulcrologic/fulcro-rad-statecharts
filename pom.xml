@@ -2,17 +2,17 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.fulcrologic</groupId>
-    <artifactId>fulcro-rad</artifactId>
+    <artifactId>fulcro-rad-statecharts</artifactId>
     <packaging>jar</packaging>
-    <version>1.6.11-SNAPSHOT</version>
+    <version>0.1.0-SNAPSHOT</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
-    <name>Fulcro RAD</name>
-    <description>A library for rapid application development in Fulcro</description>
-    <url>https://github.com/fulcrologic/fulcro-rad</url>
+    <name>Fulcro RAD Statecharts</name>
+    <description>Fulcro RAD with statecharts-based state management replacing UI State Machines</description>
+    <url>https://github.com/fulcrologic/fulcro-rad-statecharts</url>
     <licenses>
         <license>
             <name>MIT</name>
@@ -20,9 +20,9 @@
         </license>
     </licenses>
     <scm>
-        <url>https://github.com/fulcrologic/fulcro-rad</url>
-        <connection>scm:git:git://github.com/fulcrologic/fulcro-rad.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/fulcrologic/fulcro-rad.git</developerConnection>
+        <url>https://github.com/fulcrologic/fulcro-rad-statecharts</url>
+        <connection>scm:git:git://github.com/fulcrologic/fulcro-rad-statecharts.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/fulcrologic/fulcro-rad-statecharts.git</developerConnection>
         <tag>a321576cebecc9230088b2c75fc0d45dfae9fb8d</tag>
     </scm>
     <distributionManagement>
@@ -87,7 +87,7 @@
         <dependency>
             <groupId>com.fulcrologic</groupId>
             <artifactId>guardrails</artifactId>
-            <version>1.1.11</version>
+            <version>1.2.16</version>
         </dependency>
         <dependency>
             <groupId>edn-query-language</groupId>
@@ -97,7 +97,7 @@
         <dependency>
             <groupId>com.taoensso</groupId>
             <artifactId>encore</artifactId>
-            <version>3.45.0</version>
+            <version>3.153.1</version>
         </dependency>
         <dependency>
             <groupId>com.fulcrologic</groupId>
@@ -127,7 +127,7 @@
         <dependency>
             <groupId>com.taoensso</groupId>
             <artifactId>timbre</artifactId>
-            <version>4.10.0</version>
+            <version>6.8.0</version>
         </dependency>
         <dependency>
             <groupId>potemkin</groupId>
@@ -137,7 +137,12 @@
         <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>core.async</artifactId>
-            <version>1.6.673</version>
+            <version>1.8.741</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fulcrologic</groupId>
+            <artifactId>statecharts</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>

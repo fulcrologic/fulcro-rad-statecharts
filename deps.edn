@@ -1,18 +1,19 @@
 {:paths   ["src/main" "src/clj-kondo"]
 
  :deps    {edn-query-language/eql            {:mvn/version "1.0.2"}
-           com.taoensso/timbre               {:mvn/version "4.10.0"}
-           com.taoensso/encore               {:mvn/version "3.45.0"}
+           com.taoensso/timbre               {:mvn/version "6.8.0"}
+           com.taoensso/encore               {:mvn/version "3.153.1"}
            com.fulcrologic/fulcro            {:mvn/version "3.7.1"}
            com.fulcrologic/fulcro-i18n       {:mvn/version "1.0.0"}
-           com.fulcrologic/guardrails        {:mvn/version "1.2.9"}
+           com.fulcrologic/guardrails        {:mvn/version "1.2.16"}
+           com.fulcrologic/statecharts       {:local/root "../statecharts"}
            commons-codec/commons-codec       {:mvn/version "1.15"}
            potemkin/potemkin                 {:mvn/version "0.4.6"}
            com.yetanalytics/colossal-squuid  {:mvn/version "0.1.5"}
            com.widdindustries/cljc.java-time {:mvn/version "0.1.21"}
            org.clojure/clojure               {:mvn/version "1.10.3" :scope "provided"}
            org.clojure/clojurescript         {:mvn/version "1.10.914" :scope "provided"}
-           org.clojure/core.async            {:mvn/version "1.6.673"}}
+           org.clojure/core.async            {:mvn/version "1.8.741"}}
 
  :aliases {:tests     {:extra-paths ["src/test"]
                        :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.1.12"}}}
