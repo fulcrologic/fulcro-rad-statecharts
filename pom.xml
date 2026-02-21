@@ -77,12 +77,12 @@
         <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>clojure</artifactId>
-            <version>1.11.4</version>
+            <version>1.12.4</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.15</version>
+            <version>1.21.0</version>
         </dependency>
         <dependency>
             <groupId>com.fulcrologic</groupId>
@@ -92,17 +92,17 @@
         <dependency>
             <groupId>edn-query-language</groupId>
             <artifactId>eql</artifactId>
-            <version>1.0.2</version>
+            <version>2025.09.27</version>
         </dependency>
         <dependency>
             <groupId>com.taoensso</groupId>
             <artifactId>encore</artifactId>
-            <version>3.153.1</version>
+            <version>3.159.0</version>
         </dependency>
         <dependency>
             <groupId>com.fulcrologic</groupId>
             <artifactId>fulcro-i18n</artifactId>
-            <version>1.0.0</version>
+            <version>1.1.2</version>
         </dependency>
         <dependency>
             <groupId>com.widdindustries</groupId>
@@ -112,7 +112,7 @@
         <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>clojurescript</artifactId>
-            <version>1.10.914</version>
+            <version>1.12.134</version>
         </dependency>
         <dependency>
             <groupId>com.yetanalytics</groupId>
@@ -132,7 +132,7 @@
         <dependency>
             <groupId>potemkin</groupId>
             <artifactId>potemkin</artifactId>
-            <version>0.4.6</version>
+            <version>0.4.9</version>
         </dependency>
         <dependency>
             <groupId>org.clojure</groupId>
