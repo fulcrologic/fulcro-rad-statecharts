@@ -3,10 +3,12 @@
  :deps    {edn-query-language/eql            {:mvn/version "1.0.2"}
            com.taoensso/timbre               {:mvn/version "6.8.0"}
            com.taoensso/encore               {:mvn/version "3.153.1"}
-           com.fulcrologic/fulcro            {:mvn/version "3.7.1"}
+           com.fulcrologic/fulcro            {:mvn/version "3.9.3"}
            com.fulcrologic/fulcro-i18n       {:mvn/version "1.0.0"}
            com.fulcrologic/guardrails        {:mvn/version "1.2.16"}
            com.fulcrologic/statecharts       {:local/root "../statecharts"}
+           com.fulcrologic/fulcro-devtools-remote {:mvn/version "0.2.8"}
+           com.fulcrologic/fulcro-inspect     {:mvn/version "1.0.5"}
            commons-codec/commons-codec       {:mvn/version "1.15"}
            potemkin/potemkin                 {:mvn/version "0.4.6"}
            com.yetanalytics/colossal-squuid  {:mvn/version "0.1.5"}

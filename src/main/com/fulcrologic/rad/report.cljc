@@ -38,6 +38,9 @@
    [com.fulcrologic.rad.type-support.date-time :as dt]
    [com.fulcrologic.rad.type-support.decimal :as math]
    [com.fulcrologic.rad.picker-options :as picker-options]
+   [com.fulcrologic.rad.report-chart :as report-chart]
+   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [edn-query-language.core :as eql]
    [taoensso.encore :as enc]
    [taoensso.timbre :as log]))
@@ -49,6 +52,14 @@
   (if (keyword? report-class-or-registry-key)
     [::id report-class-or-registry-key]
     (comp/get-ident report-class-or-registry-key {})))
+
+(defn report-session-id
+  "Returns the statechart session ID for a report. Accepts a report instance, class, or registry keyword."
+  [report-class-or-instance]
+  (sc.session/ident->session-id
+   (if (comp/component-instance? report-class-or-instance)
+     (comp/get-ident report-class-or-instance)
+     (report-ident report-class-or-instance))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RENDERING
@@ -513,9 +524,9 @@
 (defn run-report!
   "Run a report with the current parameters"
   ([this]
-   (uism/trigger! this (comp/get-ident this) :event/run))
+   (scf/send! this (report-session-id this) :event/run))
   ([app-ish class-or-registry-key]
-   (uism/trigger! app-ish (report-ident class-or-registry-key) :event/run)))
+   (scf/send! app-ish (report-session-id class-or-registry-key) :event/run)))
 
 #?(:clj
    (defn req!
@@ -535,15 +546,34 @@
   ([app report-class]
    (start-report! app report-class {}))
   ([app report-class options]
-   (let [machine-def (or (comp/component-options report-class ::machine) report-machine)
-         params      (:route-params options)
-         asm-id      (comp/ident report-class options)      ; options might contain ::report/id to instance the report
-         state-map   (app/current-state app)
-         asm         (some-> state-map (get-in [::uism/asm-id asm-id]))
-         running?    (some-> asm ::uism/active-state boolean)]
+   (let [report-ident (comp/ident report-class options)
+         session-id   (sc.session/ident->session-id report-ident)
+         machine-key  (or (comp/component-options report-class ::machine) ::report-chart)
+         params       (:route-params options)
+         running?     (seq (scf/current-configuration app session-id))]
+     ;; Register the default chart if using it and not yet registered
+     (when (= machine-key ::report-chart)
+       (scf/register-statechart! app ::report-chart report-chart/report-statechart))
      (if (not running?)
-       (uism/begin! app machine-def asm-id {:actor/report (uism/with-actor-class asm-id report-class)} (assoc options :params params))
-       (uism/trigger! app asm-id :event/resume (assoc options :params params))))))
+       (scf/start! app
+                   {:machine    machine-key
+                    :session-id session-id
+                    :data       {:fulcro/actors  {:actor/report (scf/actor report-class report-ident)}
+                                 :fulcro/aliases {:parameters    [:actor/report :ui/parameters]
+                                                  :sort-params   [:actor/report :ui/parameters ::sort]
+                                                  :sort-by       [:actor/report :ui/parameters ::sort :sort-by]
+                                                  :ascending?    [:actor/report :ui/parameters ::sort :ascending?]
+                                                  :filtered-rows [:actor/report :ui/cache :filtered-rows]
+                                                  :sorted-rows   [:actor/report :ui/cache :sorted-rows]
+                                                  :raw-rows      [:actor/report :ui/loaded-data]
+                                                  :current-rows  [:actor/report :ui/current-rows]
+                                                  :current-page  [:actor/report :ui/parameters ::current-page]
+                                                  :selected-row  [:actor/report :ui/parameters ::selected-row]
+                                                  :page-count    [:actor/report :ui/page-count]
+                                                  :busy?         [:actor/report :ui/busy?]}
+                                 :params         params
+                                 :route-params   params}})
+       (scf/send! app session-id :event/resume (assoc options :params params))))))
 
 (defn default-compare-rows
   [{:keys [sort-by ascending?]} a b]
@@ -796,9 +826,9 @@
   "Sort the report by the given attribute. Changes direction if the report is already sorted by that attribute. The implementation
    of sorting is built-in and uses compare, but you can override how sorting works by defining `ro/compare-rows` on your report."
   ([this by-attribute]
-   (uism/trigger! this (comp/get-ident this) :event/sort {::attr/attribute by-attribute}))
+   (scf/send! this (report-session-id this) :event/sort {::attr/attribute by-attribute}))
   ([app class-or-reg-key by-attribute]
-   (uism/trigger! app (report-ident class-or-reg-key) :event/sort {::attr/attribute by-attribute})))
+   (scf/send! app (report-session-id class-or-reg-key) :event/sort {::attr/attribute by-attribute})))
 
 (defn clear-sort!
   "Make it so the report is not sorted (skips the sort step on any action that would normally (re)sort
@@ -807,37 +837,37 @@
 
    NOTE: This does NOT refresh the report. The natural order will appear next time the report needs sorted."
   ([this]
-   (uism/trigger! this (comp/get-ident this) :event/clear-sort))
+   (scf/send! this (report-session-id this) :event/clear-sort))
   ([app class-or-reg-key]
-   (uism/trigger! app (report-ident class-or-reg-key) :event/clear-sort)))
+   (scf/send! app (report-session-id class-or-reg-key) :event/clear-sort)))
 
 (defn filter-rows!
   "Update the filtered rows based on current report parameters."
   ([this]
-   (uism/trigger! this (comp/get-ident this) :event/filter))
+   (scf/send! this (report-session-id this) :event/filter))
   ([app class-or-reg-key]
-   (uism/trigger! app (report-ident class-or-reg-key) :event/filter)))
+   (scf/send! app (report-session-id class-or-reg-key) :event/filter)))
 
 (defn goto-page!
-  "Move to the next page (if there is one)"
+  "Move to the given page (if it exists)"
   ([this page-number]
-   (uism/trigger! this (comp/get-ident this) :event/goto-page {:page page-number}))
+   (scf/send! this (report-session-id this) :event/goto-page {:page page-number}))
   ([app class-or-reg-key page-number]
-   (uism/trigger! app (report-ident class-or-reg-key) :event/goto-page {:page page-number})))
+   (scf/send! app (report-session-id class-or-reg-key) :event/goto-page {:page page-number})))
 
 (defn next-page!
   "Move to the next page (if there is one)"
   ([this]
-   (uism/trigger! this (comp/get-ident this) :event/next-page))
+   (scf/send! this (report-session-id this) :event/next-page))
   ([app class-or-reg-key]
-   (uism/trigger! app (report-ident class-or-reg-key) :event/next-page)))
+   (scf/send! app (report-session-id class-or-reg-key) :event/next-page)))
 
 (defn prior-page!
-  "Move to the next page (if there is one)"
+  "Move to the prior page (if there is one)"
   ([this]
-   (uism/trigger! this (comp/get-ident this) :event/prior-page))
+   (scf/send! this (report-session-id this) :event/prior-page))
   ([app class-or-reg-key]
-   (uism/trigger! app (report-ident class-or-reg-key) :event/prior-page)))
+   (scf/send! app (report-session-id class-or-reg-key) :event/prior-page)))
 
 (defn current-page
   "Returns the current page number displayed on the report"
@@ -862,9 +892,9 @@
 
 (defn select-row!
   ([report-instance idx]
-   (uism/trigger! report-instance (comp/get-ident report-instance) :event/select-row {:row idx}))
+   (scf/send! report-instance (report-session-id report-instance) :event/select-row {:row idx}))
   ([app class-or-reg-key idx]
-   (uism/trigger! app (report-ident class-or-reg-key) :event/select-row {:row idx})))
+   (scf/send! app (report-session-id class-or-reg-key) :event/select-row {:row idx})))
 
 (defn column-classes
   "Returns a string of column classes that can be defined on the attribute at ::report/column-class or on the
@@ -970,9 +1000,10 @@
   "Mutation helper. Clear a report out of app state. The report should not be visible when you do this."
   [state-map ReportClass]
   (let [report-ident (comp/get-ident ReportClass {})
+        session-id   (sc.session/ident->session-id report-ident)
         [table report-class-registry-key] report-ident]
     (-> state-map
-        (update ::uism/asm-id dissoc report-ident)
+        (update :com.fulcrologic.statecharts/session-id dissoc session-id)
         (update table dissoc report-class-registry-key)
         (merge/merge-component ReportClass (comp/get-initial-state ReportClass {})))))
 
@@ -993,24 +1024,23 @@
   "Trigger an event on a report. You can use the `this` of the report with arity-2 and -3.
 
    For arity-4 the `report-class-ish` is something from which the report's ident can be derived: I.e. The
-   report class, report's Fulcro registry key, or the ident itself.
-
-   This should not be used from within the state machine itself. Use `uism/trigger` for that."
+   report class, report's Fulcro registry key, or the ident itself."
   ([report-instance event]
    (trigger! report-instance event {}))
   ([report-instance event event-data]
    (trigger! report-instance report-instance event event-data))
   ([app-ish report-class-ish event event-data]
-   (let [report-ident (cond
-                        (or
-                         (string? report-class-ish)
-                         (symbol? report-class-ish)
-                         (keyword? report-class-ish)) (some-> report-class-ish (comp/registry-key->class) (comp/get-ident {}))
-                        (vector? report-class-ish) report-class-ish
-                        (comp/component-class? report-class-ish) (comp/get-ident report-class-ish {})
-                        (comp/component-instance? report-class-ish) (comp/get-ident report-class-ish))]
-     (when-not (vector? report-ident)
+   (let [ident (cond
+                 (or
+                  (string? report-class-ish)
+                  (symbol? report-class-ish)
+                  (keyword? report-class-ish)) (some-> report-class-ish (comp/registry-key->class) (comp/get-ident {}))
+                 (vector? report-class-ish) report-class-ish
+                 (comp/component-class? report-class-ish) (comp/get-ident report-class-ish {})
+                 (comp/component-instance? report-class-ish) (comp/get-ident report-class-ish))]
+     (when-not (vector? ident)
        (log/error (ex-info "Cannot trigger an event on a report with invalid report identifier"
                            {:value report-class-ish
                             :type  (type report-class-ish)})))
-     (uism/trigger!! app-ish report-ident event event-data))))
+     (when (vector? ident)
+       (scf/send! app-ish (sc.session/ident->session-id ident) event event-data)))))
