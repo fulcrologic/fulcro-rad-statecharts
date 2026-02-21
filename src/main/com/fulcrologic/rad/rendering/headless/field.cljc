@@ -57,8 +57,9 @@
 
 (defn render-text-field
   "Render a string field as a text input."
-  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key] :as attribute}]
-  (let [{:keys [value field-label visible? invalid? validation-message
+  [{::form/keys [form-instance] :as env} attribute]
+  (let [qualified-key (ao/qualified-key attribute)
+        {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
         required? (ao/required? attribute)]
     (field-wrapper
@@ -72,8 +73,10 @@
 
 (defn render-number-field
   "Render a numeric field (int, long, double) as a number input."
-  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key type] :as attribute}]
-  (let [{:keys [value field-label visible? invalid? validation-message
+  [{::form/keys [form-instance] :as env} attribute]
+  (let [qualified-key (ao/qualified-key attribute)
+        type          (ao/type attribute)
+        {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
         required? (ao/required? attribute)]
     (field-wrapper
@@ -92,8 +95,9 @@
 
 (defn render-boolean-field
   "Render a boolean field as a checkbox."
-  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key] :as attribute}]
-  (let [{:keys [value field-label visible? invalid? validation-message
+  [{::form/keys [form-instance] :as env} attribute]
+  (let [qualified-key (ao/qualified-key attribute)
+        {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
         required? (ao/required? attribute)]
     (when visible?
@@ -117,8 +121,9 @@
 
 (defn render-instant-field
   "Render an instant/date field as a date input."
-  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key] :as attribute}]
-  (let [{:keys [value field-label visible? invalid? validation-message
+  [{::form/keys [form-instance] :as env} attribute]
+  (let [qualified-key (ao/qualified-key attribute)
+        {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
         required? (ao/required? attribute)]
     (field-wrapper
@@ -133,8 +138,9 @@
 
 (defn render-enum-field
   "Render an enum field as a select/dropdown."
-  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key] :as attribute}]
-  (let [{:keys [value field-label visible? invalid? validation-message
+  [{::form/keys [form-instance] :as env} attribute]
+  (let [qualified-key      (ao/qualified-key attribute)
+        {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
         required?          (ao/required? attribute)
         enumerated-values  (ao/enumerated-values attribute)
@@ -165,8 +171,9 @@
 
 (defn render-decimal-field
   "Render a decimal field as a number input with step='any'."
-  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key] :as attribute}]
-  (let [{:keys [value field-label visible? invalid? validation-message
+  [{::form/keys [form-instance] :as env} attribute]
+  (let [qualified-key (ao/qualified-key attribute)
+        {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
         required? (ao/required? attribute)]
     (field-wrapper
@@ -182,8 +189,9 @@
 (defn render-ref-field
   "Render a reference field. For picker-style refs, shows the current value as a read-only display.
    For subform refs, renders nothing (subforms are handled by the form body container)."
-  [{::form/keys [form-instance] :as env} {::ao/keys [qualified-key cardinality] :as attribute}]
-  (let [options    (comp/component-options form-instance)
+  [{::form/keys [form-instance] :as env} attribute]
+  (let [qualified-key (ao/qualified-key attribute)
+        options    (comp/component-options form-instance)
         subforms   (fo/subforms options)
         is-subform? (contains? subforms qualified-key)]
     (if is-subform?

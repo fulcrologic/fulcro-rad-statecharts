@@ -79,13 +79,13 @@
                   (dom/div {:data-rad-type    "subform"
                             :data-rad-field   (str ref-key)}
                            (if (vector? subform-data)
-                             (mapv (fn [child-props]
-                                     (let [factory (comp/computed-factory subform-class {:keyfn (comp/get-ident subform-class)})]
+                             (let [factory (comp/computed-factory subform-class {:keyfn #(comp/get-ident subform-class %)})]
+                               (mapv (fn [child-props]
                                        (factory child-props
                                                 {::form/master-form    (::form/master-form env)
                                                  ::form/parent         form-instance
-                                                 ::form/parent-relation ref-key})))
-                                   subform-data)
+                                                 ::form/parent-relation ref-key}))
+                                     subform-data))
                              (let [factory (comp/computed-factory subform-class)]
                                (factory subform-data
                                         {::form/master-form    (::form/master-form env)

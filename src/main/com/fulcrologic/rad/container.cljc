@@ -120,7 +120,7 @@
                                              :ident (list 'fn [] [::id fqkw])
                                              sfro/initialize :once)
                                 (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                                (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart container-chart/container-statechart)))
+                                (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `container-chart/container-statechart)))
              body             (if (seq (rest args))
                                 (rest args)
                                 [`(render-layout ~this-sym)])]

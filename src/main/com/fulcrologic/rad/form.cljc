@@ -529,7 +529,7 @@
                                       sfro/initialize      :always}
                                       pre-merge (assoc :pre-merge pre-merge)
                                       (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                                      (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart form-chart/form-chart))))
+                                      (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `form-chart/form-chart))))
         attribute-query-inclusions (set (mapcat ::query-inclusion attributes))
         inclusions                 (set/union attribute-query-inclusions (set query-inclusion))]
     (when (and #?(:cljs goog.DEBUG :clj true) will-enter)

@@ -7,6 +7,7 @@
              [hiccup.page :refer [html5]]
              [mount.core :refer [defstate]]
              [ring.middleware.defaults :refer [wrap-defaults]]
+             [ring.middleware.resource :refer [wrap-resource]]
              [ring.util.response :as resp]
              [clojure.string :as str]])))
 
@@ -63,4 +64,5 @@
            (server/wrap-transit-params {})
            (server/wrap-transit-response {})
            (wrap-html-routes)
+           (wrap-resource "public")
            (wrap-defaults defaults-config)))))

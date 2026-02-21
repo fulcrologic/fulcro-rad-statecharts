@@ -1,7 +1,14 @@
-{:deps     {:aliases [:dev :tests]}
+{:deps     {:aliases [:dev :demo :tests]}
  :nrepl    {:port 9000}
  :jvm-opts ["-Xmx2G"]
- :builds   {:test     {:target           :browser-test
+ :builds   {:main     {:target           :browser
+                       :modules          {:main {:init-fn com.example.client/init}}
+                       :output-dir       "resources/public/js/main"
+                       :asset-path       "/js/main"
+                       :compiler-options {:external-config {:guardrails {:throw? true :emit-spec? true}}}
+                       :devtools         {:after-load com.example.client/refresh}}
+
+            :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"
                        :ns-regexp        "-spec$"
                        :compiler-options {:static-fns      false

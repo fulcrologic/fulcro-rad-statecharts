@@ -7,6 +7,7 @@
               :multipart true
               :nested    true
               :keywordize true}
+  :static   {:resources "public"}
   :cookies   true
   :session   {:flash true
               :cookie-attrs {:http-only true :same-site :lax}}

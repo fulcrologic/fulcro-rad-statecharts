@@ -187,14 +187,17 @@
   ([app report-class options]
    (let [report-ident (comp/ident report-class options)
          session-id   (sc.session/ident->session-id report-ident)
+         user-chart   (comp/component-options report-class sfro/statechart)
          machine-key  (or (comp/component-options report-class sfro/statechart-id)
-                          (comp/component-options report-class sfro/statechart)
+                          (when (keyword? user-chart) user-chart)
                           ::report-chart)
          params       (:route-params options)
          running?     (seq (scf/current-configuration app session-id))]
-     ;; Register the default chart if using it and not yet registered
-     (when (= machine-key ::report-chart)
-       (scf/register-statechart! app ::report-chart report-chart/report-statechart))
+     ;; Register chart: either the user-supplied map or the default
+     (scf/register-statechart! app machine-key
+                               (if (and user-chart (not (keyword? user-chart)))
+                                 user-chart
+                                 report-chart/report-statechart))
      (if (not running?)
        (scf/start! app
                    {:machine    machine-key
@@ -303,7 +306,7 @@
                                                                 (seq user-ui-props#) (merge user-ui-props#))))
                                      :ident          (list 'fn [] [::id `(or (::id ~props-sym) ~fqkw)])}
                               (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                              (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart report-chart/report-statechart))))
+                              (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `report-chart/report-statechart))))
          body              (if (seq (rest args))
                              (rest args)
                              [`(render-layout ~this-sym)])
@@ -635,7 +638,7 @@
                                      :ident         (fn [this props] [::id (or (::id props) registry-key)])
                                      sfro/initialize :once}
                               (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                              (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart report-chart/report-statechart))))
+                              (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `report-chart/report-statechart))))
          cls               (comp/sc registry-key options render)]
      (vreset! generated-class cls)
      cls)))

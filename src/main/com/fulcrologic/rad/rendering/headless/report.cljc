@@ -62,10 +62,11 @@
   (let [columns    (ro/columns options)
         row-actions (ro/row-actions options)]
     (dom/tr {:data-rad-type "report-row"}
-            (mapv (fn [{::ao/keys [qualified-key] :as col-attr}]
-                    (dom/td {:data-rad-type   "report-cell"
-                             :data-rad-column (str qualified-key)}
-                            (str (report/formatted-column-value report-instance row-props col-attr))))
+            (mapv (fn [col-attr]
+                    (let [qualified-key (ao/qualified-key col-attr)]
+                      (dom/td {:data-rad-type   "report-cell"
+                               :data-rad-column (str qualified-key)}
+                              (str (report/formatted-column-value report-instance row-props col-attr)))))
                   columns)
             (when (seq row-actions)
               (dom/td {:data-rad-type "row-actions"}
