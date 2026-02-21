@@ -30,7 +30,6 @@
                                      com.wsscode/pathom3                             {:mvn/version "2025.01.16-alpha"}
                                      mount/mount                                     {:mvn/version "0.1.23"}
                                      org.clojure/tools.namespace                     {:mvn/version "1.5.1"}
-                                     com.google.javascript/closure-compiler-unshaded {:mvn/version "v20260218"}
                                      thheller/shadow-cljs                            {:mvn/version "3.3.6"}}}
 
            :demo      {:extra-paths ["src/demo"]

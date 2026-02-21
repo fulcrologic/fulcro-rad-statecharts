@@ -21,6 +21,7 @@
    [com.fulcrologic.rad.attributes-options :as ao]
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.options-util :refer [?!]]
+   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [clojure.set :as set]
    [edn-query-language.core :as eql]
    [taoensso.timbre :as log]))
@@ -87,10 +88,26 @@
 
 ;; Forward declarations - these will be resolved at runtime from form ns
 ;; We use registry-based lookup to avoid circular dependencies
+;; In CLJS, we use a registry atom since there's no requiring-resolve
+#?(:cljs (defonce ^:private form-fn-registry (atom {})))
+
 (defn- resolve-form-fn
-  "Resolve a function from the form namespace at runtime to avoid circular deps."
+  "Resolve a function from the form namespace at runtime to avoid circular deps.
+   In CLJ, uses requiring-resolve. In CLJS, looks up from a registry that form.cljc
+   populates at load time via `register-form-fn!`."
   [sym]
-  (requiring-resolve (symbol "com.fulcrologic.rad.form" (name sym))))
+  #?(:clj  (requiring-resolve (symbol "com.fulcrologic.rad.form" (name sym)))
+     :cljs (or (get @form-fn-registry (name sym))
+               (throw (ex-info (str "Form function not registered: " sym
+                                    ". Ensure com.fulcrologic.rad.form is required.")
+                               {:sym sym})))))
+
+(defn register-form-fn!
+  "Register a form.cljc function for cross-namespace resolution in CLJS.
+   Called by form.cljc at load time. No-op in CLJ."
+  [sym-name f]
+  #?(:clj nil
+     :cljs (swap! form-fn-registry assoc sym-name f)))
 
 ;; ===== Start Create Expression =====
 
@@ -436,17 +453,16 @@
                        (rc/transact! app on-cancel))
         ;; Route away from the form outside of swap!
         _            (when (and app (not embedded?) cancel-route)
-                       (let [route-to! (requiring-resolve 'com.fulcrologic.rad.routing/route-to!)]
-                         (cond
-                           (map? cancel-route)
-                           (let [{:keys [route]} cancel-route]
-                             (when (and (seq route) (every? string? route))
-                               (route-to! app {:target nil :route-params {:route route}})))
+                       (cond
+                         (map? cancel-route)
+                         (let [{:keys [route]} cancel-route]
+                           (when (and (seq route) (every? string? route))
+                             (scr/route-to! app nil {:route route})))
 
-                           (= :none cancel-route) nil
+                         (= :none cancel-route) nil
 
-                           (and (seq cancel-route) (every? string? cancel-route))
-                           (route-to! app {:target nil :route-params {:route cancel-route}}))))]
+                         (and (seq cancel-route) (every? string? cancel-route))
+                         (scr/route-to! app nil {:route cancel-route})))]
     base-ops))
 
 ;; ===== Route Denied Expression =====
@@ -481,8 +497,7 @@
         app          (:fulcro/app env)]
     ;; Retry route via routing system outside of swap!
     (when app
-      (when-let [force-continue! (requiring-resolve 'com.fulcrologic.statecharts.integration.fulcro.routing/force-continue-routing!)]
-        (force-continue! app)))
+      (scr/force-continue-routing! app))
     [(fops/assoc-alias :route-denied? false)
      (fops/apply-action fs/pristine->entity* form-ident)]))
 

@@ -26,7 +26,12 @@
    - Is collision-free (the `--` separator is unambiguous)"
        [[k v]]
        [vector? => keyword?]
-       (let [n (str (namespace k) "_" (name k) "--" v)]
+       (let [v-str (cond
+                     (keyword? v) (if-let [ns (namespace v)]
+                                    (str "KW." ns ".." (name v))
+                                    (str "KW." (name v)))
+                     :else (str v))
+             n     (str (namespace k) "_" (name k) "--" v-str)]
          (keyword session-ns n)))
 
 (defn- parse-id-value
@@ -36,6 +41,13 @@
   (cond
     (ids/valid-uuid-string? s) (ids/new-uuid s)
     (re-matches #"-?\d+" s) (ids/id-string->id :int s)
+    (str/starts-with? s "KW.") (let [without-prefix (subs s 3)
+                                     sep-idx (str/index-of without-prefix "..")]
+                                 (if sep-idx
+                                   (keyword (subs without-prefix 0 sep-idx)
+                                            (subs without-prefix (+ sep-idx 2)))
+                                   (keyword without-prefix)))
+    ;; Legacy format (CLJ only, colons in keyword names)
     (str/starts-with? s ":") (let [without-colon (subs s 1)
                                    slash-idx (str/index-of without-colon "/")]
                                (if slash-idx

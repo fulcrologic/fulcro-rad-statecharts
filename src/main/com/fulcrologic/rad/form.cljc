@@ -37,6 +37,8 @@
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.rad.sc.session :as sc.session]
    [com.fulcrologic.rad.form-chart :as form-chart]
+   [com.fulcrologic.rad.form-expressions :as fex]
+   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
 
 (def ^:dynamic *default-save-form-mutation* `save-form)
@@ -1505,8 +1507,7 @@
   "Cancel the pending route change and dismiss the route-denied indicator. Operates on the
    global routing chart session. Delegates to `scr/abandon-route-change!`."
   ([app-ish]
-   (let [scr-abandon (requiring-resolve 'com.fulcrologic.statecharts.integration.fulcro.routing/abandon-route-change!)]
-     (scr-abandon app-ish)))
+   (scr/abandon-route-change! app-ish))
   ([app-ish _form-ident]
    (log/warn "clear-route-denied! no longer takes a form-ident argument. Use the single-arity version.")
    (clear-route-denied! app-ish)))
@@ -1515,8 +1516,14 @@
   "Force the most recently denied route change to proceed, overriding the busy guard.
    Operates on the global routing chart session. Delegates to `scr/force-continue-routing!`."
   ([app-ish]
-   (let [scr-force (requiring-resolve 'com.fulcrologic.statecharts.integration.fulcro.routing/force-continue-routing!)]
-     (scr-force app-ish)))
+   (scr/force-continue-routing! app-ish))
   ([app-ish _form-ident]
    (log/warn "continue-abandoned-route! no longer takes a form-ident argument. Use the single-arity version.")
    (continue-abandoned-route! app-ish)))
+
+;; Register form functions for CLJS cross-namespace resolution (avoids circular deps)
+(fex/register-form-fn! "default-state" default-state)
+(fex/register-form-fn! "optional-fields" optional-fields)
+(fex/register-form-fn! "mark-fields-complete*" mark-fields-complete*)
+(fex/register-form-fn! "valid?" valid?)
+(fex/register-form-fn! "form-key->attribute" form-key->attribute)
