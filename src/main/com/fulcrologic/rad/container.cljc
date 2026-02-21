@@ -75,9 +75,11 @@
       (scf/send! app session-id :event/resume (merge options {:route-params (:route-params options)})))))
 
 (defn container-will-enter
-  "Route lifecycle handler for containers. Starts or resumes the container statechart."
-  [app route-params container-class]
-  (start-container! app container-class {:route-params route-params}))
+  "DEPRECATED: Routing lifecycle is now managed by statecharts routing via sfro options.
+   This function should not be called. Use `sfro/initialize` and `sfro/statechart` on your container instead."
+  [_app _route-params _container-class]
+  (log/error "container-will-enter is removed. Routing lifecycle is managed by statecharts routing. See sfro/initialize.")
+  (throw (ex-info "container-will-enter is removed. Use statecharts routing (sfro options) instead." {})))
 
 #?(:clj
    (defmacro defsc-container

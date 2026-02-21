@@ -587,12 +587,12 @@
     (catch #?(:clj Exception :cljs :default) _
       0)))
 
-(defn report-will-enter [app route-params report-class]
-  (let [report-ident (comp/get-ident report-class {})]
-    (dr/route-deferred report-ident
-                       (fn []
-                         (start-report! app report-class {:route-params route-params})
-                         (comp/transact! app [(dr/target-ready {:target report-ident})])))))
+(defn report-will-enter
+  "DEPRECATED: Routing lifecycle is now managed by statecharts routing via sfro options.
+   This function should not be called. Use `sfro/initialize` and `sfro/statechart` on your report instead."
+  [_app _route-params _report-class]
+  (log/error "report-will-enter is removed. Routing lifecycle is managed by statecharts routing. See sfro/initialize.")
+  (throw (ex-info "report-will-enter is removed. Use statecharts routing (sfro options) instead." {})))
 
 #?(:clj
    (defmacro defsc-report
@@ -958,13 +958,13 @@
          generated-class   (volatile! nil)
          get-class         (fn [] @generated-class)
          ItemClass         (or BodyItem (genrow generated-row-key options))
+         user-statechart   (::statechart options)
          query             (into [::id
                                   :ui/parameters
                                   :ui/cache
                                   :ui/busy?
                                   :ui/page-count
                                   :ui/current-page
-                                  [::uism/asm-id [::id registry-key]]
                                   [::picker-options/options-cache '_]
                                   {:ui/controls (comp/get-query Control)}
                                   {:ui/current-rows (comp/get-query ItemClass)}
@@ -976,26 +976,27 @@
                                                     (let [props (comp/props this)]
                                                       (render this props)))))
          options           (merge
-                            {::compare-rows default-compare-rows
-                             :will-enter    (fn [app route-params] (report-will-enter app route-params (get-class)))}
+                            {::compare-rows default-compare-rows}
                             options
-                            {:route-segment (if (vector? route) route [route])
-                             :render        render
-                             ::BodyItem     ItemClass
-                             :query         (fn [] query)
-                             :initial-state (fn [params]
-                                              (let [user-initial-state (?! initialize-ui-props (get-class) params)]
-                                                (cond-> {:ui/parameters   {}
-                                                         :ui/cache        {}
-                                                         :ui/controls     (mapv #(select-keys % #{::control/id})
-                                                                                (remove :local? (control/control-map->controls controls)))
-                                                         :ui/busy?        false
-                                                         :ui/current-page 1
-                                                         :ui/page-count   1
-                                                         :ui/current-rows []}
-                                                  (contains? params ::id) (assoc ::id (::id params))
-                                                  (seq user-initial-state) (merge user-initial-state))))
-                             :ident         (fn [this props] [::id (or (::id props) registry-key)])})
+                            (cond-> {:render        render
+                                     ::BodyItem     ItemClass
+                                     :query         (fn [] query)
+                                     :initial-state (fn [params]
+                                                      (let [user-initial-state (?! initialize-ui-props (get-class) params)]
+                                                        (cond-> {:ui/parameters   {}
+                                                                 :ui/cache        {}
+                                                                 :ui/controls     (mapv #(select-keys % #{::control/id})
+                                                                                        (remove :local? (control/control-map->controls controls)))
+                                                                 :ui/busy?        false
+                                                                 :ui/current-page 1
+                                                                 :ui/page-count   1
+                                                                 :ui/current-rows []}
+                                                          (contains? params ::id) (assoc ::id (::id params))
+                                                          (seq user-initial-state) (merge user-initial-state))))
+                                     :ident         (fn [this props] [::id (or (::id props) registry-key)])
+                                     sfro/initialize :once}
+                              (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
+                              (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart report-chart/report-statechart))))
          cls               (comp/sc registry-key options render)]
      (vreset! generated-class cls)
      cls)))

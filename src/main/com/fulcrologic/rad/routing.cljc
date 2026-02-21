@@ -55,3 +55,8 @@
    (i.e., a route change was blocked by a busy guard)."
   [app-ish]
   (scr/route-denied? app-ish))
+
+(defn active-leaf-routes
+  "Returns the set of active leaf route state IDs from the routing statechart."
+  [app-ish]
+  (scr/active-leaf-routes app-ish))

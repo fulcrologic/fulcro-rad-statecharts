@@ -403,15 +403,11 @@
                                    :options        params}}))))
 
 (defn form-will-enter
-  "Used as the implementation and return value of a form target's will-enter dynamic routing hook."
-  [app {:keys [action id] :as route-params} form-class]
-  (let [{::attr/keys [qualified-key type]} (comp/component-options form-class ::id)
-        new?       (= create-action action)
-        coerced-id (if new? (tempid/tempid) (ids/id-string->id type id))
-        form-ident [qualified-key coerced-id]]
-    (when (and new? (not (ids/valid-uuid-string? id)))
-      (log/error (comp/component-name form-class) "Invalid UUID string " id "used in route for new entity. The form may misbehave."))
-    (dr/route-deferred form-ident (fn [] (start-form! app coerced-id form-class route-params)))))
+  "DEPRECATED: Routing lifecycle is now managed by statecharts routing via sfro options.
+   This function should not be called. Use `sfro/initialize` and `sfro/statechart` on your form instead."
+  [_app _route-params _form-class]
+  (log/error "form-will-enter is removed. Routing lifecycle is managed by statecharts routing. See sfro/initialize.")
+  (throw (ex-info "form-will-enter is removed. Use statecharts routing (sfro options) instead." {})))
 
 (defn abandon-form!
   "Stop the statechart for the given form without warning. Does not reset the form or give any warnings: just exits the statechart.
@@ -422,28 +418,18 @@
     (scf/send! app-ish session-id :event/exit {})))
 
 (defn form-will-leave
-  "Checks to see if the statechart is still running (indicating an exit via routing) and cleans up."
-  [this]
-  (let [master-form     (or (comp/get-computed this ::master-form) this)
-        form-ident      (comp/get-ident master-form)
-        session-id      (sc.session/ident->session-id form-ident)
-        config          (scf/current-configuration this session-id)]
-    (when (seq config)
-      (scf/send! master-form session-id :event/exit {}))
-    true))
+  "DEPRECATED: Routing lifecycle is now managed by statecharts routing via sfro options.
+   This function should not be called."
+  [_this]
+  (log/error "form-will-leave is removed. Routing lifecycle is managed by statecharts routing (sfro/busy?).")
+  (throw (ex-info "form-will-leave is removed. Use statecharts routing (sfro/busy?) instead." {})))
 
-(defn form-allow-route-change [this]
-  "Used as a form route target's :allow-route-change?"
-  (let [form-ident      (comp/get-ident this)
-        form-props      (comp/props this)
-        read-only?      (?! (comp/component-options this ::read-only?) this)
-        silent-abandon? (?! (comp/component-options this ::silent-abandon?) this)
-        session-id      (sc.session/ident->session-id form-ident)
-        state-map       (raw.app/current-state this)
-        local-data      (get-in state-map [::sc/local-data session-id])
-        abandoned?      (get local-data :abandoned? false)
-        dirty?          (and (not abandoned?) (fs/dirty? form-props))]
-    (or silent-abandon? read-only? (not dirty?))))
+(defn form-allow-route-change
+  "DEPRECATED: Route change guarding is now managed by statecharts routing via `sfro/busy?`.
+   This function should not be called."
+  [_this]
+  (log/error "form-allow-route-change is removed. Use sfro/busy? with form-busy? instead.")
+  (throw (ex-info "form-allow-route-change is removed. Use sfro/busy? instead." {})))
 
 (defn form-busy?
   "Returns true if the form has unsaved changes. Used by the routing system
@@ -2007,25 +1993,35 @@
   (get (comp/props top-form-instance) ::errors))
 
 (defn trigger!
-  "Trigger a UISM event on a form. You can use the rendering env `renv`, or if you want to
+  "Trigger a statechart event on a form. You can use the rendering env `renv`, or if you want to
    trigger an event on a known top-level form you can do so with the arity-4 version with an
-   `app-ish` (app or any component instance) and the top-level form's ident.
+   `app-ish` (app or any component instance) and the top-level form's session-id.
 
-   This should not be used from within the state machine itself. Use `uism/trigger` for that."
+   Prefer `scr/send-to-self!` from within a routed form component instead of this function."
   ([renv event] (trigger! renv event {}))
   ([{::keys [master-form form-instance] :as renv} event event-data]
-   (trigger! form-instance (comp/get-ident master-form) event event-data))
-  ([app-ish top-form-ident event event-data]
-   (uism/trigger!! app-ish top-form-ident event event-data)))
+   (let [form-ident (comp/get-ident master-form)
+         session-id (sc.session/ident->session-id form-ident)]
+     (scf/send! form-instance session-id event event-data)))
+  ([app-ish form-session-id event event-data]
+   (scf/send! app-ish form-session-id event event-data)))
 
 (defn clear-route-denied!
-  "Send an event to a form's state machine (this-form can be the this from the body of the rendered form). This will simply
-   change `:ui/route-denied?` to false."
-  ([this-form] (clear-route-denied! this-form (comp/get-ident this-form)))
-  ([app-ish form-ident] (uism/trigger! app-ish form-ident :event/clear-route-denied)))
+  "Cancel the pending route change and dismiss the route-denied indicator. Operates on the
+   global routing chart session. Delegates to `scr/abandon-route-change!`."
+  ([app-ish]
+   (let [scr-abandon (requiring-resolve 'com.fulcrologic.statecharts.integration.fulcro.routing/abandon-route-change!)]
+     (scr-abandon app-ish)))
+  ([app-ish _form-ident]
+   (log/warn "clear-route-denied! no longer takes a form-ident argument. Use the single-arity version.")
+   (clear-route-denied! app-ish)))
 
 (defn continue-abandoned-route!
-  "Send an event to a form's state machine that indicates that the most previously denied route change attempt should be
-   continued, even though it will lose the unsaved changes."
-  ([this-form] (continue-abandoned-route! this-form (comp/get-ident this-form)))
-  ([app-ish form-ident] (uism/trigger! app-ish form-ident :event/continue-abandoned-route)))
+  "Force the most recently denied route change to proceed, overriding the busy guard.
+   Operates on the global routing chart session. Delegates to `scr/force-continue-routing!`."
+  ([app-ish]
+   (let [scr-force (requiring-resolve 'com.fulcrologic.statecharts.integration.fulcro.routing/force-continue-routing!)]
+     (scr-force app-ish)))
+  ([app-ish _form-ident]
+   (log/warn "continue-abandoned-route! no longer takes a form-ident argument. Use the single-arity version.")
+   (continue-abandoned-route! app-ish)))
