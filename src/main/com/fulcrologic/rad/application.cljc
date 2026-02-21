@@ -8,7 +8,7 @@
    #?@(:cljs
        [[com.fulcrologic.fulcro.networking.http-remote :as net]
         [com.fulcrologic.fulcro.networking.file-upload :as file-upload]])
-   [com.fulcrologic.fulcro.ui-state-machines :as uism]
+   ;; uism removed — statechart code path is now the only one
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [edn-query-language.core :as eql]
@@ -25,7 +25,7 @@
 
 (def default-network-blacklist
   "A set of the keywords that should not appear on network requests."
-  #{::uism/asm-id
+  #{:com.fulcrologic.fulcro.ui-state-machines/asm-id
     ::app/active-remotes
     :com.fulcrologic.rad.picker-options/options-cache
     df/marker-table
