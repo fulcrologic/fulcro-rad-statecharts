@@ -283,12 +283,17 @@
         row-pk         (comp/component-options Report ro/row-pk)
         report-loaded  (comp/component-options Report ro/report-loaded)
         table-name (::attr/qualified-key row-pk)
-        updated    (-> state-map
-                       (preprocess-raw-result data)
-                       (filter-rows-state data)
-                       (sort-rows-state data)
-                       (populate-page-state data))]
-    [(fops/apply-action (constantly updated))
+        ;; Apply transformations to current state-map at swap! time rather than
+        ;; capturing a snapshot. Using (constantly snapshot) would overwrite the
+        ;; entire Fulcro state including statechart working memory, causing a
+        ;; race condition where async load callbacks lose their state transitions.
+        apply-transforms (fn [current-state-map]
+                           (-> current-state-map
+                               (preprocess-raw-result data)
+                               (filter-rows-state data)
+                               (sort-rows-state data)
+                               (populate-page-state data)))]
+    [(fops/apply-action apply-transforms)
      (fops/assoc-alias :busy? false)
      (ops/assign :last-load-time (inst-ms (dt/now)))
      (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))

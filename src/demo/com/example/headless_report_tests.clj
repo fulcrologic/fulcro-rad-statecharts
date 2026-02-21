@@ -5,18 +5,7 @@
 
    NOTE: Hiccup rendering returns nil for routed views in headless CLJ mode
    (same known issue as form tests — scf/current-configuration in Root's render
-   body fails in CLJ). Tests use state-map assertions instead.
-
-   NOTE: The fops/load ok-action callback does not reliably fire the statechart
-   :event/loaded event in headless mode. Data DOES arrive in Fulcro state via
-   the load's auto-merge, but the statechart stays in :state/loading. We work
-   around this by using h/wait-for-idle! to wait for HTTP responses, then
-   manually sending :event/loaded to advance the statechart.
-   TODO: Investigate why fops/load ok-action doesn't fire in headless mode.
-   Likely the ok-action callback in the load options isn't being invoked after
-   the HTTP remote response merges. This may be a timing issue with the headless
-   event loop or a missing integration point between fops/load and the
-   headless HTTP driver."
+   body fails in CLJ). Tests use state-map assertions instead."
   (:require
    [clojure.test :refer [use-fixtures]]
    [com.fulcrologic.fulcro.application :as app]
@@ -59,18 +48,13 @@
 
 (defn wait-for-report!
   "Route to a report and wait for data to load. Returns the app.
-   Routes via statechart routing, waits for HTTP via wait-for-idle!, then
-   manually sends :event/loaded to complete the report statechart lifecycle
-   (see TODO in ns docstring about fops/load ok-action not firing)."
+   Routes via statechart routing, then waits for HTTP responses to complete.
+   The fops/load ok-action fires the statechart :event/loaded automatically."
   [app report-class route-params]
   (scr/route-to! app report-class route-params)
   (dotimes [_ 5] (h/render-frame! app))
   ;; Wait for all pending HTTP requests to complete
   (h/wait-for-idle! app)
-  (dotimes [_ 5] (h/render-frame! app))
-  ;; Manually trigger the statechart callback that fops/load doesn't fire in headless mode
-  (let [sid (sc-session/report-session-id report-class {})]
-    (scf/send! app sid :event/loaded {}))
   (dotimes [_ 5] (h/render-frame! app))
   app)
 
