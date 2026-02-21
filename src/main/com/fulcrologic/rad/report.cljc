@@ -54,15 +54,13 @@
 ;; RENDERING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn default-render-layout [report-instance]
-  (let [{::app/keys [runtime-atom]} (comp/any->app report-instance)
-        layout-style (or (some-> report-instance comp/component-options ::layout-style) :default)
-        layout       (some-> runtime-atom deref :com.fulcrologic.rad/controls ::style->layout layout-style)]
-    (if layout
-      (layout report-instance)
-      (do
-        (log/error "No layout function found for form layout style" layout-style)
-        nil))))
+(defn default-render-layout
+  "Default render layout for reports. Rendering plugins should provide a defmethod for
+   `rr/render-report` instead of using `install-layout!`."
+  [report-instance]
+  (log/error "No report layout renderer installed for style"
+             (or (some-> report-instance comp/component-options ::layout-style) :default))
+  nil)
 
 (defn render-layout [report-instance]
   (rr/render-report report-instance (rc/component-options report-instance)))
@@ -136,9 +134,9 @@
   ((control-renderer this) this))
 
 (def render-control
-  "[report-instance control-key]
+  "[control-type style instance control-key]
 
-   Render a single control, wrapped by minimal chrome. This is just an alias for control/render-control."
+   Render a single control. Dispatches on [control-type style]. This is an alias for control/render-control."
   control/render-control)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -768,18 +766,6 @@
   [app type style formatter]
   (let [{::app/keys [runtime-atom]} app]
     (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls ::type->style->formatter type style] formatter)))
-
-(defn install-layout!
-  "Install a report layout renderer for the given style. `render-row` is a `(fn [report-instance])`.
-
-  See other support functions in this ns for help rendering, such as `formatted-column-value`, `form-link`,
-  `select-row!`.
-
-   This should be called before mounting your app.
-   "
-  [app report-style render]
-  (let [{::app/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls ::style->layout report-style] render)))
 
 (defn install-row-layout!
   "Install a row layout renderer for the given style. `render-row` is a `(fn [report-instance row-class row-props])`.

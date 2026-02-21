@@ -30,3 +30,37 @@ These functions were stripped of deleted-namespace dependencies and stubbed:
 - `report` `:event/do-sort`, `:event/select-row` - removed route-param tracking
 - `container/initialize-parameters` - removed history-based param init
 - `resolvers-common/secure-resolver` - pass-through (was auth/redact wrapper)
+
+## Multimethod Rendering Conversion
+
+Map-based dispatch keys removed from source code:
+- `::type->style->control` - was in control.cljc and form.cljc
+- `::element->style->layout` - was in form.cljc
+- `::style->layout` - was in report.cljc and container.cljc
+
+### control.cljc
+- `render-control` converted from function to defmulti dispatching on `[control-type style]`
+- Uses `fr/render-hierarchy` from form_render.cljc (shared with form and report renderers)
+- New signature: `[control-type style instance control-key]` (was `[owner control-key]` / `[owner control-key control]`)
+- `:default` method logs a warning for missing renderers
+
+### form.cljc
+- `render-fn` replaced by `render-element` defmulti dispatching on `[element style]`
+- `form-container-renderer`, `form-layout-renderer` removed (use `render-element` with `:form-container` / `:form-body-container`)
+- `attr->renderer` simplified to delegate to `fr/render-field` multimethod
+- `default-render-field` simplified to log error (plugins register via `defmethod fr/render-field`)
+- `install-field-renderer!`, `install-form-container-renderer!`, `install-form-body-renderer!`, `install-form-ref-renderer!` removed
+- Plugins should now use `defmethod` on `fr/render-field`, `fr/render-form`, and `form/render-element`
+
+### report.cljc
+- `default-render-layout` simplified to log error (plugins register via `defmethod rr/render-report`)
+- `install-layout!` removed
+- Plugins should use `defmethod rr/render-report` instead
+
+### container.cljc
+- `render-layout` simplified to log error (container rendering needs multimethod registration)
+
+### Remaining map-based dispatch (not yet converted)
+- `::row-style->row-layout` in report.cljc
+- `::control-style->control` in report.cljc
+- `::type->style->formatter` in report.cljc

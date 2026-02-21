@@ -25,9 +25,8 @@
    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
    [com.fulcrologic.fulcro.raw.application :as raw.app]
    [com.fulcrologic.rad.errors :refer [warn-once!]]
+   [com.fulcrologic.rad.form-render :as fr]
    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce child-classes]]
-   [com.fulcrologic.rad :as rad]
-   [taoensso.encore :as enc]
    [taoensso.timbre :as log]))
 
 (defsc Control
@@ -36,30 +35,24 @@
   {:query [::id ::value]
    :ident ::id})
 
-(defn render-control
-  "Render the control defined by `control-key` in the ::report/controls option. The control definition in question will be
-   a `(fn [props])` where `props` is a map containing:
+(defmulti render-control
+  "Render a control element. Dispatches on [control-type style].
 
-   * `owner` - The React instance of the mounted component where the controls will be shown.
-   * `control-key` - The name of the control key being rendered .
-   "
-  ([owner control-key]
-   (render-control owner control-key (get (comp/component-options owner ::controls) control-key)))
-  ([owner control-key control]
-   (when (not= control-key :_)
-     (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} (comp/any->app owner)
-           input-type   (get control :type)
-           input-style  (get control :style :default)
-           style->input (some-> runtime-atom deref ::rad/controls ::type->style->control (get input-type))
-           input        (or (get style->input input-style) (get style->input :default))]
-       (if input
-         (input {:instance    owner
-                 :key         (str control-key)
-                 :control     control
-                 :control-key control-key})
-         (when (and (not= input-type :none) #?(:cljs goog.DEBUG :clj true))
-           (warn-once! "NOTE: No renderer is installed to support control " control-key "with type/style" input-type input-style)
-           nil))))))
+   Arguments:
+
+   * `control-type` - The type of control (e.g. :button, :string, :instant)
+   * `style` - The rendering style (e.g. :default, :picker)
+   * `instance` - The React instance of the mounted component where the control appears
+   * `control-key` - The keyword identifying this control in the component's ::controls map"
+  (fn [control-type style instance control-key]
+    [control-type style])
+  :hierarchy #?(:cljs fr/render-hierarchy
+                :clj  (var fr/render-hierarchy)))
+
+(defmethod render-control :default [control-type style _instance control-key]
+  (when (and (not= control-type :none) #?(:cljs goog.DEBUG :clj true))
+    (warn-once! "NOTE: No renderer is installed to support control " control-key " with type/style " control-type style))
+  nil)
 
 ;; TODO: Reconnect run! during statechart conversion. Previously triggered :event/run on the UISM.
 (def run!

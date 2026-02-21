@@ -15,7 +15,6 @@
    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
    [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
    [com.fulcrologic.guardrails.core :refer [>defn >def => ?]]
-   [com.fulcrologic.rad :as rad]
    [com.fulcrologic.rad.control :as control]
    [com.fulcrologic.rad.errors :refer [required! warn-once!]]
    [com.fulcrologic.rad.attributes :as attr]
@@ -141,40 +140,23 @@
 ;; RENDERING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn render-fn
-  "Find the correct UI renderer for the given form layout `element`.
+(defmulti render-element
+  "Render a form structural element (e.g. :form-container, :form-body-container, :ref-container).
+   Dispatches on [element style]."
+  (fn [{::keys [form-instance] :as _renv} element]
+    (let [copts        (comp/component-options form-instance)
+          id-attr      (fo/id copts)
+          layout-style (or
+                        (get-in copts [::layout-styles element])
+                        (?! (fro/style copts) id-attr _renv)
+                        :default)]
+      [element layout-style]))
+  :hierarchy #?(:cljs fr/render-hierarchy
+                :clj  (var fr/render-hierarchy)))
 
-   `element` must be one of :
-
-   ```
-   #{:form-container :form-body-container :ref-container :async-abandon-modal}
-   ```
-  "
-  [{::keys [form-instance] :as form-env} element]
-  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} (comp/any->app form-instance)
-        style-path             [::layout-styles element]
-        copts                  (comp/component-options form-instance)
-        id-attr                (fo/id copts)
-        layout-style           (or
-                                (get-in copts style-path)
-                                (?! (fro/style copts) id-attr form-env)
-                                :default)
-        element->style->layout (some-> runtime-atom deref ::rad/controls ::element->style->layout)
-        render-fn              (some-> element->style->layout (get element) (get layout-style))
-        default-render-fn      (some-> element->style->layout (get element) :default)]
-    (cond
-      (not runtime-atom) (log/error "Form instance was not in the rendering environment. This means the form did not mount properly")
-      (not render-fn) (log/error "No renderer was installed for layout style" layout-style "for UI element" element))
-    (or render-fn default-render-fn)))
-
-(defn form-container-renderer
-  "The top-level container for the entire on-screen form"
-  [form-env] (render-fn form-env :form-container))
-
-(defn form-layout-renderer
-  "The container for the form fields. Used to wrap the main set of fields, and as the container for
-   fields in nested forms. This renderer can determine layout of the fields themselves."
-  [form-env] (render-fn form-env :form-body-container))
+(defmethod render-element :default [_renv element]
+  (log/error "No renderer was installed for form element" element)
+  nil)
 
 (def subform-options
   "[form-options]
@@ -218,43 +200,16 @@
         field-style (or (get field-styles qualified-key) field-style)]
     (if field-style
       (fn [env attr _] (render-field env attr))
-      (let [{::keys [ui layout-styles]} (subform-options form-options attr)
-            {target-styles ::layout-styles} (comp/component-options ui)
-            {:com.fulcrologic.fulcro.application/keys [runtime-atom]} (comp/any->app form-instance)
-            element      :ref-container
-            layout-style (or
-                          (get layout-styles element)
-                          (get target-styles element)
-                          :default)
-            render-fn    (some-> runtime-atom deref ::rad/controls ::element->style->layout
-                                 (get-in [element layout-style]))]
-        render-fn))))
+      (fn [env _attr _]
+        (render-element env :ref-container)))))
 
 (defn attr->renderer
   "Given a form rendering environment and an attribute: returns the renderer that can render the given attribute.
 
-  The attribute style of :default is the default, and can be overridden in ::form/field-styles on the form (master
-  has precedence, followed by the form it actually appears on) or
-  using ::form/field-style on the attribute itself."
-  [{::keys [form-instance master-form]} {::attr/keys [type qualified-key style]
-                                         ::keys      [field-style] :as attr}]
-  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} (comp/any->app form-instance)
-        field-style (?! (or
-                         (some-> master-form comp/component-options ::field-styles qualified-key)
-                         (some-> form-instance comp/component-options ::field-styles qualified-key)
-                         field-style
-                         style
-                         :default)
-                        form-instance)
-        control-map (some-> runtime-atom deref ::rad/controls ::type->style->control)
-        control     (or
-                     (get-in control-map [type field-style])
-                     (do
-                       (warn-once! "Renderer not found: " type field-style)
-                       (get-in control-map [type :default])))]
-    (if control
-      control
-      (log/error "Unable to find control (no default) for attribute " attr))))
+  NOTE: With multimethod-based rendering, this now delegates to `fr/render-field`. Retained for backward
+  compatibility with code that needs to obtain a render function for an attribute."
+  [env attr]
+  (fn [renv a] (fr/render-field renv a)))
 
 (defn render-field
   "Given a form rendering environment and an attrbute: renders that attribute as a form field (e.g. a label and an
@@ -268,13 +223,11 @@
   [env attr]
   (render-field env (assoc attr fo/omit-label? true)))
 
-(defn default-render-field [env attr]
-  (let [render (attr->renderer env attr)]
-    (if render
-      (render env attr)
-      (do
-        (log/error "No renderer installed to support attribute" attr)
-        nil))))
+(defn default-render-field
+  "Default field renderer. Logs a warning when no specific renderer is registered."
+  [env attr]
+  (log/error "No renderer installed to support attribute" attr)
+  nil)
 
 (defmethod fr/render-field :default [env attr]
   (default-render-field env attr))
@@ -316,20 +269,14 @@
   [form-instance props]
   (when-not (comp/component? form-instance)
     (throw (ex-info "Invalid form instance." {:form-instance form-instance})))
-  (let [env    (rendering-env form-instance props)
-        render (form-layout-renderer env)]
-    (if render
-      (render env)
-      nil)))
+  (let [env (rendering-env form-instance props)]
+    (render-element env :form-body-container)))
 
 (defn default-render-layout [form-instance props]
   (when-not (comp/component? form-instance)
     (throw (ex-info "Invalid form instance propagated to render layout." {:form-instance form-instance})))
-  (let [env    (rendering-env form-instance props)
-        render (form-container-renderer env)]
-    (if render
-      (render env)
-      nil)))
+  (let [env (rendering-env form-instance props)]
+    (render-element env :form-container)))
 
 (defn render-layout
   "Render the complete layout of a form. This is the default body of normal form classes. It will call a render factory
@@ -341,9 +288,8 @@
   (let [env (rendering-env form-instance props)]
     (fr/render-form env (comp/component-options form-instance fo/id))))
 
-(defmethod fr/render-form :default [renv id-attr]
-  (when-let [render (form-container-renderer renv)]
-    (render renv)))
+(defmethod fr/render-form :default [renv _id-attr]
+  (render-element renv :form-container))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Form creation/logic
@@ -1949,45 +1895,6 @@
              ~@context-bindings
              ~@pass-through-bindings]
          ~@body))))
-
-(defn install-field-renderer!
-  "Install a `renderer` for the given attribute `type`, to be known as field `style`.
-
-   See `field-context` for obtaining the data to render, and `input-changed!` and `input-blur!` for
-   communcating model changes."
-  [app type style render]
-  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls
-                                  :com.fulcrologic.rad.form/type->style->control
-                                  type
-                                  style] render)))
-
-(defn install-form-container-renderer!
-  "Install a renderer for a given `style` of form container."
-  [app style render]
-  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls
-                                  :com.fulcrologic.rad.form/element->style->layout
-                                  :form-container
-                                  style] render)))
-
-(defn install-form-body-renderer!
-  "Install a renderer for a given `style` of form body."
-  [app style render]
-  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls
-                                  :com.fulcrologic.rad.form/element->style->layout
-                                  :form-body-container
-                                  style] render)))
-
-(defn install-form-ref-renderer!
-  "Install a renderer for a given `style` of subform reference container."
-  [app style render]
-  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls
-                                  :com.fulcrologic.rad.form/element->style->layout
-                                  :ref-container
-                                  style] render)))
 
 (defn form
   "Create a RAD form component. `options` is the map of form/Fulcro options. The `registry-key` is the globally

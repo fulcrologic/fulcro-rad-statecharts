@@ -106,16 +106,14 @@
 (defn render-layout
   "Auto-render the content of a container. This is the automatic body of a container. If you supply no render body
    to a container, this is what it will hold. Configurable through component options via `::container/layout-style`.  You can also do custom rendering
-   in the container, and call this to embed the generated UI."
+   in the container, and call this to embed the generated UI.
+
+   NOTE: Container rendering plugins should provide a `defmethod` for the appropriate multimethod
+   instead of using the old `install-layout!` approach."
   [container-instance]
-  (let [{::app/keys [runtime-atom]} (comp/any->app container-instance)
-        layout-style (or (some-> container-instance comp/component-options ::layout-style) :default)
-        layout       (some-> runtime-atom deref :com.fulcrologic.rad/controls ::style->layout layout-style)]
-    (if layout
-      (layout container-instance)
-      (do
-        (log/error "No layout function found for form layout style" layout-style)
-        nil))))
+  (log/error "No container layout renderer installed for style"
+             (or (some-> container-instance comp/component-options ::layout-style) :default))
+  nil)
 
 (defn start-container! [app container-class options]
   (log/info "Starting container!")
