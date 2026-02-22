@@ -10,6 +10,7 @@
    [com.fulcrologic.rad.attributes-options :as ao]
    [com.fulcrologic.rad.control :as control]
    [com.fulcrologic.rad.options-util :refer [?!]]
+   [com.fulcrologic.rad.form :as-alias form]
    [com.fulcrologic.rad.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.report-render :as rr]
@@ -57,6 +58,20 @@
                                        label))
                              heading-descriptors)))))
 
+(defn- row-form-link
+  "Look up form-link for a column from the Row class options (where form-links are stored
+   by the defsc-report macro), falling back to report-instance options."
+  [report-instance options row-props qualified-key]
+  (let [row-class   (ro/BodyItem options)
+        row-opts    (when row-class (comp/component-options row-class))
+        form-links  (or (get row-opts ::report/form-links)
+                        (get (comp/component-options report-instance) ::report/form-links))
+        cls         (get form-links qualified-key)
+        id-key      (some-> cls (comp/component-options ::form/id) ao/qualified-key)]
+    (when cls
+      {:edit-form cls
+       :entity-id (get row-props id-key)})))
+
 (defn- render-report-row
   "Render a single table row for a report."
   [report-instance options row-props idx]
@@ -69,7 +84,7 @@
                           cell-text     (str (report/formatted-column-value report-instance row-props col-attr))]
                       (dom/td {:data-rad-type   "report-cell"
                                :data-rad-column (str qualified-key)}
-                              (if-let [{:keys [edit-form entity-id]} (report/form-link report-instance row-props qualified-key)]
+                              (if-let [{:keys [edit-form entity-id]} (row-form-link report-instance options row-props qualified-key)]
                                 (dom/a {:data-rad-type  "form-link"
                                         :data-rad-column (str qualified-key)
                                         :onClick        (fn [_] (routing/edit! (comp/any->app report-instance) edit-form entity-id))}
