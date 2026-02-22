@@ -193,11 +193,10 @@
                           ::report-chart)
          params       (:route-params options)
          running?     (seq (scf/current-configuration app session-id))]
-     ;; Register chart: either the user-supplied map or the default
-     (scf/register-statechart! app machine-key
-                               (if (and user-chart (not (keyword? user-chart)))
-                                 user-chart
-                                 report-chart/report-statechart))
+     (let [chart (if (map? user-chart)
+                   user-chart
+                   report-chart/report-statechart)]
+       (scf/register-statechart! app machine-key chart))
      (if (not running?)
        (scf/start! app
                    {:machine    machine-key
@@ -638,7 +637,7 @@
                                      :ident         (fn [this props] [::id (or (::id props) registry-key)])
                                      sfro/initialize :once}
                               (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                              (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `report-chart/report-statechart))))
+                              (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart report-chart/report-statechart))))
          cls               (comp/sc registry-key options render)]
      (vreset! generated-class cls)
      cls)))
