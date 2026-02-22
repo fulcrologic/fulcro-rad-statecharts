@@ -1,19 +1,10 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-21 | Active: 1 | Blocked: 0 | Backlog: 0 | Done: 26 | Deferred: 3 -->
+<!-- Last updated: 2026-02-22 | Active: 0 | Blocked: 0 | Backlog: 0 | Done: 27 | Deferred: 3 -->
 
 ## Active
 
-| Task | Summary |
-|------|---------|
-| headless-chrome-test | Chrome browser testing of all 6 demo pages — verify form-links, pickers, dropdowns, column sort, form save/cancel work in CLJS |
-
-### headless-chrome-test: Remaining Work
-- **Form-links fix committed** but untested in Chrome (needs CLJS recompile of demo)
-- Demo CLJS rebuild blocked: the demo process was started with local deps overrides from a previous session; no shadow-cljs watch mode running. Need to restart demo server + shadow-cljs watch.
-- **Pages tested**: Inventory Report (structure renders, data loads, controls present)
-- **Pages NOT tested**: New Account, New Item, Invoices, New Invoice, Acct 101 Invoices
-- **Features to verify after rebuild**: form-link click navigates to edit form, picker dropdowns work, column sorting, form onChange, save/cancel buttons, subform add/delete, report pagination
+(none)
 
 ## Blocked
 
@@ -111,6 +102,12 @@
 | H9: Enum keyword bug | 2026-02-21 | Strip leading colon from `(str keyword)` before `(keyword s)` |
 | T1: Unit rendering tests | 2026-02-21 | headless_rendering_spec.cljc — 15 specs, 81 assertions, 0 failures |
 | T2: Integration rendering tests | 2026-02-21 | headless_rendering_test.cljc — 3 specs, 16 assertions, 0 failures |
+
+### Phase 7: Chrome Browser Testing — completed 2026-02-22
+
+| Item | Completed | Summary |
+|------|-----------|---------|
+| headless-chrome-test | 2026-02-22 | All 6 demo pages tested in Chrome: Inventory Report (data, sort, form-links→ItemForm nav), New Account (form+subforms+dropdowns), New Item (form fields), Invoices (report data+formatting), New Invoice (form+date picker+add), Acct 101 Invoices (parameterized report). Fixed form-links bug: `row-form-link` now reads report options first. |
 
 ## Critique Specs
 
