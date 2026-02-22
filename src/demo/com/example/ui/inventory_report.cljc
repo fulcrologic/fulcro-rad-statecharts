@@ -21,8 +21,10 @@
                             :item/price     "Price"
                             :item/in-stock  "In Stock"}
 
-   ro/column-formatters    {:item/price (fn [_report v _row _attr]
-                                          (math/numeric->currency-str v))}
+   ro/column-formatters    {:item/price    (fn [_report v _row _attr]
+                                             (math/numeric->currency-str v))
+                            :category/label (fn [_report _v row _attr]
+                                              (get-in row [:item/category :category/label]))}
 
    ro/row-visible?         (fn [filter-params {:item/keys [name] :as row}]
                              (let [{::keys [search]} filter-params]
@@ -41,6 +43,8 @@
 
    ro/control-layout       {:action-buttons [::refresh]
                             :inputs         [[::search]]}
+
+   ro/row-query-inclusion  [{:item/category [:category/id :category/label]}]
 
    ro/initial-sort-params  {:sort-by          :item/name
                             :sortable-columns #{:item/name :category/label :item/price :item/in-stock}

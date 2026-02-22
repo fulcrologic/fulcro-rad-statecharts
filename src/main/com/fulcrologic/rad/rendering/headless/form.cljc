@@ -20,7 +20,8 @@
   (let [props        (comp/props form-instance)
         master-props (comp/props master-form)
         remote-busy? (seq (::app/active-remotes master-props))
-        can-save?    (not (form/read-only? form-instance (fo/id (comp/component-options form-instance))))
+        form-opts    (comp/component-options form-instance)
+        can-save?    (not (?! (::form/read-only? form-opts) form-instance))
         can-undo?    can-save?
         can-cancel?  true]
     (dom/div {:data-rad-type "form-actions"}
@@ -28,88 +29,98 @@
                (dom/button {:data-rad-type "action"
                             :data-rad-action "save"
                             :disabled (boolean remote-busy?)
-                            :onClick  (fn [_] (form/save! form-instance))}
+                            :onClick  (fn [_] (form/save! env))}
                            "Save"))
              (when can-undo?
                (dom/button {:data-rad-type "action"
                             :data-rad-action "undo"
-                            :onClick (fn [_] (form/undo-all! form-instance))}
+                            :onClick (fn [_] (form/undo-all! env))}
                            "Undo"))
              (when can-cancel?
                (dom/button {:data-rad-type "action"
                             :data-rad-action "cancel"
-                            :onClick (fn [_] (form/cancel! form-instance))}
+                            :onClick (fn [_] (form/cancel! env))}
                            "Cancel")))))
 
 (defn- render-form-fields-by-layout
-  "Render form fields according to the declared layout or all attributes in order."
+  "Render form fields according to the declared layout or all attributes in order.
+   Returns a `comp/fragment` to avoid React key warnings from vector-as-children."
   [{::form/keys [form-instance] :as env}]
   (let [options    (comp/component-options form-instance)
         id-attr    (fo/id options)
         attributes (fo/attributes options)
         layout     (fo/layout options)]
-    (if layout
-      ;; Render by layout rows
-      (mapv (fn [row]
-              (dom/div {:data-rad-type "form-row"}
-                       (mapv (fn [field-key]
-                               (if-let [attr (some #(when (= (ao/qualified-key %) field-key) %) attributes)]
-                                 (form/render-field env attr)
-                                 (do (log/warn "Layout references unknown attribute" field-key)
-                                     nil)))
-                             row)))
-            layout)
-      ;; Render all non-identity attributes in order
-      (mapv (fn [attr]
-              (when-not (ao/identity? attr)
-                (form/render-field env attr)))
-            attributes))))
+    (apply comp/fragment
+           (if layout
+             ;; Render by layout rows
+             (into []
+                   (map-indexed (fn [ridx row]
+                                  (dom/div {:key (str "row-" ridx) :data-rad-type "form-row"}
+                                           (apply comp/fragment
+                                                  (mapv (fn [field-key]
+                                                          (if-let [attr (some #(when (= (ao/qualified-key %) field-key) %) attributes)]
+                                                            (form/render-field env attr)
+                                                            (do (log/warn "Layout references unknown attribute" field-key)
+                                                                nil)))
+                                                        row)))))
+                   layout)
+             ;; Render all non-identity attributes in order
+             (mapv (fn [attr]
+                     (when-not (ao/identity? attr)
+                       (form/render-field env attr)))
+                   attributes)))))
 
 (defn- render-subforms
-  "Render any subforms declared on this form."
+  "Render any subforms declared on this form.
+   Returns a `comp/fragment` to avoid React key warnings from vector-as-children."
   [{::form/keys [form-instance] :as env}]
   (let [options  (comp/component-options form-instance)
         subforms (fo/subforms options)]
     (when (seq subforms)
-      (mapv (fn [[ref-key subform-opts]]
-              (let [subform-class (fo/ui subform-opts)
-                    props         (comp/props form-instance)
-                    subform-data  (get props ref-key)]
-                (when subform-data
-                  (dom/div {:data-rad-type    "subform"
-                            :data-rad-field   (str ref-key)}
-                           (if (vector? subform-data)
-                             (let [factory     (comp/computed-factory subform-class {:keyfn #(comp/get-ident subform-class %)})
-                                   can-add?    (?! (fo/can-add? subform-opts) form-instance ref-key)
-                                   can-delete? (fo/can-delete? subform-opts)]
-                               (dom/div nil
-                                        (when can-add?
-                                          (dom/button {:data-rad-type  "add-child"
-                                                       :data-rad-field (str ref-key)
-                                                       :onClick        (fn [_]
-                                                                         (form/add-child! form-instance ref-key subform-class
-                                                                                          (when (= can-add? :prepend) {:order :prepend})))}
-                                                      "Add"))
-                                        (mapv (fn [child-props]
-                                                (dom/div {:data-rad-type "subform-row"}
-                                                         (factory child-props
-                                                                  {::form/master-form     (::form/master-form env)
-                                                                   ::form/parent          form-instance
-                                                                   ::form/parent-relation ref-key})
-                                                         (when (?! can-delete? form-instance child-props)
-                                                           (dom/button {:data-rad-type  "delete-child"
-                                                                        :data-rad-field (str ref-key)
-                                                                        :onClick        (fn [_]
-                                                                                          (form/delete-child! form-instance ref-key
-                                                                                                              (comp/get-ident subform-class child-props)))}
-                                                                       "Delete"))))
-                                              subform-data)))
-                             (let [factory (comp/computed-factory subform-class)]
-                               (factory subform-data
-                                        {::form/master-form    (::form/master-form env)
-                                         ::form/parent         form-instance
-                                         ::form/parent-relation ref-key})))))))
-            subforms))))
+      (apply comp/fragment
+             (mapv (fn [[ref-key subform-opts]]
+                     (let [subform-class (fo/ui subform-opts)
+                           props         (comp/props form-instance)
+                           subform-data  (get props ref-key)]
+                       (when subform-data
+                         (dom/div {:key              (str ref-key)
+                                   :data-rad-type    "subform"
+                                   :data-rad-field   (str ref-key)}
+                                  (if (vector? subform-data)
+                                    (let [factory     (comp/computed-factory subform-class {:keyfn #(comp/get-ident subform-class %)})
+                                          can-add?    (?! (fo/can-add? subform-opts) form-instance ref-key)
+                                          can-delete? (fo/can-delete? subform-opts)]
+                                      (dom/div nil
+                                               (when can-add?
+                                                 (dom/button {:data-rad-type  "add-child"
+                                                              :data-rad-field (str ref-key)
+                                                              :onClick        (fn [_]
+                                                                                (form/add-child! form-instance ref-key subform-class
+                                                                                                 (when (= can-add? :prepend) {:order :prepend})))}
+                                                             "Add"))
+                                               (apply comp/fragment
+                                                      (into []
+                                                            (map-indexed
+                                                             (fn [cidx child-props]
+                                                               (dom/div {:key (str ref-key "-" cidx) :data-rad-type "subform-row"}
+                                                                        (factory child-props
+                                                                                 {::form/master-form     (::form/master-form env)
+                                                                                  ::form/parent          form-instance
+                                                                                  ::form/parent-relation ref-key})
+                                                                        (when (?! can-delete? form-instance child-props)
+                                                                          (dom/button {:data-rad-type  "delete-child"
+                                                                                       :data-rad-field (str ref-key)
+                                                                                       :onClick        (fn [_]
+                                                                                                         (form/delete-child! form-instance ref-key
+                                                                                                                             (comp/get-ident subform-class child-props)))}
+                                                                                      "Delete")))))
+                                                            subform-data))))
+                                    (let [factory (comp/computed-factory subform-class)]
+                                      (factory subform-data
+                                               {::form/master-form    (::form/master-form env)
+                                                ::form/parent         form-instance
+                                                ::form/parent-relation ref-key})))))))
+                   subforms)))))
 
 ;; -- render-element: structural elements for forms ----------------------------
 

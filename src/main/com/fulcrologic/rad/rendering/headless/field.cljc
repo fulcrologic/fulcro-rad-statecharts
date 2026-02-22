@@ -41,12 +41,13 @@
 
 (defn- field-wrapper
   "Wrap a field input with label, the input element, and validation message."
-  [{:keys [qualified-key field-label omit-label? required? visible? invalid? validation-message]} & children]
+  [{:keys [qualified-key field-label omit-label? required? visible? invalid? validation-message]} input-element]
   (when visible?
-    (dom/div {:data-rad-type  "form-field"
+    (dom/div {:key            (str qualified-key)
+              :data-rad-type  "form-field"
               :data-rad-field (str qualified-key)}
              (render-label field-label qualified-key omit-label? required?)
-             (vec children)
+             input-element
              (render-validation invalid? validation-message qualified-key))))
 
 (defn- common-input-attrs
@@ -107,7 +108,8 @@
                 read-only? omit-label?]} (form/field-context env attribute)
         required? (ao/required? attribute)]
     (when visible?
-      (dom/div {:data-rad-type  "form-field"
+      (dom/div {:key            (str qualified-key)
+                :data-rad-type  "form-field"
                 :data-rad-field (str qualified-key)}
                (dom/label {:htmlFor      (field-id qualified-key)
                            :data-rad-type "field-label"

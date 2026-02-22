@@ -1,4 +1,4 @@
-(ns com.example.development
+(ns development
   "REPL development helper. Start the demo with `(go)`, restart with `(restart)`."
   (:require
    #?@(:clj [[clojure.tools.namespace.repl :as tools-ns]
@@ -40,19 +40,19 @@
                        (seed/new-category (new-uuid 1002) "Toys")
                        (seed/new-category (new-uuid 1003) "Misc")
                        (seed/new-item (new-uuid 200) "Widget" 33.99
-                                      :item/category "Misc")
+                                      :item/category "Misc" :item/in-stock 100)
                        (seed/new-item (new-uuid 201) "Screwdriver" 4.99
-                                      :item/category "Tools")
+                                      :item/category "Tools" :item/in-stock 250)
                        (seed/new-item (new-uuid 202) "Wrench" 14.99
-                                      :item/category "Tools")
+                                      :item/category "Tools" :item/in-stock 75)
                        (seed/new-item (new-uuid 203) "Hammer" 14.99
-                                      :item/category "Tools")
+                                      :item/category "Tools" :item/in-stock 150)
                        (seed/new-item (new-uuid 204) "Doll" 4.99
-                                      :item/category "Toys")
+                                      :item/category "Toys" :item/in-stock 40)
                        (seed/new-item (new-uuid 205) "Robot" 94.99
-                                      :item/category "Toys")
+                                      :item/category "Toys" :item/in-stock 15)
                        (seed/new-item (new-uuid 206) "Building Blocks" 24.99
-                                      :item/category "Toys")
+                                      :item/category "Toys" :item/in-stock 200)
                        (seed/new-invoice "invoice-1" date-1 "Tony"
                                          [(seed/new-line-item "Doll" 1 5.0M)
                                           (seed/new-line-item "Hammer" 1 14.99M)])

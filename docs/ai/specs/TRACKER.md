@@ -1,6 +1,6 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-22 | Active: 0 | Blocked: 0 | Backlog: 0 | Done: 27 | Deferred: 3 -->
+<!-- Last updated: 2026-02-22 | Active: 0 | Blocked: 0 | Backlog: 10 | Done: 27 | Deferred: 3 -->
 
 ## Active
 
@@ -12,7 +12,20 @@
 
 ## Backlog
 
-(none)
+### Phase 8: Library Restructuring
+
+| Spec | Priority | Depends-on | Summary |
+|------|----------|------------|---------|
+| [phase8-upstream-impl-extraction](phase8-upstream-impl-extraction.md) | P0 | none | Extract ~52 form + ~25 report pure functions into form.impl/report.impl in UPSTREAM fulcro-rad |
+| [phase8-deps-and-identical-cleanup](phase8-deps-and-identical-cleanup.md) | P0 | upstream-impl-extraction | Add fulcro-rad dep, delete 29 forked files |
+| [phase8-form-namespace-restructure](phase8-form-namespace-restructure.md) | P0 | upstream-impl-extraction, deps-and-identical-cleanup | Move rad.form → rad.statechart.form, re-export from form.impl |
+| [phase8-report-namespace-restructure](phase8-report-namespace-restructure.md) | P1 | upstream-impl-extraction, deps-and-identical-cleanup | Move rad.report → rad.statechart.report, same pattern |
+| [phase8-supporting-namespace-restructure](phase8-supporting-namespace-restructure.md) | P1 | deps-and-identical-cleanup | Move routing, session, container, control to statechart.* |
+| [phase8-options-namespace-split](phase8-options-namespace-split.md) | P1 | form-namespace-restructure, report-namespace-restructure | Create sfo/ and sro/ with engine-specific option keys only |
+| [phase8-compile-time-options-validation](phase8-compile-time-options-validation.md) | P1 | options-namespace-split | defsc-form/report macros reject wrong-engine option keys at compile time |
+| [phase8-test-migration](phase8-test-migration.md) | P1 | form, report, supporting namespace restructure, options split | Update all test requires and move test files |
+| [phase8-demo-migration](phase8-demo-migration.md) | P2 | test-migration | Update demo app requires and option keys |
+| [phase8-readme](phase8-readme.md) | P2 | demo-migration | README with usage examples and upstream exclusion guidance |
 
 ## Deferred
 
@@ -159,6 +172,17 @@
 18. routing-form-integration (P0 — replaced UISM with statechart form launch)
 19. fix-e2e-test-failures (P1 — field renderers, silent guards, invoice render)
 20. headless-load-callback (P1 — snapshot race condition fix)
+
+### Phase 8: Library Restructuring — BACKLOG
+27. phase8-upstream-impl-extraction (P0, upstream fulcro-rad PR)
+28. phase8-deps-and-identical-cleanup (P0, deps.edn + delete identical files)
+29. phase8-form-namespace-restructure (P0, rad.form → rad.statechart.form)
+30. phase8-report-namespace-restructure (P1, rad.report → rad.statechart.report)
+31. phase8-supporting-namespace-restructure (P1, routing/session/container/control → statechart.*)
+32. phase8-options-namespace-split (P1, create sfo/ and sro/ namespaces)
+33. phase8-compile-time-options-validation (P1, macro validation of option keys)
+34. phase8-test-migration (P1, update test requires and file locations)
+35. phase8-demo-migration (P2, update demo app)
 
 ## Open Questions for Human Review
 

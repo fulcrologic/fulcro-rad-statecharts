@@ -83,8 +83,9 @@
         report-ident   (actor-ident data :actor/report)
         Report         (report-class data)
         path           (conj report-ident :ui/parameters)
-        params         (:params event-data)
-        externally-controlled? (:com.fulcrologic.rad.report/externally-controlled? event-data)
+        params         (or (:params event-data) (:params data))
+        externally-controlled? (or (:com.fulcrologic.rad.report/externally-controlled? event-data)
+                                   (:com.fulcrologic.rad.report/externally-controlled? data))
         controls       (comp/component-options Report ::control/controls)
         init-params    {:com.fulcrologic.rad.report/sort         (initial-sort-params data)
                         :com.fulcrologic.rad.report/current-page 1}

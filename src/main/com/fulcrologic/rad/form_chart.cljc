@@ -68,6 +68,8 @@
 
     ;; ===== EDITING (main interactive state) =====
               (state {:id :state/editing}
+                     (on-entry {}
+                               (script {:expr fex/load-picker-options-expr}))
       ;; --- Global events ---
                      (on :event/exit :state/exited)
                      (on :event/reload :state/loading

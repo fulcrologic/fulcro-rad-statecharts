@@ -21,6 +21,7 @@
    [com.fulcrologic.rad.attributes-options :as ao]
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.options-util :refer [?!]]
+   [com.fulcrologic.rad.picker-options :as po]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [clojure.set :as set]
    [edn-query-language.core :as eql]
@@ -223,6 +224,28 @@
      (concat
       (build-autocreate-ops FormClass form-ident state-map)
       (build-ui-props-ops FormClass form-ident)))))
+
+;; ===== Load Picker Options Expression =====
+
+(defn load-picker-options-expr
+  "Side-effect expression that loads picker options for all ref fields that have
+   field-options configured. Runs on entry to :state/editing so dropdowns are populated
+   for both create and edit flows. Returns nil (pure side-effect)."
+  [env data _event-name _event-data]
+  (let [app        (:fulcro/app env)
+        FormClass  (actor-class data)
+        form-ident (actor-ident data)
+        state-map  (:fulcro/state-map data)
+        props      (get-in state-map form-ident)
+        options    (rc/component-options FormClass)
+        attributes (fo/attributes options)]
+    (when (and app attributes)
+      (doseq [attr attributes]
+        (let [qk            (ao/qualified-key attr)
+              field-options (fo/get-field-options options attr)]
+          (when (and field-options (po/query-key (merge attr field-options)))
+            (po/load-options! app FormClass props attr)))))
+    nil))
 
 ;; ===== On Load Failed Expression =====
 

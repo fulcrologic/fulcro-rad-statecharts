@@ -50,12 +50,14 @@
     (dom/thead {:data-rad-type "report-header"}
                (dom/tr nil
                        (mapv (fn [{:keys [label column help]}]
-                               (dom/th {:data-rad-type   "column-header"
-                                        :data-rad-column (str (ao/qualified-key column))
-                                        :title           (or help "")
-                                        :onClick         (fn [_]
-                                                           (report/sort-rows! report-instance column))}
-                                       label))
+                               (let [qk (str (ao/qualified-key column))]
+                                 (dom/th {:key             qk
+                                          :data-rad-type   "column-header"
+                                          :data-rad-column qk
+                                          :title           (or help "")
+                                          :onClick         (fn [_]
+                                                             (report/sort-rows! report-instance column))}
+                                         label)))
                              heading-descriptors)))))
 
 (defn- row-form-link
@@ -78,7 +80,8 @@
   [report-instance options row-props idx]
   (let [columns     (ro/columns options)
         row-actions (ro/row-actions options)]
-    (dom/tr {:data-rad-type "report-row"
+    (dom/tr {:key           (str "row-" idx)
+             :data-rad-type "report-row"
              :onClick       (fn [_] (report/select-row! report-instance idx))}
             (mapv (fn [col-attr]
                     (let [qualified-key (ao/qualified-key col-attr)

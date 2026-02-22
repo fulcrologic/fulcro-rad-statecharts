@@ -23,6 +23,7 @@
    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
    [com.fulcrologic.fulcro.data-fetch :as df]
    [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.fulcro.algorithms.lambda :as lambda]
    [com.fulcrologic.fulcro.algorithms.merge :as merge]
    [com.fulcrologic.rad.attributes :as attr]
    [com.fulcrologic.rad.attributes-options :as ao]
@@ -423,7 +424,7 @@
                                           formatter
                                           (built-in-formatter type style)
                                           (fn [_ v] (str v)))))
-        formatted-value        (formatter report-instance value row-props column-attribute)]
+        formatted-value        ((lambda/->arity-tolerant formatter) report-instance value row-props column-attribute)]
     formatted-value))
 
 (defn install-formatter!
@@ -611,7 +612,7 @@
                                   {:ui/current-rows (comp/get-query ItemClass)}
                                   [df/marker-table '_]]
                                  query-inclusions)
-         render            (fn [this]
+         render            (fn [this _props]
                              (comp/wrapped-render this
                                                   (fn []
                                                     (let [props (comp/props this)]

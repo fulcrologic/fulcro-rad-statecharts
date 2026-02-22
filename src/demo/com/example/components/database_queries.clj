@@ -30,13 +30,16 @@
   "Return invoice IDs for a given customer account."
   [env {:account/keys [id]}]
   (if-let [db (env->db env)]
-    (let [ids (d/q '[:find ?uuid
-                     :in $ ?cid
-                     :where
-                     [?dbid :invoice/id ?uuid]
-                     [?dbid :invoice/customer ?c]
-                     [?c :account/id ?cid]] db id)]
-      (mapv (fn [[id]] {:invoice/id id}) ids))
+    (if id
+      (let [ids (d/q '[:find ?uuid
+                       :in $ ?cid
+                       :where
+                       [?dbid :invoice/id ?uuid]
+                       [?dbid :invoice/customer ?c]
+                       [?c :account/id ?cid]] db id)]
+        (mapv (fn [[id]] {:invoice/id id}) ids))
+      (do (log/warn "get-customer-invoices called without :account/id")
+          []))
     (log/error "No database atom for production schema!")))
 
 (defn get-all-invoices
