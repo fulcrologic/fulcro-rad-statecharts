@@ -24,7 +24,7 @@
 
    This chart can be overridden per-form via the `sfo/statechart` component option."
   (statechart {:initial :initial}
-              (data-model {:expr (fn [_ _] {:options {}})})
+              (data-model {:expr (fn [_ _ _ _] {:options {}})})
 
     ;; ===== INITIAL (decision state) =====
     ;; Stores startup options, then dispatches based on create? flag
