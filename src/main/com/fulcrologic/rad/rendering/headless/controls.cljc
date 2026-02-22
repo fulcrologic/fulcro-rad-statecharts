@@ -32,11 +32,10 @@
                            :type     "text"
                            :value    (str value)
                            :onChange (fn [evt]
-                                       #?(:cljs
-                                          (let [v (.. evt -target -value)]
-                                            (control/set-parameter! instance control-key v)
-                                            (when onChange (onChange instance v)))
-                                          :clj nil))})))))
+                                       (let [v #?(:cljs (.. evt -target -value)
+                                                  :clj  evt)]
+                                         (control/set-parameter! instance control-key v)
+                                         (when onChange (onChange instance v))))})))))
 
 (defmethod control/render-control [:boolean :default] [_control-type _style instance control-key]
   (let [controls (control/component-controls instance)
@@ -50,10 +49,8 @@
                                       :type     "checkbox"
                                       :checked  value
                                       :onChange (fn [_evt]
-                                                  #?(:cljs
-                                                     (let [new-val (not value)]
-                                                       (control/set-parameter! instance control-key new-val)
-                                                       (when onChange (onChange instance new-val)))
-                                                     :clj nil))})
+                                                  (let [new-val (not value)]
+                                                    (control/set-parameter! instance control-key new-val)
+                                                    (when onChange (onChange instance new-val))))})
                           (when label
                             (dom/span nil (?! label instance))))))))

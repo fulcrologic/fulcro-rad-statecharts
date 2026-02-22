@@ -6,11 +6,15 @@
    [com.fulcrologic.fulcro.components :as comp]
    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+   [com.fulcrologic.fulcro.mutations :as m]
    [com.fulcrologic.rad.attributes-options :as ao]
    [com.fulcrologic.rad.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.form-render :as fr]
-   [com.fulcrologic.rad.options-util :refer [?!]]))
+   [com.fulcrologic.rad.options-util :refer [?!]]
+   [com.fulcrologic.rad.picker-options :as po]
+   #?(:clj [clojure.edn :as edn]
+      :cljs [cljs.reader :as reader])))
 
 (defn- field-id
   "Generate a stable DOM id for a field based on its qualified key."
@@ -68,8 +72,8 @@
       :validation-message validation-message}
      (dom/input (common-input-attrs qualified-key value read-only? required?
                                     (fn [evt]
-                                      #?(:cljs (com.fulcrologic.fulcro.mutations/set-string! form-instance qualified-key :event evt)
-                                         :clj  nil)))))))
+                                      #?(:cljs (m/set-string! form-instance qualified-key :event evt)
+                                         :clj  (m/set-string!! form-instance qualified-key :value evt))))))))
 
 (defn render-number-field
   "Render a numeric field (int, long, double) as a number input."
@@ -86,9 +90,11 @@
      (dom/input (-> (common-input-attrs qualified-key value read-only? required?
                                         (fn [evt]
                                           #?(:cljs (if (= :double type)
-                                                     (com.fulcrologic.fulcro.mutations/set-string! form-instance qualified-key :event evt)
-                                                     (com.fulcrologic.fulcro.mutations/set-integer! form-instance qualified-key :event evt))
-                                             :clj  nil)))
+                                                     (m/set-string! form-instance qualified-key :event evt)
+                                                     (m/set-integer! form-instance qualified-key :event evt))
+                                             :clj  (if (= :double type)
+                                                     (m/set-string!! form-instance qualified-key :value evt)
+                                                     (m/set-integer!! form-instance qualified-key :value evt)))))
                     (assoc :type "number")
                     (cond->
                      (= :double type) (assoc :step "any")))))))
@@ -111,8 +117,8 @@
                                               :type     "checkbox"
                                               :checked  (boolean value)
                                               :onChange (fn [_evt]
-                                                          #?(:cljs (com.fulcrologic.fulcro.mutations/set-value! form-instance qualified-key (not value))
-                                                             :clj  nil))}
+                                                          #?(:cljs (m/set-value! form-instance qualified-key (not value))
+                                                             :clj  (m/set-value!! form-instance qualified-key (not value))))}
                                        read-only? (assoc :disabled true)
                                        required?  (assoc :required true)))
                           (when-not omit-label?
@@ -132,8 +138,8 @@
       :validation-message validation-message}
      (dom/input (-> (common-input-attrs qualified-key (str (or value "")) read-only? required?
                                         (fn [evt]
-                                          #?(:cljs (com.fulcrologic.fulcro.mutations/set-string! form-instance qualified-key :event evt)
-                                             :clj  nil)))
+                                          #?(:cljs (m/set-string! form-instance qualified-key :event evt)
+                                             :clj  (m/set-string!! form-instance qualified-key :value evt))))
                     (assoc :type "date"))))))
 
 (defn render-enum-field
@@ -155,11 +161,16 @@
                           :name     (str qualified-key)
                           :value    (str value)
                           :onChange (fn [evt]
-                                      #?(:cljs
-                                         (let [raw-val (.. evt -target -value)
-                                               kw-val  (when (seq raw-val) (keyword raw-val))]
-                                           (com.fulcrologic.fulcro.mutations/set-value! form-instance qualified-key kw-val))
-                                         :clj nil))}
+                                      (let [raw-val #?(:cljs (.. evt -target -value)
+                                                       :clj  (str evt))
+                                            ;; Option values are (str kw) which includes the leading colon
+                                            s       (cond-> raw-val
+                                                      (and (string? raw-val)
+                                                           (.startsWith ^String raw-val ":"))
+                                                      (subs 1))
+                                            kw-val  (when (seq s) (keyword s))]
+                                        #?(:cljs (m/set-value! form-instance qualified-key kw-val)
+                                           :clj  (m/set-value!! form-instance qualified-key kw-val))))}
                    read-only? (assoc :disabled true)
                    required?  (assoc :required true))
                  (dom/option {:value ""} "")
@@ -182,13 +193,15 @@
       :validation-message validation-message}
      (dom/input (-> (common-input-attrs qualified-key (str (or value "")) read-only? required?
                                         (fn [evt]
-                                          #?(:cljs (com.fulcrologic.fulcro.mutations/set-string! form-instance qualified-key :event evt)
-                                             :clj  nil)))
+                                          #?(:cljs (m/set-string! form-instance qualified-key :event evt)
+                                             :clj  (m/set-string!! form-instance qualified-key :value evt))))
                     (assoc :type "number" :step "any"))))))
 
 (defn render-ref-field
-  "Render a reference field. For picker-style refs, shows the current value as a read-only display.
-   For subform refs, renders nothing (subforms are handled by the form body container)."
+  "Render a reference field. For picker-style refs, renders a `<select>` dropdown populated
+   from `picker-options/current-form-options`. For subform refs, renders nothing (subforms
+   are handled by `render-subforms` in form.cljc). Falls back to a text display when no
+   picker options are available."
   [{::form/keys [form-instance] :as env} attribute]
   (let [qualified-key (ao/qualified-key attribute)
         options    (comp/component-options form-instance)
@@ -198,14 +211,37 @@
       nil ;; Subform rendering is handled by render-subforms in form.cljc
       (let [{:keys [value field-label visible? invalid? validation-message
                     read-only? omit-label?]} (form/field-context env attribute)
-            required? (ao/required? attribute)]
+            required?      (ao/required? attribute)
+            picker-options (po/current-form-options form-instance attribute)]
         (field-wrapper
          {:qualified-key qualified-key :field-label field-label :omit-label? omit-label?
           :required? required? :visible? visible? :invalid? invalid?
           :validation-message validation-message}
-         (dom/span {:data-rad-type "ref-display"
-                    :data-rad-field (str qualified-key)}
-                   (str (or value ""))))))))
+         (if (seq picker-options)
+           (dom/select (cond-> {:id            (field-id qualified-key)
+                                :name          (str qualified-key)
+                                :data-rad-type "ref-picker"
+                                :data-rad-field (str qualified-key)
+                                :value         (str value)
+                                :onChange      (fn [evt]
+                                                 #?(:cljs
+                                                    (let [raw-val (.. evt -target -value)
+                                                          parsed  (when (seq raw-val) (reader/read-string raw-val))]
+                                                      (m/set-value! form-instance qualified-key parsed))
+                                                    :clj
+                                                    (let [parsed (when (seq (str evt)) (edn/read-string (str evt)))]
+                                                      (m/set-value!! form-instance qualified-key parsed))))}
+                         read-only? (assoc :disabled true)
+                         required?  (assoc :required true))
+                       (dom/option {:value ""} "")
+                       (mapv (fn [{:keys [text value]}]
+                               (dom/option {:key   (str value)
+                                            :value (str value)}
+                                           (or text (str value))))
+                             picker-options))
+           (dom/span {:data-rad-type  "ref-display"
+                      :data-rad-field (str qualified-key)}
+                     (str (or value "")))))))))
 
 ;; -- Multimethod registrations -----------------------------------------------
 

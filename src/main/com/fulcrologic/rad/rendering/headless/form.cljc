@@ -79,13 +79,31 @@
                   (dom/div {:data-rad-type    "subform"
                             :data-rad-field   (str ref-key)}
                            (if (vector? subform-data)
-                             (let [factory (comp/computed-factory subform-class {:keyfn #(comp/get-ident subform-class %)})]
-                               (mapv (fn [child-props]
-                                       (factory child-props
-                                                {::form/master-form    (::form/master-form env)
-                                                 ::form/parent         form-instance
-                                                 ::form/parent-relation ref-key}))
-                                     subform-data))
+                             (let [factory     (comp/computed-factory subform-class {:keyfn #(comp/get-ident subform-class %)})
+                                   can-add?    (?! (fo/can-add? subform-opts) form-instance ref-key)
+                                   can-delete? (fo/can-delete? subform-opts)]
+                               (dom/div nil
+                                        (when can-add?
+                                          (dom/button {:data-rad-type  "add-child"
+                                                       :data-rad-field (str ref-key)
+                                                       :onClick        (fn [_]
+                                                                         (form/add-child! form-instance ref-key subform-class
+                                                                                          (when (= can-add? :prepend) {:order :prepend})))}
+                                                      "Add"))
+                                        (mapv (fn [child-props]
+                                                (dom/div {:data-rad-type "subform-row"}
+                                                         (factory child-props
+                                                                  {::form/master-form     (::form/master-form env)
+                                                                   ::form/parent          form-instance
+                                                                   ::form/parent-relation ref-key})
+                                                         (when (?! can-delete? form-instance child-props)
+                                                           (dom/button {:data-rad-type  "delete-child"
+                                                                        :data-rad-field (str ref-key)
+                                                                        :onClick        (fn [_]
+                                                                                          (form/delete-child! form-instance ref-key
+                                                                                                              (comp/get-ident subform-class child-props)))}
+                                                                       "Delete"))))
+                                              subform-data)))
                              (let [factory (comp/computed-factory subform-class)]
                                (factory subform-data
                                         {::form/master-form    (::form/master-form env)
