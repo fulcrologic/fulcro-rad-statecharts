@@ -59,13 +59,14 @@
                              heading-descriptors)))))
 
 (defn- row-form-link
-  "Look up form-link for a column from the Row class options (where form-links are stored
-   by the defsc-report macro), falling back to report-instance options."
-  [report-instance options row-props qualified-key]
-  (let [row-class   (ro/BodyItem options)
-        row-opts    (when row-class (comp/component-options row-class))
-        form-links  (or (get row-opts ::report/form-links)
-                        (get (comp/component-options report-instance) ::report/form-links))
+  "Look up form-link for a column. Checks the report's options directly (the `options`
+   parameter is already `(comp/component-options report-instance)` from render-layout),
+   then falls back to the Row class options."
+  [_report-instance options row-props qualified-key]
+  (let [form-links  (or (get options ::report/form-links)
+                        (let [row-class (ro/BodyItem options)]
+                          (when row-class
+                            (get (comp/component-options row-class) ::report/form-links))))
         cls         (get form-links qualified-key)
         id-key      (some-> cls (comp/component-options ::form/id) ao/qualified-key)]
     (when cls

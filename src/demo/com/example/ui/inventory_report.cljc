@@ -3,6 +3,7 @@
   (:require
    [com.example.model.category :as category]
    [com.example.model.item :as item]
+   [com.example.ui.item-forms :refer [ItemForm]]
    [com.fulcrologic.rad.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.control :as control]
@@ -47,5 +48,6 @@
 
    ro/paginate?            true
    ro/page-size            20
+   ro/form-links           {:item/name ItemForm}
    ro/run-on-mount?        true
    ro/route                "inventory"})
