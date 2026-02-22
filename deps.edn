@@ -1,6 +1,7 @@
 {:paths   ["src/main" "src/clj-kondo"]
 
- :deps    {edn-query-language/eql                 {:mvn/version "2025.09.27"}
+ :deps    {com.fulcrologic/fulcro-rad             {:local/root "../fulcro-rad"}
+           edn-query-language/eql                 {:mvn/version "2025.09.27"}
            com.taoensso/timbre                    {:mvn/version "6.8.0"}
            com.taoensso/encore                    {:mvn/version "3.159.0"}
            com.fulcrologic/fulcro                 {:mvn/version "3.9.3"}

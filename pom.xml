@@ -75,6 +75,11 @@
     </repositories>
     <dependencies>
         <dependency>
+            <groupId>com.fulcrologic</groupId>
+            <artifactId>fulcro-rad</artifactId>
+            <version>RELEASE</version>
+        </dependency>
+        <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>clojure</artifactId>
             <version>1.12.4</version>
