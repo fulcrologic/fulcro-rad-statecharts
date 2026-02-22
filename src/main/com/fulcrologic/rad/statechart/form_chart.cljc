@@ -22,7 +22,7 @@
   "The default statechart for RAD forms. Manages the full lifecycle of entity editing:
    loading, creating, editing, saving, undo, route guarding, subform management, and dirty tracking.
 
-   This chart can be overridden per-form via the `fo/statechart` component option."
+   This chart can be overridden per-form via the `sfo/statechart` component option."
   (statechart {:initial :initial}
               (data-model {:expr (fn [_ _] {:options {}})})
 

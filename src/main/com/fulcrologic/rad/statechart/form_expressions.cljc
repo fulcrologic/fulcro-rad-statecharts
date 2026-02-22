@@ -20,6 +20,7 @@
    [com.fulcrologic.rad.attributes :as attr]
    [com.fulcrologic.rad.attributes-options :as ao]
    [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.form-options :as sfo]
    [com.fulcrologic.rad.options-util :refer [?!]]
    [com.fulcrologic.rad.picker-options :as po]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
@@ -62,7 +63,7 @@
   [env data _event-name event-data]
   (let [FormClass  (actor-class data)
         form-ident (actor-ident data)
-        {{:keys [started]} :com.fulcrologic.rad.form/triggers} (some-> FormClass rc/component-options)
+        {{:keys [started]} sfo/triggers} (some-> FormClass rc/component-options)
         base-ops   [(ops/assign :options (or (:options data) event-data {}))]
         ;; Note: options may already be in data if passed at start!, or in event-data
         trigger-ops (when (fn? started)
@@ -273,8 +274,8 @@
         form-class        (some-> form-key rc/registry-key->class)
         master-form-class (actor-class data)
         master-form-ident (actor-ident data)
-        {{master-derive :derive-fields} :com.fulcrologic.rad.form/triggers} (some-> master-form-class rc/component-options)
-        {{:keys [derive-fields]} :com.fulcrologic.rad.form/triggers} (some-> form-class rc/component-options)]
+        {{master-derive :derive-fields} sfo/triggers} (some-> master-form-class rc/component-options)
+        {{:keys [derive-fields]} sfo/triggers} (some-> form-class rc/component-options)]
     (cond-> []
       derive-fields
       (conj (fops/apply-action update-tree* derive-fields form-class form-ident))
@@ -290,7 +291,7 @@
          ::attr/keys [cardinality type qualified-key]} event-data
         form-class     (some-> form-key rc/registry-key->class)
         form-options   (some-> form-class rc/component-options)
-        {{:keys [on-change]} :com.fulcrologic.rad.form/triggers} form-options
+        {{:keys [on-change]} sfo/triggers} form-options
         many?          (= :many cardinality)
         ref?           (= :ref type)
         value          (cond
@@ -392,7 +393,7 @@
   (let [form-ident  (actor-ident data)
         FormClass   (actor-class data)
         options     (:options data)
-        {{:keys [saved]} :com.fulcrologic.rad.form/triggers} (some-> FormClass rc/component-options)
+        {{:keys [saved]} sfo/triggers} (some-> FormClass rc/component-options)
         {:keys [on-saved]} options
         base-ops    [(fops/apply-action fs/entity->pristine* form-ident)]
         saved-ops   (when (fn? saved)
@@ -425,7 +426,7 @@
         options       (:options data)
         comp-options  (rc/component-options FormClass)
         save-mutation (get comp-options fo/save-mutation)
-        {:keys [save-failed]} (get comp-options fo/triggers)
+        {:keys [save-failed]} (get comp-options sfo/triggers)
         save-mutation (or save-mutation
                           (symbol "com.fulcrologic.rad.statechart.form" "save-form"))
         result        (scf/mutation-result data)
@@ -539,7 +540,7 @@
   (let [{:com.fulcrologic.rad.form/keys [order parent-relation parent child-class
                                          initial-state default-overrides]} event-data
         form-options   (some-> parent rc/component-options)
-        {{:keys [on-change]} :com.fulcrologic.rad.form/triggers} form-options
+        {{:keys [on-change]} sfo/triggers} form-options
         form-key->attr-fn (resolve-form-fn 'form-key->attribute)
         default-state-fn  (resolve-form-fn 'default-state)
         optional-fields-fn (resolve-form-fn 'optional-fields)
@@ -582,7 +583,7 @@
   [env data _event-name event-data]
   (let [{:com.fulcrologic.rad.form/keys [form-instance child-ident parent parent-relation]} event-data
         form-options   (some-> parent rc/component-options)
-        {{:keys [on-change]} :com.fulcrologic.rad.form/triggers} form-options
+        {{:keys [on-change]} sfo/triggers} form-options
         form-key->attr-fn (resolve-form-fn 'form-key->attribute)
         relation-attr   (form-key->attr-fn parent parent-relation)
         many?           (attr/to-many? relation-attr)

@@ -30,6 +30,7 @@
    [com.fulcrologic.rad.options-util :as opts :refer [?! narrow-keyword]]
    [com.fulcrologic.rad.picker-options :as picker-options]
    [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.form-options :as sfo]
    [com.fulcrologic.rad.form-render :as fr]
    ;; dynamic-routing removed — statecharts routing is now the only routing layer
    [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
@@ -388,14 +389,17 @@
   ([app id form-class] (start-form! app id form-class {}))
   ([app id form-class params]
    (let [{::attr/keys [qualified-key]} (comp/component-options form-class :com.fulcrologic.rad.form/id)
-         chart-id   (or (comp/component-options form-class :com.fulcrologic.rad.form/statechart) :com.fulcrologic.rad.form/form-chart)
+         user-chart (comp/component-options form-class sfro/statechart)
+         machine-key (or (comp/component-options form-class sfro/statechart-id)
+                         (when (keyword? user-chart) user-chart)
+                         :com.fulcrologic.rad.form/form-chart)
          new?       (tempid/tempid? id)
          form-ident [qualified-key id]
-         session-id (sc.session/ident->session-id form-ident)]
-     ;; Register the chart if it hasn't been registered yet
-     (when-not (comp/component-options form-class :com.fulcrologic.rad.form/statechart)
-       (scf/register-statechart! app :com.fulcrologic.rad.form/form-chart form-chart/form-chart))
-     (scf/start! app {:machine    chart-id
+         session-id (sc.session/ident->session-id form-ident)
+         chart      (if (map? user-chart) user-chart form-chart/form-chart)]
+     ;; Register the chart
+     (scf/register-statechart! app machine-key chart)
+     (scf/start! app {:machine    machine-key
                       :session-id session-id
                       :data       {:fulcro/actors  {:actor/form (scf/actor form-class form-ident)}
                                    :fulcro/aliases {:confirmation-message [:actor/form :ui/confirmation-message]
@@ -504,7 +508,7 @@
   (required! location options :com.fulcrologic.rad.form/id attr/attribute?)
   (let [{:com.fulcrologic.rad.form/keys [id attributes query-inclusion]} options
         will-enter                 (:will-enter options)
-        user-statechart            (:com.fulcrologic.rad.form/statechart options)
+        user-statechart            (sfo/statechart options)
         id-key                     (::attr/qualified-key id)
         form-field?                (fn [{::attr/keys [identity? computed-value]}] (and
                                                                                    (not computed-value)
@@ -594,7 +598,7 @@
 #?(:clj
    (defmacro defsc-form
      "Create a statechart-managed RAD form. The interactions are tunable by providing a custom statechart
-      via the `fo/statechart` option, and the rendering can either be generated (if you specify no body and
+      via the `sfo/statechart` option, and the rendering can either be generated (if you specify no body and
       have a UI plugin), or can be hand-coded as the body. See `render-layout` and `render-field`.
 
       This macro supports most of the same options as the normal `defsc` macro (you can use component lifecycle, hooks,
@@ -604,7 +608,7 @@
       and `sfro/initialize`. The macro does NOT generate `:will-enter`, `:will-leave`, `:route-segment`,
       or `:allow-route-change?` — route segments are defined on `istate` in the routing chart.
 
-      In general if you want to augment the form I/O then you should override `fo/statechart` and integrate
+      In general if you want to augment the form I/O then you should override `sfo/statechart` and integrate
       your logic into the statechart definition.
       "
      [& args]

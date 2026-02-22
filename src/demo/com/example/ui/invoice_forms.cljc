@@ -12,6 +12,7 @@
    [com.fulcrologic.fulcro.components :refer [defsc]]
    [com.fulcrologic.rad.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.form-options :as sfo]
    [com.fulcrologic.rad.picker-options :as po]
    [com.fulcrologic.rad.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
@@ -69,7 +70,7 @@
    fo/subforms       {:invoice/line-items {fo/ui          LineItemForm
                                            fo/can-delete? (fn [_ _] true)
                                            fo/can-add?    (fn [_ _] true)}}
-   fo/triggers       {:derive-fields (fn [new-form-tree] (sum-subtotals* new-form-tree))}
+   sfo/triggers      {:derive-fields (fn [new-form-tree] (sum-subtotals* new-form-tree))}
    fo/route-prefix   "invoice"
    fo/title          (fn [_ {:invoice/keys [id]}]
                        (if (tempid/tempid? id)

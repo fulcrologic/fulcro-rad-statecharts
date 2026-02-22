@@ -23,12 +23,12 @@
 (defn id-child-pairs
   "Returns a sequence of [id cls] pairs for each child of the container."
   [container-class-or-instance]
-  (seq (comp/component-options container-class-or-instance :com.fulcrologic.rad.container/children)))
+  (seq (comp/component-options container-class-or-instance :com.fulcrologic.rad.statechart.container/children)))
 
 (defn child-report-session-id
   "Returns the statechart session ID for a child report given its class and container-assigned id."
   [child-class id]
-  (sc.session/ident->session-id (comp/get-ident child-class {:com.fulcrologic.rad.report/id id})))
+  (sc.session/ident->session-id (comp/get-ident child-class {:com.fulcrologic.rad.statechart.report/id id})))
 
 ;; ---- Expression Functions ----
 
@@ -51,7 +51,7 @@
                                     path (conj container-ident k)]
                                 (merge/merge-component
                                  s cls
-                                 (or (comp/get-initial-state cls {:com.fulcrologic.rad.report/id id}) {})
+                                 (or (comp/get-initial-state cls {:com.fulcrologic.rad.statechart.report/id id}) {})
                                  :replace path)))
                             state-map
                             children)))
@@ -68,8 +68,8 @@
                          controls)]
     ;; Side effect: start child report statecharts
     (doseq [[id c] children]
-      (report/start-report! app c {:com.fulcrologic.rad.report/id                    id
-                                   :com.fulcrologic.rad.report/externally-controlled? true
+      (report/start-report! app c {:com.fulcrologic.rad.statechart.report/id                    id
+                                   :com.fulcrologic.rad.statechart.report/externally-controlled? true
                                    :route-params                                      route-params}))
     (into [merge-op] param-ops)))
 

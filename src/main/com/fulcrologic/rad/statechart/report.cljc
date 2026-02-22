@@ -41,7 +41,8 @@
    [edn-query-language.core :as eql]
    [taoensso.encore :as enc]
    [taoensso.timbre :as log]
-   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
+   [com.fulcrologic.rad.statechart.report-options :as sro]))
 
 (defn report-ident
   "Returns the ident of a RAD report. The parameter can be a react instance, a class, or the registry key(word)
@@ -265,14 +266,14 @@
         [generated-row-sym (symbol (str (name sym) "-Row"))
          {::control/keys [controls]
           :com.fulcrologic.rad.report/keys [BodyItem edit-form columns row-pk form-links query-inclusions
-                  row-query-inclusion denormalize? row-actions route initialize-ui-props] :as options} options
+                                            row-query-inclusion denormalize? row-actions route initialize-ui-props] :as options} options
          _                 (when edit-form (throw (ana/error &env ":com.fulcrologic.rad.report/edit-form is no longer supported. Use :com.fulcrologic.rad.report/form-links instead.")))
          normalize?        (not denormalize?)
          ItemClass         (or BodyItem generated-row-sym)
          subquery          `(comp/get-query ~ItemClass)
          nspc              (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
          fqkw              (keyword (str nspc) (name sym))
-         user-statechart   (:com.fulcrologic.rad.report/statechart options)
+         user-statechart   (sro/statechart options)
          query             (into [::id
                                   :ui/parameters
                                   :ui/cache
@@ -557,7 +558,7 @@
   options - The top report options"
   [registry-key options]
   (let [{:com.fulcrologic.rad.report/keys [columns row-pk form-links initLocalState
-                 row-query-inclusion denormalize? row-actions]} options
+                                           row-query-inclusion denormalize? row-actions]} options
         normalize?   (not denormalize?)
         row-query    (let [id-attrs (keep #(comp/component-options % ::form/id) (vals form-links))]
                        (vec
@@ -600,7 +601,7 @@
          generated-class   (volatile! nil)
          get-class         (fn [] @generated-class)
          ItemClass         (or BodyItem (genrow generated-row-key options))
-         user-statechart   (:com.fulcrologic.rad.report/statechart options)
+         user-statechart   (sro/statechart options)
          query             (into [::id
                                   :ui/parameters
                                   :ui/cache

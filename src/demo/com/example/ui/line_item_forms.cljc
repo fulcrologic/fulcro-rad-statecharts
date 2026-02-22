@@ -9,6 +9,7 @@
    [com.fulcrologic.fulcro.raw.components :as rc]
    [com.fulcrologic.rad.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.form-options :as sfo]
    [com.fulcrologic.rad.picker-options :as po]
    [com.fulcrologic.rad.type-support.decimal :as math]
    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
@@ -25,7 +26,7 @@
    fo/route-prefix  "line-item"
    fo/title         "Line Items"
    fo/layout        [[:line-item/category :line-item/item :line-item/quantity :line-item/quoted-price :line-item/subtotal]]
-   fo/triggers      {:derive-fields (fn [new-form-tree] (add-subtotal* new-form-tree))
+   sfo/triggers     {:derive-fields (fn [new-form-tree] (add-subtotal* new-form-tree))
                      :on-change     (fn [env data form-ident qualified-key old-value new-value]
                                       (let [state-map (:fulcro/state-map data)]
                                         (case qualified-key
