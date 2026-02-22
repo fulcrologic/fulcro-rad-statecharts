@@ -45,6 +45,17 @@ All field onChange handlers use reader conditionals for CLJ/CLJS compatibility:
 - String control onChange: CLJ passes `evt` directly as value (no DOM event object)
 - Boolean control onChange: No reader conditionals needed (doesn't use event object)
 
+## Report Form-Links Bug Fix (Feb 2026)
+- **form-links stored on Row class, not Report class**: `defsc-report` macro generates a Row component and stores `::report/form-links` in its options, not the report component's options
+- `report/form-link` reads from `(comp/component-options report-instance)` — always nil for form-links
+- Fix: `row-form-link` helper in report.cljc looks up `ro/BodyItem` from report options, gets Row class options, and finds form-links there
+- The Row class is accessible via `(ro/BodyItem options)` where `options` is the report's component options
+
+## Report Row Index via Metadata (Feb 2026)
+- `rr/render-row` multimethod has fixed 3-arg signature: `[report-instance options row-props]`
+- Row index is passed via metadata: `(with-meta row-props {:row-index idx})` in render-body
+- Read back in render-row: `(or (:row-index (meta row-props)) 0)`
+
 ## Data Attribute Conventions
 - `data-rad-type` — element role: "form-field", "field-error", "field-label", "busy", "form", "report", "report-row", "report-cell", "control", etc.
 - `data-rad-field` — stringified qualified keyword of the attribute

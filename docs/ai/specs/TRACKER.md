@@ -1,10 +1,19 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-21 | Active: 0 | Blocked: 0 | Backlog: 0 | Done: 25 | Deferred: 3 -->
+<!-- Last updated: 2026-02-21 | Active: 1 | Blocked: 0 | Backlog: 0 | Done: 26 | Deferred: 3 -->
 
 ## Active
 
-(none)
+| Task | Summary |
+|------|---------|
+| headless-chrome-test | Chrome browser testing of all 6 demo pages — verify form-links, pickers, dropdowns, column sort, form save/cancel work in CLJS |
+
+### headless-chrome-test: Remaining Work
+- **Form-links fix committed** but untested in Chrome (needs CLJS recompile of demo)
+- Demo CLJS rebuild blocked: the demo process was started with local deps overrides from a previous session; no shadow-cljs watch mode running. Need to restart demo server + shadow-cljs watch.
+- **Pages tested**: Inventory Report (structure renders, data loads, controls present)
+- **Pages NOT tested**: New Account, New Item, Invoices, New Invoice, Acct 101 Invoices
+- **Features to verify after rebuild**: form-link click navigates to edit form, picker dropdowns work, column sorting, form onChange, save/cancel buttons, subform add/delete, report pagination
 
 ## Blocked
 
@@ -86,6 +95,22 @@
 | S4: Stale comments | 2026-02-21 | Fixed in form_expressions.cljc, report_expressions.cljc, headless_routing_tests.clj |
 | S5: Container docstring | 2026-02-21 | Fixed :route-segment reference |
 | S9: Network blacklist | 2026-02-21 | Replaced ::uism/asm-id with raw keyword |
+
+### Phase 6: Headless UI Functional + Tests — completed 2026-02-21
+
+| Spec | Completed | Summary |
+|------|-----------|---------|
+| H1: Field CLJ onChange | 2026-02-21 | All field types (string, int, double, boolean, enum, instant, decimal, ref) work in CLJ via `!!` mutations |
+| H2: Ref/picker dropdown | 2026-02-21 | `<select>` from `po/current-form-options`, falls back to `<span>`, subforms render nil |
+| H3: Report form-links | 2026-02-21 | `row-form-link` reads from Row class options (where macro stores them), wraps cells in `<a>` |
+| H4: Report row selection | 2026-02-21 | Row `<tr>` onClick calls `report/select-row!`, index via metadata |
+| H5: Column sort CLJ | 2026-02-21 | Removed `#?(:cljs ... :clj nil)` wrapper from sort onClick |
+| H6: Report pagination | 2026-02-21 | Prev/Next buttons in footer, page info, disabled at boundaries |
+| H7: Subform add/delete | 2026-02-21 | Add button (fo/can-add?), Delete per row (fo/can-delete?), prepend support |
+| H8: Controls CLJ onChange | 2026-02-21 | String/boolean controls work in CLJ |
+| H9: Enum keyword bug | 2026-02-21 | Strip leading colon from `(str keyword)` before `(keyword s)` |
+| T1: Unit rendering tests | 2026-02-21 | headless_rendering_spec.cljc — 15 specs, 81 assertions, 0 failures |
+| T2: Integration rendering tests | 2026-02-21 | headless_rendering_test.cljc — 3 specs, 16 assertions, 0 failures |
 
 ## Critique Specs
 
