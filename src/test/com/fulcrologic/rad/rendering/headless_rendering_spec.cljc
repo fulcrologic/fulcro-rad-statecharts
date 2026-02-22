@@ -29,8 +29,6 @@
    [fulcro-spec.core :refer [specification component assertions =>
                              when-mocking!]]))
 
-(declare =>)
-
 ;; =============================================================================
 ;; Test Helpers — Element tree traversal
 ;; =============================================================================

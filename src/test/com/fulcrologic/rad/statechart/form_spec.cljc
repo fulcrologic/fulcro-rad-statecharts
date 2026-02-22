@@ -12,8 +12,6 @@
    [fulcro-spec.core :refer [assertions specification when-mocking! component]]
    [taoensso.timbre :as log]))
 
-(declare =>)
-
 (def default-street "111 Main")
 (def default-email "nobody@example.net")
 

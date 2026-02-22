@@ -22,6 +22,8 @@ You will have both `fulcro-rad` and `fulcro-rad-statecharts` on your classpath. 
 | `fo/machine` | UISM machine reference | `sfo/statechart` |
 | `rad-hooks` (`use-form`, `use-report`) | React hooks for data | Statecharts manage lifecycle |
 | `install-form-container-renderer!` etc. | Map-based dispatch (removed) | `defmethod render-element` |
+| `com.fulcrologic.rad.form.impl` | Internal to upstream. Transitively depends on UISM via rad.routing. | `com.fulcrologic.rad.statechart.form` |
+| `com.fulcrologic.rad.report.impl` | Internal to upstream. Transitively depends on UISM. | `com.fulcrologic.rad.statechart.report` |
 
 ---
 

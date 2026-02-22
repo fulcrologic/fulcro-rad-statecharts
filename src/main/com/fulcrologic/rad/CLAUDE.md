@@ -1,5 +1,9 @@
 # RAD Source Notes
 
+## Design Decision: No Re-export from form.impl / report.impl
+
+`statechart/form.cljc` intentionally does NOT re-export anything from `com.fulcrologic.rad.form.impl` (or `report.impl`). These are internal upstream namespaces that transitively pull in UISM via `rad.routing`. Re-exporting from them would drag UISM back into the dependency graph, defeating the entire purpose of this library. The code duplication in `statechart/form.cljc` is the deliberate cost of clean engine separation. If you find a function you want from `form.impl`, copy and adapt it — do not require the upstream impl namespace.
+
 ## Dead Reference Cleanup (Phase 0)
 
 The following namespaces were deleted and all references removed from remaining source:
