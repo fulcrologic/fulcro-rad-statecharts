@@ -319,6 +319,27 @@
   (find-fields form-class #(not (true? (get % ::attr/required?)))))
 
 #?(:clj
+   (defn validate-form-options!
+     "Compile-time validation of `defsc-form` options. Throws `ex-info` if any
+      UISM-engine-specific option keys are detected in an options map intended
+      for the statechart engine."
+     [options-map]
+     (let [wrong-keys {:com.fulcrologic.rad.form/triggers
+                       "Use sfo/triggers instead of fo/triggers. The statecharts engine uses a different callback signature: (fn [env data form-ident k old new] ops-vec)"
+                       :com.fulcrologic.rad.form/machine
+                       "Use sfo/statechart instead of fo/machine. The fo/machine option is for the UISM engine."
+                       :will-enter
+                       "Remove :will-enter. Statecharts routing handles form lifecycle automatically via sfro/statechart."
+                       :will-leave
+                       "Remove :will-leave. Use sfro/busy? for route-change guarding."
+                       :route-denied
+                       "Remove :route-denied. The routing statechart handles route denial automatically."}]
+       (doseq [[k msg] wrong-keys]
+         (when (contains? options-map k)
+           (throw (ex-info (str "defsc-form compile error: " msg)
+                    {:key k :form-options (keys options-map)})))))))
+
+#?(:clj
    (s/def :com.fulcrologic.rad.form/defsc-form-args (s/cat
                              :sym symbol?
                              :doc (s/? string?)
@@ -612,6 +633,9 @@
       your logic into the statechart definition.
       "
      [& args]
+     (let [{:keys [options]} (s/conform :com.fulcrologic.rad.form/defsc-form-args args)]
+       (when (map? options)
+         (validate-form-options! options)))
      (try
        (defsc-form* &env args)
        (catch Exception e

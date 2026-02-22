@@ -170,6 +170,23 @@
    (scf/send! app-ish (report-session-id class-or-registry-key) :event/run)))
 
 #?(:clj
+   (defn validate-report-options!
+     "Compile-time validation of `defsc-report` options. Throws `ex-info` if any
+      UISM-engine-specific option keys are detected in an options map intended
+      for the statechart engine."
+     [options-map]
+     (let [wrong-keys {:com.fulcrologic.rad.report/triggers
+                       "Use sro/triggers instead of ro/triggers. The statecharts engine uses a different callback signature."
+                       :com.fulcrologic.rad.report/machine
+                       "Use sro/statechart instead of ro/machine. The ro/machine option is for the UISM engine."
+                       :will-enter
+                       "Remove :will-enter. Statecharts routing handles report lifecycle automatically."}]
+       (doseq [[k msg] wrong-keys]
+         (when (contains? options-map k)
+           (throw (ex-info (str "defsc-report compile error: " msg)
+                           {:key k :report-options (keys options-map)})))))))
+
+#?(:clj
    (defn req!
      ([env sym options k pred?]
       (when-not (and (contains? options k) (pred? (get options k)))
@@ -262,6 +279,7 @@
        (req! &env sym options :com.fulcrologic.rad.report/columns #(or (symbol? %) (every? symbol? %)))
        (req! &env sym options :com.fulcrologic.rad.report/row-pk #(symbol? %))
        (req! &env sym options :com.fulcrologic.rad.report/source-attribute keyword?)
+       (validate-report-options! options)
        (let
         [generated-row-sym (symbol (str (name sym) "-Row"))
          {::control/keys [controls]
