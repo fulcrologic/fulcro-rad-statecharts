@@ -2,7 +2,7 @@
   "Address subform for account editing."
   (:require
    [com.example.model.address :as address]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]))
 
 (form/defsc-form AddressForm [this props]

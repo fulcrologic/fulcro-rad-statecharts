@@ -10,11 +10,11 @@
    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
    [com.fulcrologic.fulcro.components :refer [defsc]]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.statechart.form-options :as sfo]
    [com.fulcrologic.rad.picker-options :as po]
-   [com.fulcrologic.rad.report :as report]
+   [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.type-support.date-time :as datetime]
    [com.fulcrologic.rad.type-support.decimal :as math]))

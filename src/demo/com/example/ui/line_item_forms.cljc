@@ -7,7 +7,7 @@
    [com.example.ui.item-forms :as item-forms]
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.raw.components :as rc]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.statechart.form-options :as sfo]
    [com.fulcrologic.rad.picker-options :as po]

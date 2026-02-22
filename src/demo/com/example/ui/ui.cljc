@@ -12,7 +12,7 @@
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
    [com.fulcrologic.rad.ids :refer [new-uuid]]
-   [com.fulcrologic.rad.routing :as rroute]
+   [com.fulcrologic.rad.statechart.routing :as rroute]
    [com.fulcrologic.statecharts :as sc]
    [com.fulcrologic.statecharts.chart :refer [statechart]]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]

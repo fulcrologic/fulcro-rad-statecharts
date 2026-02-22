@@ -4,9 +4,9 @@
    [com.example.model.category :as category]
    [com.example.model.item :as item]
    [com.example.ui.item-forms :refer [ItemForm]]
-   [com.fulcrologic.rad.report :as report]
+   [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.control :as control]
+   [com.fulcrologic.rad.statechart.control :as control]
    [com.fulcrologic.rad.type-support.decimal :as math]
    [clojure.string :as str]))
 

@@ -3,9 +3,9 @@
   (:require
    [com.example.model.account :as account]
    [com.example.model.invoice :as invoice]
-   [com.fulcrologic.rad.report :as report]
+   [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.control :as control]
+   [com.fulcrologic.rad.statechart.control :as control]
    [com.fulcrologic.rad.type-support.decimal :as math]
    [com.fulcrologic.rad.type-support.date-time :as dt]))
 

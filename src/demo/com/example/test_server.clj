@@ -3,7 +3,7 @@
    and binds `*test-port*` for use in test code."
   (:require
    [com.example.components.server]
-   [com.example.development :as dev]
+   [development :as dev]
    [mount.core :as mount]))
 
 (def ^:dynamic *test-port*

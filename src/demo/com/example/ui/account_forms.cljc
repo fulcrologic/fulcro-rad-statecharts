@@ -5,7 +5,7 @@
    [com.example.model.account :as account]
    [com.example.ui.address-forms :refer [AddressForm]]
    [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]))
 
 (form/defsc-form AccountForm [this props]

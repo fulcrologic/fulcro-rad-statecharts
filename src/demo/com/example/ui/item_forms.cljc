@@ -5,7 +5,7 @@
    [com.example.model.category :as category]
    [com.example.model.item :as item]
    [com.fulcrologic.fulcro.components :refer [defsc]]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.picker-options :as po]))
 
