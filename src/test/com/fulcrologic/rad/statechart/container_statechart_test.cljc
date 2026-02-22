@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.container-statechart-test
+(ns com.fulcrologic.rad.statechart.container-statechart-test
   "Tier 2: Fulcro headless component tests for the RAD container statechart.
    Uses a real Fulcro app with :event-loop? :immediate to verify that
    statechart + Fulcro state integration works correctly."

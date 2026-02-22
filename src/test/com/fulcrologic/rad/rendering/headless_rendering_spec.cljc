@@ -12,8 +12,8 @@
    [com.fulcrologic.guardrails.malli.fulcro-spec-helpers :as gsh]
    [com.fulcrologic.rad.attributes :as attr :refer [defattr]]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.control :as control]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.control :as control]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.form-render :as fr]
    [com.fulcrologic.rad.options-util :refer [?!]]
@@ -22,10 +22,10 @@
    [com.fulcrologic.rad.rendering.headless.field :as hfield]
    [com.fulcrologic.rad.rendering.headless.form]
    [com.fulcrologic.rad.rendering.headless.report]
-   [com.fulcrologic.rad.report :as report]
+   [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.report-render :as rr]
-   [com.fulcrologic.rad.routing :as routing]
+   [com.fulcrologic.rad.statechart.routing :as routing]
    [fulcro-spec.core :refer [specification component assertions =>
                              when-mocking!]]))
 

@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.form-spec
+(ns com.fulcrologic.rad.statechart.form-spec
   (:require
    [clojure.pprint :refer [pprint]]
    [clojure.test :refer [use-fixtures]]
@@ -7,7 +7,7 @@
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
    [com.fulcrologic.rad.attributes :as attr :refer [defattr]]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
    [fulcro-spec.core :refer [assertions specification when-mocking! component]]
    [taoensso.timbre :as log]))

@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.report-statechart-spec
+(ns com.fulcrologic.rad.statechart.report-statechart-spec
   "Tier 1: Pure statechart unit tests for the RAD report chart.
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
