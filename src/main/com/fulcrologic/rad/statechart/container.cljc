@@ -26,6 +26,7 @@
    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
    [taoensso.timbre :as log]
    [taoensso.encore :as enc]
+   [com.fulcrologic.rad.statechart.container-options :as co]
    [clojure.spec.alpha :as s]))
 
 (defn id-child-pairs
@@ -95,8 +96,9 @@
      (let [this-sym (first arglist)
            options  (first args)
            options  (opts/macro-optimize-options &env options #{::field-formatters ::column-headings ::form-links} {})
-           {::control/keys [controls]
-            ::keys         [children route] :as options} options]
+           {::control/keys [controls] :as options} options
+           children (get options co/children)
+           route    (get options co/route)]
        (when-not (map? children)
          (throw (ana/error &env (str "defsc-container " sym " has no declared children."))))
        (when (and route (not (string? route)))
