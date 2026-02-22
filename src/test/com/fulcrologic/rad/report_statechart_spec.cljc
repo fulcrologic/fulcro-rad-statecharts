@@ -4,8 +4,8 @@
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
    [com.fulcrologic.statecharts.testing :as t]
-   [com.fulcrologic.rad.report-chart :as rc]
-   [com.fulcrologic.rad.report-expressions :as rexpr]
+   [com.fulcrologic.rad.statechart.report-chart :as rc]
+   [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
    [fulcro-spec.core :refer [assertions specification component =>]]))
 
 ;; ===== Helpers =====

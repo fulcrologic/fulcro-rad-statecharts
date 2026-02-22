@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.control
+(ns com.fulcrologic.rad.statechart.control
   "Controls are buttons and inputs in the UI that are not backed by model data, but instead
    control things like report parameters or provide action buttons. This namespace provides
    functions to help with UI plugin development, and other functions that reduce the amount
@@ -27,7 +27,7 @@
    [com.fulcrologic.rad.errors :refer [warn-once!]]
    [com.fulcrologic.rad.form-render :as fr]
    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce child-classes]]
-   [com.fulcrologic.rad.sc.session :refer [ident->session-id]]
+   [com.fulcrologic.rad.statechart.session :refer [ident->session-id]]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [taoensso.timbre :as log]))
 

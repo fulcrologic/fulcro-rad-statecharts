@@ -9,7 +9,7 @@
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [com.fulcrologic.statecharts.integration.fulcro.routing.simulated-history :as sim]
-   [com.fulcrologic.rad.application :as rad-app]))
+   [com.fulcrologic.rad.statechart.application :as rad-app]))
 
 (defn create-test-app
   "Creates a fully initialized headless test app with routing. Returns the app.

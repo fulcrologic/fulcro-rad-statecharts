@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.routing
+(ns com.fulcrologic.rad.statechart.routing
   "RAD routing delegation layer. Routes through the statecharts routing system.
 
    This namespace provides backward-compatible routing functions for RAD applications
@@ -15,8 +15,8 @@
    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.raw.components :as rc]
-   [com.fulcrologic.rad.form :as form]
-   [com.fulcrologic.rad.report :as report]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.statecharts.data-model.operations :as ops]
    [com.fulcrologic.statecharts.elements :refer [entry-fn exit-fn]]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]

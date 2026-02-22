@@ -1,11 +1,11 @@
-(ns com.fulcrologic.rad.incrementally-loaded-report-spec
+(ns com.fulcrologic.rad.statechart.incrementally-loaded-report-spec
   "Tier 1: Pure statechart unit tests for the incrementally-loaded report chart.
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
    [com.fulcrologic.statecharts.testing :as t]
-   [com.fulcrologic.rad.incrementally-loaded-report :as ilr]
-   [com.fulcrologic.rad.report-expressions :as rexpr]
+   [com.fulcrologic.rad.statechart.incrementally-loaded-report :as ilr]
+   [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
    [fulcro-spec.core :refer [assertions specification component =>]]))
 
 ;; ===== Helpers =====

@@ -5,7 +5,7 @@
   (:require
    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
-   [com.fulcrologic.rad.control :as control]
+   [com.fulcrologic.rad.statechart.control :as control]
    [com.fulcrologic.rad.options-util :refer [?!]]))
 
 (defmethod control/render-control [:button :default] [_control-type _style instance control-key]

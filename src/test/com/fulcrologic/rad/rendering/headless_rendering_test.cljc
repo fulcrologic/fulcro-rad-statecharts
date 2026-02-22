@@ -11,10 +11,10 @@
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
    #?(:clj [com.fulcrologic.fulcro.headless :as h])
    #?(:clj [com.fulcrologic.fulcro.headless.hiccup :as hic])
-   [com.fulcrologic.rad.application :as rad-app]
+   [com.fulcrologic.rad.statechart.application :as rad-app]
    [com.fulcrologic.rad.attributes :refer [defattr]]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.rendering.headless.plugin]
    [fulcro-spec.core :refer [specification component assertions =>]]))

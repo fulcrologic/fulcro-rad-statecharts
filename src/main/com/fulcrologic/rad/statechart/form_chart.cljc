@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.form-chart
+(ns com.fulcrologic.rad.statechart.form-chart
   "Statechart definition for RAD forms. Replaces the UISM `form-machine` from form.cljc.
 
    States:
@@ -16,7 +16,7 @@
     [state transition on-entry script final data-model]]
    [com.fulcrologic.statecharts.convenience :refer [on handle]]
    [com.fulcrologic.statecharts.data-model.operations :as ops]
-   [com.fulcrologic.rad.form-expressions :as fex]))
+   [com.fulcrologic.rad.statechart.form-expressions :as fex]))
 
 (def form-chart
   "The default statechart for RAD forms. Manages the full lifecycle of entity editing:

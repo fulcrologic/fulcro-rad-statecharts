@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.server-paginated-report
+(ns com.fulcrologic.rad.statechart.server-paginated-report
   "A Report statechart for large data sets where the server handles pagination, sorting, and filtering.
    Each page is loaded separately with `:indexed-access/options` params. Pages are cached client-side.
 
@@ -9,12 +9,12 @@
    [com.fulcrologic.fulcro.raw.components :as rc]
    [com.fulcrologic.rad.attributes :as attr]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.control :as control]
+   [com.fulcrologic.rad.statechart.control :as control]
    [com.fulcrologic.rad.options-util :as opts :refer [?!]]
-   [com.fulcrologic.rad.report :as report]
-   [com.fulcrologic.rad.report-expressions :as rexpr]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
    [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [com.fulcrologic.rad.type-support.date-time :as dt]
    [com.fulcrologic.statecharts :as-alias sc]
    [com.fulcrologic.statecharts.chart :refer [statechart]]

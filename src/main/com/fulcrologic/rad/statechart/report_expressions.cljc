@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.report-expressions
+(ns com.fulcrologic.rad.statechart.report-expressions
   "Expression functions for report statecharts. All expressions follow the 4-arg convention:
    `(fn [env data event-name event-data] ...)` and return a vector of operations.
 
@@ -10,7 +10,7 @@
    [com.fulcrologic.fulcro.raw.components :as rc]
    [com.fulcrologic.rad.attributes :as attr]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.control :as control]
+   [com.fulcrologic.rad.statechart.control :as control]
    [com.fulcrologic.rad.options-util :as opts :refer [?!]]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.type-support.date-time :as dt]

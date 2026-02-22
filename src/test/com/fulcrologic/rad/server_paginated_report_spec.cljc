@@ -1,11 +1,11 @@
-(ns com.fulcrologic.rad.server-paginated-report-spec
+(ns com.fulcrologic.rad.statechart.server-paginated-report-spec
   "Tier 1: Pure statechart unit tests for the server-paginated report chart.
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
    [com.fulcrologic.statecharts.testing :as t]
-   [com.fulcrologic.rad.server-paginated-report :as spr]
-   [com.fulcrologic.rad.report-expressions :as rexpr]
+   [com.fulcrologic.rad.statechart.server-paginated-report :as spr]
+   [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
    [fulcro-spec.core :refer [assertions specification component =>]]))
 
 ;; ===== Helpers =====

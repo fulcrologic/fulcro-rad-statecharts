@@ -24,7 +24,7 @@
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.headless :as h]
    [com.fulcrologic.rad.ids :refer [new-uuid]]
-   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [datomic.client.api :as d]

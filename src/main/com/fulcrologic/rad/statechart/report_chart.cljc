@@ -1,11 +1,11 @@
-(ns com.fulcrologic.rad.report-chart
+(ns com.fulcrologic.rad.statechart.report-chart
   "Standard report statechart. Replaces the UISM `report-machine` from report.cljc.
    Handles data loading, filtering, sorting, pagination, and row selection.
 
    All report data is stored in Fulcro state via aliases. Session-internal data
    (cache timestamps) uses `ops/assign`."
   (:require
-   [com.fulcrologic.rad.report-expressions :as rexpr]
+   [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
    [com.fulcrologic.statecharts.chart :refer [statechart]]
    [com.fulcrologic.statecharts.convenience :refer [on handle]]
    [com.fulcrologic.statecharts.data-model.operations :as ops]
@@ -15,7 +15,7 @@
 (def report-statechart
   "Standard report statechart definition. Supports data loading, client-side filtering,
    sorting, pagination, row selection, and cache-aware resume."
-  (statechart {:id :com.fulcrologic.rad.report-chart/report-chart :initial :state/initializing}
+  (statechart {:id :com.fulcrologic.rad.statechart.report-chart/report-chart :initial :state/initializing}
 
               (data-model {:expr (fn [_env _data _event-name _event-data]
                                    {:last-load-time      nil

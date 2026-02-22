@@ -1,15 +1,28 @@
 (ns com.fulcrologic.rad.statechart.application
-  "Statechart-specific application setup functions for Fulcro RAD.
+  "Application setup functions for Fulcro RAD with statecharts.
 
-   Contains the three functions that extend `com.fulcrologic.rad.application` with
-   statechart infrastructure:
+   This namespace provides the complete set of application setup functions:
 
+   From upstream `com.fulcrologic.rad.application` (re-exported for convenience):
+   * `fulcro-rad-app` — creates a Fulcro RAD application
+   * `install-ui-controls!` — installs UI controls
+
+   Statechart-specific:
    * `install-statecharts!` — installs the statechart engine with URL sync
    * `start-routing!` — registers and starts a routing statechart
    * `install-url-sync!` — installs bidirectional URL synchronization"
   (:require
+   [com.fulcrologic.rad.application :as rad-app]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
+
+(def fulcro-rad-app
+  "Creates a Fulcro RAD application. Re-exported from `com.fulcrologic.rad.application`."
+  rad-app/fulcro-rad-app)
+
+(def install-ui-controls!
+  "Installs UI controls on the app. Re-exported from `com.fulcrologic.rad.application`."
+  rad-app/install-ui-controls!)
 
 (defn install-statecharts!
   "Installs statechart infrastructure on the Fulcro `app` with RAD defaults.

@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.incrementally-loaded-report
+(ns com.fulcrologic.rad.statechart.incrementally-loaded-report
   "A Report statechart that loads data in chunks to prevent network timeouts for large result sets.
    Requires a resolver that accepts `:report/offset` and `:report/limit` parameters and returns:
 
@@ -17,10 +17,10 @@
    [com.fulcrologic.rad.attributes :as attr]
    [com.fulcrologic.rad.attributes-options :as ao]
    [com.fulcrologic.rad.options-util :as opts :refer [?!]]
-   [com.fulcrologic.rad.report :as report]
-   [com.fulcrologic.rad.report-expressions :as rexpr]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
    [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [com.fulcrologic.rad.type-support.date-time :as dt]
    [com.fulcrologic.statecharts :as-alias sc]
    [com.fulcrologic.statecharts.chart :refer [statechart]]

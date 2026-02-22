@@ -6,12 +6,12 @@
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.rad.application :as rad-app]
+   [com.fulcrologic.rad.statechart.application :as rad-app]
    [com.fulcrologic.rad.attributes :refer [defattr]]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.report :as report]
+   [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [fulcro-spec.core :refer [assertions specification component =>]]))
 
 ;; ===== Test Model =====

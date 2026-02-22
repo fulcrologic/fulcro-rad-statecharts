@@ -10,7 +10,7 @@
    [clojure.test :refer [use-fixtures]]
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.headless :as h]
-   [com.fulcrologic.rad.sc.session :as sc-session]
+   [com.fulcrologic.rad.statechart.session :as sc-session]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [com.example.headless-client :refer [test-client]]

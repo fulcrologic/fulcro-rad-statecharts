@@ -8,13 +8,13 @@
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
    [com.fulcrologic.fulcro.raw.components :as rc]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.rad.application :as rad-app]
+   [com.fulcrologic.rad.statechart.application :as rad-app]
    [com.fulcrologic.rad.attributes :refer [defattr]]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.form-options :as fo]
-   [com.fulcrologic.rad.form-chart :as fc]
-   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.statechart.form-chart :as fc]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [fulcro-spec.core :refer [assertions specification component =>]]))
 
 ;; ===== Test Model =====

@@ -1,6 +1,6 @@
-(ns com.fulcrologic.rad.sc.session-spec
+(ns com.fulcrologic.rad.statechart.session-spec
   (:require
-   [com.fulcrologic.rad.sc.session :as session]
+   [com.fulcrologic.rad.statechart.session :as session]
    [fulcro-spec.core :refer [specification component assertions =>]]))
 
 (specification "ident->session-id"
@@ -99,4 +99,4 @@
                 (keyword? session/auth-session-id) => true
 
                 "is namespaced under the session namespace"
-                (namespace session/auth-session-id) => "com.fulcrologic.rad.sc.session"))
+                (namespace session/auth-session-id) => "com.fulcrologic.rad.statechart.session"))

@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.control-options
+(ns com.fulcrologic.rad.statechart.control-options
   "Options definitions and documentation for control options. Used by reports and containers.")
 
 (def control-layout

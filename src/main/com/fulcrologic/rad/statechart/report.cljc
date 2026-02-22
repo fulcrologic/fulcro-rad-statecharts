@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.report
+(ns com.fulcrologic.rad.statechart.report
   "Support for generated reports. Report rendering is pluggable, so reports can be quite varied. The general
   definition of a report is a component that loads data and displays it, possibly paginates, sorts and
   filters it, but for which interactions are done via custom mutations (disable, delete, sort) or reloads.
@@ -10,7 +10,7 @@
   Customizing the report's statechart and possibly wrapping it with more complex layout controls makes it possible
   to create UI dashboards and much more complex application features.
   "
-  #?(:cljs (:require-macros com.fulcrologic.rad.report))
+  #?(:cljs (:require-macros com.fulcrologic.rad.statechart.report))
   (:require
    #?@(:clj
        [[clojure.pprint :refer [pprint]]
@@ -27,16 +27,16 @@
    [com.fulcrologic.fulcro.algorithms.merge :as merge]
    [com.fulcrologic.rad.attributes :as attr]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.control :as control :refer [Control]]
-   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.report-render :as rr]
    [com.fulcrologic.rad.type-support.date-time :as dt]
    [com.fulcrologic.rad.type-support.decimal :as math]
    [com.fulcrologic.rad.picker-options :as picker-options]
-   [com.fulcrologic.rad.report-chart :as report-chart]
-   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.statechart.report-chart :as report-chart]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [edn-query-language.core :as eql]
    [taoensso.encore :as enc]
@@ -68,7 +68,7 @@
    `rr/render-report` instead of using `install-layout!`."
   [report-instance]
   (log/error "No report layout renderer installed for style"
-             (or (some-> report-instance comp/component-options ::layout-style) :default))
+             (or (some-> report-instance comp/component-options :com.fulcrologic.rad.report/layout-style) :default))
   nil)
 
 (defn render-layout [report-instance]
@@ -76,8 +76,8 @@
 
 (defn default-render-row [report-instance row-class row-props]
   (let [{::app/keys [runtime-atom]} (comp/any->app report-instance)
-        layout-style (or (some-> report-instance comp/component-options ::row-style) :default)
-        render       (some-> runtime-atom deref :com.fulcrologic.rad/controls ::row-style->row-layout layout-style)]
+        layout-style (or (some-> report-instance comp/component-options :com.fulcrologic.rad.report/row-style) :default)
+        render       (some-> runtime-atom deref :com.fulcrologic.rad/controls :com.fulcrologic.rad.report/row-style->row-layout layout-style)]
     (if render
       (render report-instance row-class row-props)
       (do
@@ -93,8 +93,8 @@
   "Get the report controls renderer for the given report instance. Returns a `(fn [this])`."
   [report-instance]
   (let [{::app/keys [runtime-atom]} (comp/any->app report-instance)
-        control-style (or (some-> report-instance comp/component-options ::control-style) :default)
-        control       (some-> runtime-atom deref :com.fulcrologic.rad/controls ::control-style->control control-style)]
+        control-style (or (some-> report-instance comp/component-options :com.fulcrologic.rad.report/control-style) :default)
+        control       (some-> runtime-atom deref :com.fulcrologic.rad/controls :com.fulcrologic.rad.report/control-style->control control-style)]
     (if control
       control
       (do
@@ -116,10 +116,10 @@
    :column - The actual column attribute from the RAD model.
    "
   [report-instance report-options]
-  (let [{report-column-headings ::column-headings
-         report-column-infos    ::column-infos} report-options
+  (let [{report-column-headings :com.fulcrologic.rad.report/column-headings
+         report-column-infos    :com.fulcrologic.rad.report/column-infos} report-options
         columns (ro/columns report-options)]
-    (mapv (fn [{::keys      [column-heading column-info]
+    (mapv (fn [{:com.fulcrologic.rad.report/keys      [column-heading column-info]
                 ::attr/keys [qualified-key] :as attr}]
             {:column attr
              :help   (or
@@ -155,7 +155,7 @@
   [report-class grouped-result]
   (when-not (map? grouped-result)
     (log/warn "The incoming result looks like it was normalized. Did you forget `ro/denormalize? true` on your report?"))
-  (let [columns  (comp/component-options report-class ::columns)
+  (let [columns  (comp/component-options report-class :com.fulcrologic.rad.report/columns)
         ks       (map ::attr/qualified-key columns)
         row-data (map (fn [{::attr/keys [qualified-key]}]
                         (get grouped-result qualified-key [])) columns)]
@@ -204,15 +204,15 @@
                     :session-id session-id
                     :data       {:fulcro/actors  {:actor/report (scf/actor report-class report-ident)}
                                  :fulcro/aliases {:parameters    [:actor/report :ui/parameters]
-                                                  :sort-params   [:actor/report :ui/parameters ::sort]
-                                                  :sort-by       [:actor/report :ui/parameters ::sort :sort-by]
-                                                  :ascending?    [:actor/report :ui/parameters ::sort :ascending?]
+                                                  :sort-params   [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort]
+                                                  :sort-by       [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :sort-by]
+                                                  :ascending?    [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :ascending?]
                                                   :filtered-rows [:actor/report :ui/cache :filtered-rows]
                                                   :sorted-rows   [:actor/report :ui/cache :sorted-rows]
                                                   :raw-rows      [:actor/report :ui/loaded-data]
                                                   :current-rows  [:actor/report :ui/current-rows]
-                                                  :current-page  [:actor/report :ui/parameters ::current-page]
-                                                  :selected-row  [:actor/report :ui/parameters ::selected-row]
+                                                  :current-page  [:actor/report :ui/parameters :com.fulcrologic.rad.report/current-page]
+                                                  :selected-row  [:actor/report :ui/parameters :com.fulcrologic.rad.report/selected-row]
                                                   :page-count    [:actor/report :ui/page-count]
                                                   :busy?         [:actor/report :ui/busy?]}
                                  :params         params
@@ -255,24 +255,24 @@
            props-sym (second arglist)
            props-sym (if (map? props-sym) (:as props-sym) props-sym)
            options   (first args)
-           options   (opts/macro-optimize-options &env options #{::column-formatters ::field-formatters ::column-headings ::form-links} {})]
+           options   (opts/macro-optimize-options &env options #{:com.fulcrologic.rad.report/column-formatters :com.fulcrologic.rad.report/field-formatters :com.fulcrologic.rad.report/column-headings :com.fulcrologic.rad.report/form-links} {})]
        (when (or (= '_ props-sym) (= '_ this-sym) (= props-sym this-sym) (not (symbol? this-sym)) (not (symbol? props-sym)))
          (throw (ana/error &env (str "defsc-report argument list must use a real (unique) symbol (or a destructuring with `:as`) for the `this` and `props` (1st and 2nd) arguments."))))
-       (req! &env sym options ::columns #(or (symbol? %) (every? symbol? %)))
-       (req! &env sym options ::row-pk #(symbol? %))
-       (req! &env sym options ::source-attribute keyword?)
+       (req! &env sym options :com.fulcrologic.rad.report/columns #(or (symbol? %) (every? symbol? %)))
+       (req! &env sym options :com.fulcrologic.rad.report/row-pk #(symbol? %))
+       (req! &env sym options :com.fulcrologic.rad.report/source-attribute keyword?)
        (let
         [generated-row-sym (symbol (str (name sym) "-Row"))
          {::control/keys [controls]
-          ::keys [BodyItem edit-form columns row-pk form-links query-inclusions
+          :com.fulcrologic.rad.report/keys [BodyItem edit-form columns row-pk form-links query-inclusions
                   row-query-inclusion denormalize? row-actions route initialize-ui-props] :as options} options
-         _                 (when edit-form (throw (ana/error &env "::edit-form is no longer supported. Use ::form-links instead.")))
+         _                 (when edit-form (throw (ana/error &env ":com.fulcrologic.rad.report/edit-form is no longer supported. Use :com.fulcrologic.rad.report/form-links instead.")))
          normalize?        (not denormalize?)
          ItemClass         (or BodyItem generated-row-sym)
          subquery          `(comp/get-query ~ItemClass)
          nspc              (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
          fqkw              (keyword (str nspc) (name sym))
-         user-statechart   (::statechart options)
+         user-statechart   (:com.fulcrologic.rad.report/statechart options)
          query             (into [::id
                                   :ui/parameters
                                   :ui/cache
@@ -287,9 +287,9 @@
          _                 (when (contains? options :will-enter)
                              (log/warn "defsc-report" sym ":will-enter is ignored. Routing lifecycle is managed by statecharts routing."))
          options           (merge
-                            {::compare-rows `default-compare-rows}
+                            {:com.fulcrologic.rad.report/compare-rows `default-compare-rows}
                             options
-                            (cond-> {::BodyItem      ItemClass
+                            (cond-> {:com.fulcrologic.rad.report/BodyItem      ItemClass
                                      sfro/initialize :once
                                      :query          query
                                      :initial-state  (list 'fn ['params]
@@ -310,12 +310,12 @@
          body              (if (seq (rest args))
                              (rest args)
                              [`(render-layout ~this-sym)])
-         row-query         (list 'fn [] `(let [forms#    ~(::form-links options)
+         row-query         (list 'fn [] `(let [forms#    ~(:com.fulcrologic.rad.report/form-links options)
                                                id-attrs# (keep #(comp/component-options % ::form/id) (vals forms#))]
                                            (vec
                                             (into #{~@row-query-inclusion}
                                                   (map (fn [attr#] (or
-                                                                    (::column-EQL attr#)
+                                                                    (:com.fulcrologic.rad.report/column-EQL attr#)
                                                                     (::attr/qualified-key attr#))) (conj (set (concat id-attrs# ~columns)) ~row-pk))))))
          props-sym         (gensym "props")
          row-ident         (list 'fn []
@@ -323,10 +323,10 @@
                                     [k# (get ~props-sym k#)]))
          row-actions       (or row-actions [])
          body-options      (cond-> {:query        row-query
-                                    ::row-actions row-actions
-                                    ::columns     columns}
+                                    :com.fulcrologic.rad.report/row-actions row-actions
+                                    :com.fulcrologic.rad.report/columns     columns}
                              normalize? (assoc :ident row-ident)
-                             form-links (assoc ::form-links form-links))
+                             form-links (assoc :com.fulcrologic.rad.report/form-links form-links))
          defs              (if-not BodyItem
                              [`(comp/defsc ~generated-row-sym [this# ~props-sym computed#]
                                  ~body-options
@@ -349,7 +349,7 @@
   ```
   "
   [report-instance row-props column-key]
-  (let [{::keys [form-links]} (comp/component-options report-instance)
+  (let [{:com.fulcrologic.rad.report/keys [form-links]} (comp/component-options report-instance)
         cls    (get form-links column-key)
         id-key (some-> cls (comp/component-options ::form/id ::attr/qualified-key))]
     (when cls
@@ -367,7 +367,7 @@
   ```
   "
   [report-instance row-props column-key]
-  (let [{::keys [form-links]} (comp/component-options report-instance)
+  (let [{:com.fulcrologic.rad.report/keys [form-links]} (comp/component-options report-instance)
         cls    (get form-links column-key)
         id-key (some-> cls (comp/component-options ::form/id ::attr/qualified-key))]
     (when cls
@@ -403,22 +403,22 @@
    returns the formatted value of that column using the field formatter(s) defined
    on the column attribute or report. If no formatter is provided a default formatter
    will be used."
-  [report-instance row-props {::keys      [field-formatter column-formatter]
+  [report-instance row-props {:com.fulcrologic.rad.report/keys      [field-formatter column-formatter]
                               ::attr/keys [qualified-key type style] :as column-attribute}]
   (let [value                  (get row-props qualified-key)
         report-field-formatter (or
-                                (comp/component-options report-instance ::column-formatters qualified-key)
-                                (comp/component-options report-instance ::field-formatters qualified-key))
+                                (comp/component-options report-instance :com.fulcrologic.rad.report/column-formatters qualified-key)
+                                (comp/component-options report-instance :com.fulcrologic.rad.report/field-formatters qualified-key))
         {::app/keys [runtime-atom]} (comp/any->app report-instance)
         formatter              (cond
                                  report-field-formatter report-field-formatter
                                  column-formatter column-formatter
                                  field-formatter field-formatter
                                  :else (let [style                (or
-                                                                   (comp/component-options report-instance ::column-styles qualified-key)
+                                                                   (comp/component-options report-instance :com.fulcrologic.rad.report/column-styles qualified-key)
                                                                    style
                                                                    :default)
-                                             installed-formatters (some-> runtime-atom deref :com.fulcrologic.rad/controls ::type->style->formatter)
+                                             installed-formatters (some-> runtime-atom deref :com.fulcrologic.rad/controls :com.fulcrologic.rad.report/type->style->formatter)
                                              formatter            (get-in installed-formatters [type style])]
                                          (or
                                           formatter
@@ -441,7 +441,7 @@
    ```"
   [app type style formatter]
   (let [{::app/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls ::type->style->formatter type style] formatter)))
+    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls :com.fulcrologic.rad.report/type->style->formatter type style] formatter)))
 
 (defn install-row-layout!
   "Install a row layout renderer for the given style. `render-row` is a `(fn [report-instance row-class row-props])`.
@@ -453,7 +453,7 @@
    "
   [app row-style render-row]
   (let [{::app/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls ::row-style->row-layout row-style] render-row)))
+    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls :com.fulcrologic.rad.report/row-style->row-layout row-style] render-row)))
 
 (defn current-rows
   "Get a vector of the current rows that should be shown by the renderer (sorted/paginated/filtered). `report-instance`
@@ -518,9 +518,9 @@
 (defn current-page
   "Returns the current page number displayed on the report"
   ([report-instance]
-   (get-in (comp/props report-instance) [:ui/parameters ::current-page] 1))
+   (get-in (comp/props report-instance) [:ui/parameters :com.fulcrologic.rad.report/current-page] 1))
   ([state-map report-class-or-registry-key]
-   (get-in state-map (conj (report-ident report-class-or-registry-key) :ui/parameters ::current-page) 1)))
+   (get-in state-map (conj (report-ident report-class-or-registry-key) :ui/parameters :com.fulcrologic.rad.report/current-page) 1)))
 
 (defn page-count
   "Returns how many pages the current report has."
@@ -532,9 +532,9 @@
 (defn currently-selected-row
   "Returns the currently-selected row index, if any (-1 if nothing is selected)."
   ([report-instance]
-   (get-in (comp/props report-instance) [:ui/parameters ::selected-row] -1))
+   (get-in (comp/props report-instance) [:ui/parameters :com.fulcrologic.rad.report/selected-row] -1))
   ([state-map report-class-or-registry-key]
-   (get-in state-map (conj (report-ident report-class-or-registry-key) :ui/parameters ::selected-row) -1)))
+   (get-in state-map (conj (report-ident report-class-or-registry-key) :ui/parameters :com.fulcrologic.rad.report/selected-row) -1)))
 
 (defn select-row!
   ([report-instance idx]
@@ -545,9 +545,9 @@
 (defn column-classes
   "Returns a string of column classes that can be defined on the attribute at ::report/column-class or on the
    report in the ::report/column-classes map. The report map overrides the attribute"
-  [report-instance-or-class {::keys      [column-class]
+  [report-instance-or-class {:com.fulcrologic.rad.report/keys      [column-class]
                              ::attr/keys [qualified-key] :as attr}]
-  (let [rpt-column-class (comp/component-options report-instance-or-class ::column-classes qualified-key)]
+  (let [rpt-column-class (comp/component-options report-instance-or-class :com.fulcrologic.rad.report/column-classes qualified-key)]
     (or rpt-column-class column-class)))
 
 (defn genrow
@@ -556,14 +556,14 @@
   registry-key - The unique key to register the generated class under
   options - The top report options"
   [registry-key options]
-  (let [{::keys [columns row-pk form-links initLocalState
+  (let [{:com.fulcrologic.rad.report/keys [columns row-pk form-links initLocalState
                  row-query-inclusion denormalize? row-actions]} options
         normalize?   (not denormalize?)
         row-query    (let [id-attrs (keep #(comp/component-options % ::form/id) (vals form-links))]
                        (vec
                         (into (set row-query-inclusion)
                               (map (fn [attr] (or
-                                               (::column-EQL attr)
+                                               (:com.fulcrologic.rad.report/column-EQL attr)
                                                (::attr/qualified-key attr))) (conj (set (concat id-attrs columns)) row-pk)))))
         row-key      (::attr/qualified-key row-pk)
         row-ident    (fn [this props] [row-key (get props row-key)])
@@ -574,10 +574,10 @@
                                               (let [props (comp/props this)]
                                                 (render-row this (rc/registry-key->class registry-key) props)))))
         body-options (cond-> {:query        (fn [this] row-query)
-                              ::row-actions row-actions
-                              ::columns     columns}
+                              :com.fulcrologic.rad.report/row-actions row-actions
+                              :com.fulcrologic.rad.report/columns     columns}
                        normalize? (assoc :ident row-ident)
-                       form-links (assoc ::form-links form-links))]
+                       form-links (assoc :com.fulcrologic.rad.report/form-links form-links))]
     (comp/sc registry-key body-options row-render)))
 
 (defn report
@@ -590,17 +590,17 @@
   ([registry-key options]
    (report registry-key options (fn [this _] (render-layout this))))
   ([registry-key options render]
-   (assert (vector? (options ::columns)))
-   (assert (attr/attribute? (options ::row-pk)))
-   (assert (keyword? (options ::source-attribute)))
+   (assert (vector? (options :com.fulcrologic.rad.report/columns)))
+   (assert (attr/attribute? (options :com.fulcrologic.rad.report/row-pk)))
+   (assert (keyword? (options :com.fulcrologic.rad.report/source-attribute)))
    (let [generated-row-key (keyword (namespace registry-key) (str (name registry-key) "-Row"))
          {::control/keys [controls]
-          ::keys         [BodyItem query-inclusions route initialize-ui-props]} options
+          :com.fulcrologic.rad.report/keys         [BodyItem query-inclusions route initialize-ui-props]} options
          constructor       (comp/react-constructor (:initLocalState options))
          generated-class   (volatile! nil)
          get-class         (fn [] @generated-class)
          ItemClass         (or BodyItem (genrow generated-row-key options))
-         user-statechart   (::statechart options)
+         user-statechart   (:com.fulcrologic.rad.report/statechart options)
          query             (into [::id
                                   :ui/parameters
                                   :ui/cache
@@ -618,10 +618,10 @@
                                                     (let [props (comp/props this)]
                                                       (render this props)))))
          options           (merge
-                            {::compare-rows default-compare-rows}
+                            {:com.fulcrologic.rad.report/compare-rows default-compare-rows}
                             options
                             (cond-> {:render        render
-                                     ::BodyItem     ItemClass
+                                     :com.fulcrologic.rad.report/BodyItem     ItemClass
                                      :query         (fn [_] query)
                                      :initial-state (fn [params]
                                                       (let [user-initial-state (?! initialize-ui-props (get-class) params)]

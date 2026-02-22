@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.sc.session
+(ns com.fulcrologic.rad.statechart.session
   "Deterministic conversion between Fulcro idents and statechart session IDs.
 
    Statechart session IDs must satisfy `::sc/id` (keyword, UUID, number, or string).
@@ -13,7 +13,9 @@
    [com.fulcrologic.guardrails.core :refer [>defn =>]]
    [com.fulcrologic.rad.ids :as ids]))
 
-(def ^{:doc "The namespace used for all ident-derived session ID keywords."}
+(def ^{:doc "The namespace used for all ident-derived session ID keywords.
+             NOTE: This is kept as 'com.fulcrologic.rad.sc' for backward compatibility
+             with existing persisted session IDs — do NOT change this value."}
   session-ns "com.fulcrologic.rad.sc")
 
 (>defn ident->session-id

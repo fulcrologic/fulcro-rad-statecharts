@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.container
+(ns com.fulcrologic.rad.statechart.container
   "A RAD container is a component for grouping together reports.
    They allow you pull up controls to the container level to coordinate reports so that one set of controls is shared among them.
 
@@ -7,18 +7,18 @@
    container itself will then be responsible for asking the children to refresh (though technically you can add a local
    control to any child to make such a control available for a particular child)."
   #?(:cljs
-     (:require-macros com.fulcrologic.rad.container))
+     (:require-macros com.fulcrologic.rad.statechart.container))
   (:require
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-   [com.fulcrologic.rad.container-chart :as container-chart]
-   [com.fulcrologic.rad.container-expressions :as cexpr]
-   [com.fulcrologic.rad.report :as report]
-   [com.fulcrologic.rad.control :as control :refer [Control]]
+   [com.fulcrologic.rad.statechart.container-chart :as container-chart]
+   [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
-   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    #?@(:clj
        [[cljs.analyzer :as ana]])

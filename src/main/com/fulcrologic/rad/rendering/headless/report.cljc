@@ -8,13 +8,13 @@
       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
    [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.control :as control]
+   [com.fulcrologic.rad.statechart.control :as control]
    [com.fulcrologic.rad.options-util :refer [?!]]
-   [com.fulcrologic.rad.form :as-alias form]
-   [com.fulcrologic.rad.report :as report]
+   [com.fulcrologic.rad.statechart.form :as-alias form]
+   [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.report-render :as rr]
-   [com.fulcrologic.rad.routing :as routing]))
+   [com.fulcrologic.rad.statechart.routing :as routing]))
 
 (defn- render-report-controls
   "Render the control bar for a report using the control multimethod."

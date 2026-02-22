@@ -1,14 +1,14 @@
-(ns com.fulcrologic.rad.container-expressions
+(ns com.fulcrologic.rad.statechart.container-expressions
   "Expression functions for the container statechart. All expressions follow the 4-arg
    convention: `(fn [env data event-name event-data] ...)` and return a vector of operations
    or nil."
   (:require
    [com.fulcrologic.fulcro.algorithms.merge :as merge]
    [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.rad.control :as control]
+   [com.fulcrologic.rad.statechart.control :as control]
    [com.fulcrologic.rad.options-util :refer [?!]]
-   [com.fulcrologic.rad.report :as report]
-   [com.fulcrologic.rad.sc.session :as sc.session]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
    [taoensso.timbre :as log]))

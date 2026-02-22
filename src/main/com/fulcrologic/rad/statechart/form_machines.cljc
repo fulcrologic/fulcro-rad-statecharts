@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.form-machines
+(ns com.fulcrologic.rad.statechart.form-machines
   "Helper functions and chart fragments for writing custom form statecharts.
 
    This namespace provides reusable pieces for building custom form statecharts:
@@ -22,7 +22,7 @@
    [com.fulcrologic.statecharts.data-model.operations :as ops]
    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-   [com.fulcrologic.rad.form-expressions :as fex]))
+   [com.fulcrologic.rad.statechart.form-expressions :as fex]))
 
 ;; ===== Reusable Chart Fragments =====
 

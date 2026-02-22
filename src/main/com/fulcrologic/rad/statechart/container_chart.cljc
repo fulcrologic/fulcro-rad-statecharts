@@ -1,11 +1,11 @@
-(ns com.fulcrologic.rad.container-chart
+(ns com.fulcrologic.rad.statechart.container-chart
   "Container statechart. Replaces the UISM `container-machine` from container.cljc.
    Coordinates child report statecharts under a shared set of controls.
 
    States: initializing -> ready
    Events: :event/run (broadcast to children), :event/resume, :event/unmount"
   (:require
-   [com.fulcrologic.rad.container-expressions :as cexpr]
+   [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
    [com.fulcrologic.statecharts.chart :refer [statechart]]
    [com.fulcrologic.statecharts.convenience :refer [on handle]]
    [com.fulcrologic.statecharts.elements :refer [state transition on-entry on-exit script]]))

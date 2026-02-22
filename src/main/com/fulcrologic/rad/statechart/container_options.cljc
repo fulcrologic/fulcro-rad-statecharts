@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.container-options
+(ns com.fulcrologic.rad.statechart.container-options
   "Options specific to RAD containers.")
 
 (def children

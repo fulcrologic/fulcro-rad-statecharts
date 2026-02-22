@@ -1,4 +1,4 @@
-(ns com.fulcrologic.rad.form-expressions
+(ns com.fulcrologic.rad.statechart.form-expressions
   "Statechart expression functions for the RAD form chart. These are the
    executable content that runs inside form statechart states and transitions.
 
@@ -97,10 +97,10 @@
    In CLJ, uses requiring-resolve. In CLJS, looks up from a registry that form.cljc
    populates at load time via `register-form-fn!`."
   [sym]
-  #?(:clj  (requiring-resolve (symbol "com.fulcrologic.rad.form" (name sym)))
+  #?(:clj  (requiring-resolve (symbol "com.fulcrologic.rad.statechart.form" (name sym)))
      :cljs (or (get @form-fn-registry (name sym))
                (throw (ex-info (str "Form function not registered: " sym
-                                    ". Ensure com.fulcrologic.rad.form is required.")
+                                    ". Ensure com.fulcrologic.rad.statechart.form is required.")
                                {:sym sym})))))
 
 (defn register-form-fn!
@@ -372,7 +372,7 @@
         props          (fns/ui->props state-map FormClass form-ident)
         delta          (fs/dirty-fields props true)
         save-mutation  (or save-mutation-sym
-                           (symbol "com.fulcrologic.rad.form" "save-form"))
+                           (symbol "com.fulcrologic.rad.statechart.form" "save-form"))
         params         (merge event-data
                               {(keyword "com.fulcrologic.rad.form" "delta")     delta
                                (keyword "com.fulcrologic.rad.form" "master-pk") master-pk
@@ -427,7 +427,7 @@
         save-mutation (get comp-options fo/save-mutation)
         {:keys [save-failed]} (get comp-options fo/triggers)
         save-mutation (or save-mutation
-                          (symbol "com.fulcrologic.rad.form" "save-form"))
+                          (symbol "com.fulcrologic.rad.statechart.form" "save-form"))
         result        (scf/mutation-result data)
         errors        (some-> result (get save-mutation) :com.fulcrologic.rad.form/errors)
         {:keys [on-save-failed]} options
@@ -567,17 +567,6 @@
                                    sm
                                    (concat optional-keys (keys new-child)))))))
         base-ops         [(fops/apply-action merge-and-config)]
-        ;; on-change needs post-update state, so we need a second apply-action
-        on-change-ops    (when on-change
-                           [(fops/apply-action
-                             (fn [state-map]
-                               (let [new-value (get-in state-map target-path)
-                                     ;; on-change returns ops vector under new convention
-                                     ;; but here we need to integrate with apply-action
-                                     ;; For now, we call the on-change and expect it returns ops
-                                     ;; We'll handle this differently
-                                     ]
-                                 state-map)))])
         derive-event-data {:form-key  (when parent (rc/class->registry-key (rc/component-type parent)))
                            :form-ident parent-ident}
         derive-ops       (derive-fields-ops data derive-event-data)]
