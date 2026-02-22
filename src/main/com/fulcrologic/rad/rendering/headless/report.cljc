@@ -11,6 +11,7 @@
    [com.fulcrologic.rad.statechart.control :as control]
    [com.fulcrologic.rad.options-util :refer [?!]]
    [com.fulcrologic.rad.statechart.form :as-alias form]
+   [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.rad.report-options :as ro]
    [com.fulcrologic.rad.report-render :as rr]
@@ -70,7 +71,7 @@
                           (when row-class
                             (get (comp/component-options row-class) ::report/form-links))))
         cls         (get form-links qualified-key)
-        id-key      (some-> cls (comp/component-options ::form/id) ao/qualified-key)]
+        id-key      (some-> cls (comp/component-options fo/id) ao/qualified-key)]
     (when cls
       {:edit-form cls
        :entity-id (get row-props id-key)})))

@@ -62,7 +62,7 @@
 
 (defn render-text-field
   "Render a string field as a text input."
-  [{::form/keys [form-instance] :as env} attribute]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attribute]
   (let [qualified-key (ao/qualified-key attribute)
         {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
@@ -78,7 +78,7 @@
 
 (defn render-number-field
   "Render a numeric field (int, long, double) as a number input."
-  [{::form/keys [form-instance] :as env} attribute]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attribute]
   (let [qualified-key (ao/qualified-key attribute)
         type          (ao/type attribute)
         {:keys [value field-label visible? invalid? validation-message
@@ -102,7 +102,7 @@
 
 (defn render-boolean-field
   "Render a boolean field as a checkbox."
-  [{::form/keys [form-instance] :as env} attribute]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attribute]
   (let [qualified-key (ao/qualified-key attribute)
         {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
@@ -129,7 +129,7 @@
 
 (defn render-instant-field
   "Render an instant/date field as a date input."
-  [{::form/keys [form-instance] :as env} attribute]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attribute]
   (let [qualified-key (ao/qualified-key attribute)
         {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
@@ -146,7 +146,7 @@
 
 (defn render-enum-field
   "Render an enum field as a select/dropdown."
-  [{::form/keys [form-instance] :as env} attribute]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attribute]
   (let [qualified-key      (ao/qualified-key attribute)
         {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
@@ -184,7 +184,7 @@
 
 (defn render-decimal-field
   "Render a decimal field as a number input with step='any'."
-  [{::form/keys [form-instance] :as env} attribute]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attribute]
   (let [qualified-key (ao/qualified-key attribute)
         {:keys [value field-label visible? invalid? validation-message
                 read-only? omit-label?]} (form/field-context env attribute)
@@ -204,7 +204,7 @@
    from `picker-options/current-form-options`. For subform refs, renders nothing (subforms
    are handled by `render-subforms` in form.cljc). Falls back to a text display when no
    picker options are available."
-  [{::form/keys [form-instance] :as env} attribute]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attribute]
   (let [qualified-key (ao/qualified-key attribute)
         options    (comp/component-options form-instance)
         subforms   (fo/subforms options)

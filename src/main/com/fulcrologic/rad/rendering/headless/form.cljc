@@ -16,12 +16,12 @@
 
 (defn- render-action-buttons
   "Render form action buttons (save, cancel, undo, delete)."
-  [{::form/keys [form-instance master-form] :as env}]
+  [{:com.fulcrologic.rad.form/keys [form-instance master-form] :as env}]
   (let [props        (comp/props form-instance)
         master-props (comp/props master-form)
         remote-busy? (seq (::app/active-remotes master-props))
         form-opts    (comp/component-options form-instance)
-        can-save?    (not (?! (::form/read-only? form-opts) form-instance))
+        can-save?    (not (?! (fo/read-only? form-opts) form-instance))
         can-undo?    can-save?
         can-cancel?  true]
     (dom/div {:data-rad-type "form-actions"}
@@ -45,7 +45,7 @@
 (defn- render-form-fields-by-layout
   "Render form fields according to the declared layout or all attributes in order.
    Returns a `comp/fragment` to avoid React key warnings from vector-as-children."
-  [{::form/keys [form-instance] :as env}]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env}]
   (let [options    (comp/component-options form-instance)
         id-attr    (fo/id options)
         attributes (fo/attributes options)
@@ -73,7 +73,7 @@
 (defn- render-subforms
   "Render any subforms declared on this form.
    Returns a `comp/fragment` to avoid React key warnings from vector-as-children."
-  [{::form/keys [form-instance] :as env}]
+  [{:com.fulcrologic.rad.form/keys [form-instance] :as env}]
   (let [options  (comp/component-options form-instance)
         subforms (fo/subforms options)]
     (when (seq subforms)
@@ -104,9 +104,9 @@
                                                              (fn [cidx child-props]
                                                                (dom/div {:key (str ref-key "-" cidx) :data-rad-type "subform-row"}
                                                                         (factory child-props
-                                                                                 {::form/master-form     (::form/master-form env)
-                                                                                  ::form/parent          form-instance
-                                                                                  ::form/parent-relation ref-key})
+                                                                                 {:com.fulcrologic.rad.form/master-form     (:com.fulcrologic.rad.form/master-form env)
+                                                                                  :com.fulcrologic.rad.form/parent          form-instance
+                                                                                  :com.fulcrologic.rad.form/parent-relation ref-key})
                                                                         (when (?! can-delete? form-instance child-props)
                                                                           (dom/button {:data-rad-type  "delete-child"
                                                                                        :data-rad-field (str ref-key)
@@ -117,14 +117,14 @@
                                                             subform-data))))
                                     (let [factory (comp/computed-factory subform-class)]
                                       (factory subform-data
-                                               {::form/master-form    (::form/master-form env)
-                                                ::form/parent         form-instance
-                                                ::form/parent-relation ref-key})))))))
+                                               {:com.fulcrologic.rad.form/master-form    (:com.fulcrologic.rad.form/master-form env)
+                                                :com.fulcrologic.rad.form/parent         form-instance
+                                                :com.fulcrologic.rad.form/parent-relation ref-key})))))))
                    subforms)))))
 
 ;; -- render-element: structural elements for forms ----------------------------
 
-(defmethod form/render-element [:form-container :default] [{::form/keys [form-instance master-form] :as env} _element]
+(defmethod form/render-element [:form-container :default] [{:com.fulcrologic.rad.form/keys [form-instance master-form] :as env} _element]
   (let [props        (comp/props form-instance)
         master-props (when master-form (comp/props master-form))
         busy?        (seq (::app/active-remotes (or master-props props)))
@@ -150,7 +150,7 @@
 
 ;; -- render-header/footer: form-level ----------------------------------------
 
-(defmethod fr/render-header :default [{::form/keys [form-instance] :as env} attr]
+(defmethod fr/render-header :default [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attr]
   (when (ao/identity? attr)
     (render-action-buttons env)))
 
