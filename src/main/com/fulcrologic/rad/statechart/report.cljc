@@ -16,25 +16,18 @@
         [[clojure.pprint :refer [pprint]]
          [cljs.analyzer :as ana]])
     [clojure.spec.alpha :as s]
-    [clojure.string :as str]
-    [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
-    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.algorithms.lambda :as lambda]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fstate]
     [com.fulcrologic.rad.attributes :as attr]
-    [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
-    [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
+    [com.fulcrologic.rad.report.impl :as report-impl]
     [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.report-render :as rr]
     [com.fulcrologic.rad.type-support.date-time :as dt]
-    [com.fulcrologic.rad.type-support.decimal :as math]
     [com.fulcrologic.rad.picker-options :as picker-options]
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.statecharts :as-alias sc]
@@ -71,51 +64,29 @@
 ;; RENDERING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn default-render-layout
+(def default-render-layout
   "Default render layout for reports. Rendering plugins should provide a defmethod for
    `rr/render-report` instead of using `install-layout!`."
-  [report-instance]
-  (log/error "No report layout renderer installed for style"
-    (or (some-> report-instance comp/component-options :com.fulcrologic.rad.report/layout-style) :default))
-  nil)
+  report-impl/default-render-layout)
 
-(defn render-layout [report-instance]
-  (rr/render-report report-instance (rc/component-options report-instance)))
+(def render-layout report-impl/render-layout)
 
-(defn default-render-row [report-instance row-class row-props]
-  (let [{::app/keys [runtime-atom]} (comp/any->app report-instance)
-        layout-style (or (some-> report-instance comp/component-options :com.fulcrologic.rad.report/row-style) :default)
-        render       (some-> runtime-atom deref :com.fulcrologic.rad/controls :com.fulcrologic.rad.report/row-style->row-layout layout-style)]
-    (if render
-      (render report-instance row-class row-props)
-      (do
-        (log/error "No layout function found for form layout style" layout-style)
-        nil))))
+(def default-render-row report-impl/default-render-row)
 
-(defn render-row
+(def render-row
   "Render a row of the report. Leverages report-render/render-row, whose default uses whatever UI plugin you have."
-  [report-instance row-class row-props]
-  (rr/render-row report-instance (rc/component-options report-instance) row-props))
+  report-impl/render-row)
 
-(defn control-renderer
+(def control-renderer
   "Get the report controls renderer for the given report instance. Returns a `(fn [this])`."
-  [report-instance]
-  (let [{::app/keys [runtime-atom]} (comp/any->app report-instance)
-        control-style (or (some-> report-instance comp/component-options :com.fulcrologic.rad.report/control-style) :default)
-        control       (some-> runtime-atom deref :com.fulcrologic.rad/controls :com.fulcrologic.rad.report/control-style->control control-style)]
-    (if control
-      control
-      (do
-        (log/error "No layout function found for report control style" control-style)
-        nil))))
+  report-impl/control-renderer)
 
-(defn render-controls
+(def render-controls
   "Renders just the control section of the report. See also `control-renderer` if you desire rendering the controls in
    more than one place in the UI at once (e.g. top/bottom)."
-  [report-instance]
-  (rr/render-controls report-instance (rc/component-options report-instance)))
+  report-impl/render-controls)
 
-(defn column-heading-descriptors
+(def column-heading-descriptors
   "Returns a vector of maps describing what should be shown for column headings. Each
    map may contain:
 
@@ -123,23 +94,7 @@
    :help - A string that could be shown as a longer description (e.g. on hover)
    :column - The actual column attribute from the RAD model.
    "
-  [report-instance report-options]
-  (let [{report-column-headings :com.fulcrologic.rad.report/column-headings
-         report-column-infos    :com.fulcrologic.rad.report/column-infos} report-options
-        columns (ro/columns report-options)]
-    (mapv (fn [{:com.fulcrologic.rad.report/keys [column-heading column-info]
-                ::attr/keys                      [qualified-key] :as attr}]
-            {:column attr
-             :help   (or
-                       (?! (get report-column-infos qualified-key) report-instance)
-                       (?! column-info report-instance))
-             :label  (or
-                       (?! (get report-column-headings qualified-key) report-instance)
-                       (?! column-heading report-instance)
-                       (?! (ao/label attr) report-instance)
-                       (some-> qualified-key name str/capitalize)
-                       "")})
-      columns)))
+  report-impl/column-heading-descriptors)
 
 ;; NOTE: Do NOT register :default defmethods here. Rendering plugins register
 ;; their own :default implementations via defmethod. Any :default registered
@@ -157,17 +112,10 @@
 ;; LOGIC
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn rotate-result
+(def rotate-result
   "Given a report class that has columns, and a raw result grouped by those columns: returns a vector of rows that
    rotate the grouped result into a normal report shape."
-  [report-class grouped-result]
-  (when-not (map? grouped-result)
-    (log/warn "The incoming result looks like it was normalized. Did you forget `ro/denormalize? true` on your report?"))
-  (let [columns  (comp/component-options report-class :com.fulcrologic.rad.report/columns)
-        ks       (map ::attr/qualified-key columns)
-        row-data (map (fn [{::attr/keys [qualified-key]}]
-                        (get grouped-result qualified-key [])) columns)]
-    (apply mapv (fn [& args] (zipmap ks args)) row-data)))
+  report-impl/rotate-result)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; EXPRESSION HELPERS
@@ -719,16 +667,7 @@
                        :route-params   params}})
        (scf/send! app session-id :event/resume (assoc options :params params))))))
 
-(defn default-compare-rows
-  [{:keys [sort-by ascending?]} a b]
-  (try
-    (let [av (get a sort-by)
-          bv (get b sort-by)]
-      (if ascending?
-        (compare av bv)
-        (compare bv av)))
-    (catch #?(:clj Exception :cljs :default) _
-      0)))
+(def default-compare-rows report-impl/default-compare-rows)
 
 (defn report-will-enter
   "DEPRECATED: Routing lifecycle is now managed by statecharts routing via sfro options.
@@ -812,7 +751,7 @@
                               (rest args)
                               [`(render-layout ~this-sym)])
           row-query         (list 'fn [] `(let [forms#    ~(:com.fulcrologic.rad.report/form-links options)
-                                                id-attrs# (keep #(comp/component-options % ::form/id) (vals forms#))]
+                                                id-attrs# (keep #(comp/component-options % :com.fulcrologic.rad.form/id) (vals forms#))]
                                             (vec
                                               (into #{~@row-query-inclusion}
                                                 (map (fn [attr#] (or
@@ -839,7 +778,7 @@
 
 #?(:clj (s/fdef defsc-report :args ::comp/args))
 
-(defn form-link
+(def form-link
   "Get the form link info for a given (column) key.
 
   Returns nil if there is no link info, otherwise returns:
@@ -849,15 +788,9 @@
    :entity-id id-of-entity-to-edit}
   ```
   "
-  [report-instance row-props column-key]
-  (let [{:com.fulcrologic.rad.report/keys [form-links]} (comp/component-options report-instance)
-        cls    (get form-links column-key)
-        id-key (some-> cls (comp/component-options ::form/id ::attr/qualified-key))]
-    (when cls
-      {:edit-form cls
-       :entity-id (get row-props id-key)})))
+  report-impl/form-link)
 
-(defn link
+(def link
   "Get a regular lambda link for a given (column) key.
 
   Returns nil if there is no link info, otherwise returns:
@@ -867,68 +800,18 @@
    :entity-id id-of-entity-to-edit}
   ```
   "
-  [report-instance row-props column-key]
-  (let [{:com.fulcrologic.rad.report/keys [form-links]} (comp/component-options report-instance)
-        cls    (get form-links column-key)
-        id-key (some-> cls (comp/component-options ::form/id ::attr/qualified-key))]
-    (when cls
-      {:edit-form cls
-       :entity-id (get row-props id-key)})))
+  report-impl/link)
 
-(defn built-in-formatter [type style]
-  (get-in
-    {:string  {:default (fn [_ value] value)}
-     :instant {:default         (fn [_ value] (dt/inst->human-readable-date value))
-               :short-timestamp (fn [_ value] (dt/tformat "MMM d, h:mma" value))
-               :timestamp       (fn [_ value] (dt/tformat "MMM d, yyyy h:mma" value))
-               :date            (fn [_ value] (dt/tformat "MMM d, yyyy" value))
-               :month-day       (fn [_ value] (dt/tformat "MMM d" value))
-               :time            (fn [_ value] (dt/tformat "h:mma" value))}
-     :keyword {:default (fn [_ value _ column-attribute]
-                          (if-let [labels (::attr/enumerated-labels column-attribute)]
-                            (labels value)
-                            (some-> value (name) str/capitalize)))}
-     :enum    {:default (fn [_ value _ column-attribute]
-                          (if-let [labels (::attr/enumerated-labels column-attribute)]
-                            (labels value) (str value)))}
-     :int     {:default (fn [_ value] (str value))}
-     :decimal {:default    (fn [_ value] (math/numeric->str value))
-               :currency   (fn [_ value] (math/numeric->str (math/round value 2)))
-               :percentage (fn [_ value] (math/numeric->percent-str value))
-               :USD        (fn [_ value] (math/numeric->currency-str value))}
-     :boolean {:default (fn [_ value] (if value (tr "true") (tr "false")))}}
-    [type style]))
+(def built-in-formatter report-impl/built-in-formatter)
 
-(defn formatted-column-value
+(def formatted-column-value
   "Given a report instance, a row of props, and a column attribute for that report:
    returns the formatted value of that column using the field formatter(s) defined
    on the column attribute or report. If no formatter is provided a default formatter
    will be used."
-  [report-instance row-props {:com.fulcrologic.rad.report/keys [field-formatter column-formatter]
-                              ::attr/keys                      [qualified-key type style] :as column-attribute}]
-  (let [value                  (get row-props qualified-key)
-        report-field-formatter (or
-                                 (comp/component-options report-instance :com.fulcrologic.rad.report/column-formatters qualified-key)
-                                 (comp/component-options report-instance :com.fulcrologic.rad.report/field-formatters qualified-key))
-        {::app/keys [runtime-atom]} (comp/any->app report-instance)
-        formatter              (cond
-                                 report-field-formatter report-field-formatter
-                                 column-formatter column-formatter
-                                 field-formatter field-formatter
-                                 :else (let [style                (or
-                                                                    (comp/component-options report-instance :com.fulcrologic.rad.report/column-styles qualified-key)
-                                                                    style
-                                                                    :default)
-                                             installed-formatters (some-> runtime-atom deref :com.fulcrologic.rad/controls :com.fulcrologic.rad.report/type->style->formatter)
-                                             formatter            (get-in installed-formatters [type style])]
-                                         (or
-                                           formatter
-                                           (built-in-formatter type style)
-                                           (fn [_ v] (str v)))))
-        formatted-value        ((lambda/->arity-tolerant formatter) report-instance value row-props column-attribute)]
-    formatted-value))
+  report-impl/formatted-column-value)
 
-(defn install-formatter!
+(def install-formatter!
   "Install a formatter for the given data type and style. The data type must match a supported data type
    of attributes, and the style can either be `:default` or a user-defined keyword the represents the
    style you want to support. Some common styles have predefined support, such as `:USD` for US Dollars.
@@ -940,11 +823,9 @@
    ```clojure
    (install-formatter! app :boolean :default (fn [report-instance value] (if value \"yes\" \"no\")))
    ```"
-  [app type style formatter]
-  (let [{::app/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls :com.fulcrologic.rad.report/type->style->formatter type style] formatter)))
+  report-impl/install-formatter!)
 
-(defn install-row-layout!
+(def install-row-layout!
   "Install a row layout renderer for the given style. `render-row` is a `(fn [report-instance row-class row-props])`.
 
   See other support functions in this ns for help rendering, such as `formatted-column-value`, `form-link`,
@@ -952,22 +833,16 @@
 
    This should be called before mounting your app.
    "
-  [app row-style render-row]
-  (let [{::app/keys [runtime-atom]} app]
-    (swap! runtime-atom assoc-in [:com.fulcrologic.rad/controls :com.fulcrologic.rad.report/row-style->row-layout row-style] render-row)))
+  report-impl/install-row-layout!)
 
-(defn current-rows
+(def current-rows
   "Get a vector of the current rows that should be shown by the renderer (sorted/paginated/filtered). `report-instance`
    is available in the rendering `env`."
-  [report-instance]
-  (let [props (comp/props report-instance)]
-    (get props :ui/current-rows [])))
+  report-impl/current-rows)
 
-(defn loading?
+(def loading?
   "Returns true if the given report instance has an active network load in progress."
-  [report-instance]
-  (when report-instance
-    (df/loading? (get-in (comp/props report-instance) [df/marker-table (comp/get-ident report-instance)]))))
+  report-impl/loading?)
 
 (defn sort-rows!
   "Sort the report by the given attribute. Changes direction if the report is already sorted by that attribute. The implementation
@@ -1043,43 +918,17 @@
   ([app class-or-reg-key idx]
    (scf/send! app (report-session-id class-or-reg-key) :event/select-row {:row idx})))
 
-(defn column-classes
+(def column-classes
   "Returns a string of column classes that can be defined on the attribute at ::report/column-class or on the
    report in the ::report/column-classes map. The report map overrides the attribute"
-  [report-instance-or-class {:com.fulcrologic.rad.report/keys [column-class]
-                             ::attr/keys                      [qualified-key] :as attr}]
-  (let [rpt-column-class (comp/component-options report-instance-or-class :com.fulcrologic.rad.report/column-classes qualified-key)]
-    (or rpt-column-class column-class)))
+  report-impl/column-classes)
 
-(defn genrow
+(def genrow
   "Generates a row class for reports. Mainly meant for internal use, but might be useful in custom report generation code.
 
   registry-key - The unique key to register the generated class under
   options - The top report options"
-  [registry-key options]
-  (let [{:com.fulcrologic.rad.report/keys [columns row-pk form-links initLocalState
-                                           row-query-inclusion denormalize? row-actions]} options
-        normalize?   (not denormalize?)
-        row-query    (let [id-attrs (keep #(comp/component-options % ::form/id) (vals form-links))]
-                       (vec
-                         (into (set row-query-inclusion)
-                           (map (fn [attr] (or
-                                             (:com.fulcrologic.rad.report/column-EQL attr)
-                                             (::attr/qualified-key attr))) (conj (set (concat id-attrs columns)) row-pk)))))
-        row-key      (::attr/qualified-key row-pk)
-        row-ident    (fn [this props] [row-key (get props row-key)])
-        row-actions  (or row-actions [])
-        row-render   (fn [this]
-                       (comp/wrapped-render this
-                         (fn []
-                           (let [props (comp/props this)]
-                             (render-row this (rc/registry-key->class registry-key) props)))))
-        body-options (cond-> {:query                                  (fn [this] row-query)
-                              :com.fulcrologic.rad.report/row-actions row-actions
-                              :com.fulcrologic.rad.report/columns     columns}
-                       normalize? (assoc :ident row-ident)
-                       form-links (assoc :com.fulcrologic.rad.report/form-links form-links))]
-    (comp/sc registry-key body-options row-render)))
+  report-impl/genrow)
 
 (defn report
   "Create a RAD report component. `options` is the map of report/Fulcro options. The `registry-key` is the globally

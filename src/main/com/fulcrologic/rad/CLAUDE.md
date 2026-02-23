@@ -1,12 +1,15 @@
 # RAD Source Notes
 
-## Design Decision: No Re-export from form.impl / report.impl
+## Design Decision: impl namespace delegation
 
-`statechart/form.cljc` intentionally does NOT re-export anything from `com.fulcrologic.rad.form.impl` (or
-`report.impl`). These are internal upstream namespaces that transitively pull in UISM via `rad.routing`. Re-exporting
-from them would drag UISM back into the dependency graph, defeating the entire purpose of this library. The code
-duplication in `statechart/form.cljc` is the deliberate cost of clean engine separation. If you find a function you want
-from `form.impl`, copy and adapt it — do not require the upstream impl namespace.
+`statechart/report.cljc` delegates 19 pure rendering/utility functions to `com.fulcrologic.rad.report.impl` via
+`(def fn-name report-impl/fn-name)`. This accepts the transitive UISM dependency from `report.impl` but eliminates
+~300 lines of duplicated code and fixes a `::form/id` namespace resolution bug (the local `form` alias resolved to
+`com.fulcrologic.rad.statechart.form/id` instead of `com.fulcrologic.rad.form/id`, causing `form-link`, `link`, and
+`genrow` to silently fail to find form IDs).
+
+`statechart/form.cljc` still does NOT require `form.impl` — evaluate separately if the same delegation pattern
+makes sense there.
 
 ## Dead Reference Cleanup (Phase 0)
 
