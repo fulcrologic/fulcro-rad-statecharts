@@ -10,12 +10,11 @@
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.statechart.control :as control]
     [com.fulcrologic.rad.options-util :refer [?!]]
-    [com.fulcrologic.rad.statechart.form :as-alias form]
+    [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.statechart.report :as report]
     [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.report-render :as rr]
-    [com.fulcrologic.rad.statechart.routing :as routing]))
+    [com.fulcrologic.rad.report-render :as rr]))
 
 (defn- render-report-controls
   "Render the control bar for a report using the control multimethod."
@@ -92,7 +91,7 @@
                   (if-let [{:keys [edit-form entity-id]} (row-form-link report-instance options row-props qualified-key)]
                     (dom/a {:data-rad-type   "form-link"
                             :data-rad-column (str qualified-key)
-                            :onClick         (fn [_] (routing/edit! (comp/any->app report-instance) edit-form entity-id))}
+                            :onClick         (fn [_] (form/edit! (comp/any->app report-instance) edit-form entity-id))}
                       cell-text)
                     (dom/span nil cell-text)))))
         columns)
