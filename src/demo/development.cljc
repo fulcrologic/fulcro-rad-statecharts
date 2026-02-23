@@ -88,6 +88,6 @@
      "Stop, refresh, and restart the server."
      []
      (stop)
-     (tools-ns/refresh :after 'com.example.development/start)))
+     (tools-ns/refresh :after 'development/start)))
 
 #?(:clj (def reset #'restart))

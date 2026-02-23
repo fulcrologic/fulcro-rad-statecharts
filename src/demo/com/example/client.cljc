@@ -8,7 +8,8 @@
          [com.fulcrologic.fulcro.inspect.repl-tool :as repl-tool]
          [com.fulcrologic.fulcro.networking.http-kit-driver :as hd]]
         :cljs
-        [[com.fulcrologic.fulcro.algorithms.timbre-support
+        [[fulcro.inspect.tool :as it]
+         [com.fulcrologic.fulcro.algorithms.timbre-support
           :refer [console-appender prefix-output-fn]]])
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
@@ -45,8 +46,10 @@
                 :clj   (h/build-test-app (merge options {:root-class Root})))]
      (reset! SPA spa)
      #?(:clj  (repl-tool/install! spa)
-        :cljs (log/merge-config! {:output-fn prefix-output-fn
-                                  :appenders {:console (console-appender)}}))
+        :cljs (do
+                (it/add-fulcro-inspect! spa)
+                (log/merge-config! {:output-fn prefix-output-fn
+                                    :appenders {:console (console-appender)}})))
      (app/mount! spa Root #?(:clj :app :cljs "app"))
      #?(:cljs (sys/start! spa)
         :clj  (sys/start! spa {:event-loop? :immediate}))

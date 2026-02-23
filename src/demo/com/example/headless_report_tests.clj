@@ -15,7 +15,7 @@
     [com.example.ui.invoice-report :refer [InvoiceReport]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.headless :as h]
-    [com.fulcrologic.rad.statechart.session :as sc-session]
+    [com.fulcrologic.rad.statechart.report :as report]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
     [fulcro-spec.core :refer [=> assertions component specification]]))
@@ -65,7 +65,7 @@
 (specification "Inventory report"
   (let [app     (test-client 9847)
         rpt-key :com.example.ui.inventory-report/InventoryReport
-        sid     (sc-session/report-session-id InventoryReport {})]
+        sid     (report/report-session-id InventoryReport)]
     (h/render-frame! app)
 
     (component "loading"
@@ -124,7 +124,7 @@
 (specification "Invoice report"
   (let [app     (test-client 9847)
         rpt-key :com.example.ui.invoice-report/InvoiceReport
-        sid     (sc-session/report-session-id InvoiceReport {})]
+        sid     (report/report-session-id InvoiceReport)]
     (h/render-frame! app)
 
     (component "loading"
@@ -163,7 +163,7 @@
 (specification "Account invoices report"
   (let [app     (test-client 9847)
         rpt-key :com.example.ui.invoice-forms/AccountInvoices
-        sid     (sc-session/report-session-id AccountInvoices {})]
+        sid     (report/report-session-id AccountInvoices)]
     (h/render-frame! app)
 
     (component "loading account-specific invoices"

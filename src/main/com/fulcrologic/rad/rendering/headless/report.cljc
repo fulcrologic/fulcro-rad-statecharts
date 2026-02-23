@@ -26,7 +26,8 @@
       (when (seq input-layout)
         (dom/div {:data-rad-type "report-inputs"}
           (mapv (fn [row]
-                  (dom/div {:data-rad-type "control-row"}
+                  (dom/div {:key           (str row)
+                            :data-rad-type "control-row"}
                     (mapv (fn [control-key]
                             (when (keyword? control-key)
                               (let [{:keys [type] :or {type :string}} (get controls control-key)
@@ -65,10 +66,10 @@
    parameter is already `(comp/component-options report-instance)` from render-layout),
    then falls back to the Row class options."
   [_report-instance options row-props qualified-key]
-  (let [form-links (or (get options ::report/form-links)
+  (let [form-links (or (get options ro/form-links)
                      (let [row-class (ro/BodyItem options)]
                        (when row-class
-                         (get (comp/component-options row-class) ::report/form-links))))
+                         (get (comp/component-options row-class) ro/form-links))))
         cls        (get form-links qualified-key)
         id-key     (some-> cls (comp/component-options fo/id) ao/qualified-key)]
     (when cls
@@ -86,7 +87,8 @@
       (mapv (fn [col-attr]
               (let [qualified-key (ao/qualified-key col-attr)
                     cell-text     (str (report/formatted-column-value report-instance row-props col-attr))]
-                (dom/td {:data-rad-type   "report-cell"
+                (dom/td {:key             (str qualified-key)
+                         :data-rad-type   "report-cell"
                          :data-rad-column (str qualified-key)}
                   (if-let [{:keys [edit-form entity-id]} (row-form-link report-instance options row-props qualified-key)]
                     (dom/a {:data-rad-type   "form-link"
@@ -98,10 +100,12 @@
       (when (seq row-actions)
         (dom/td {:data-rad-type "row-actions"}
           (mapv (fn [{:keys [label action disabled?]}]
-                  (dom/button {:data-rad-type "row-action"
-                               :disabled      (boolean (?! disabled? report-instance row-props))
-                               :onClick       (fn [_] (when action (action report-instance row-props)))}
-                    (?! label report-instance row-props)))
+                  (let [label-str (?! label report-instance row-props)]
+                    (dom/button {:data-rad-type "row-action"
+                                 :key           (str label-str)
+                                 :disabled      (boolean (?! disabled? report-instance row-props))
+                                 :onClick       (fn [_] (when action (action report-instance row-props)))}
+                      label-str)))
             row-actions))))))
 
 ;; -- Multimethod registrations -----------------------------------------------

@@ -22,82 +22,84 @@
     [fulcro-spec.core :refer [=> assertions component specification]]))
 
 ;; =============================================================================
-;; Test Helpers — Element tree traversal
+;; Test Helpers — Element tree traversal (CLJ only, uses dom-server records)
 ;; =============================================================================
 
-(defn element?
-  "Returns true if `x` is a dom-server Element."
-  [x]
-  (instance? com.fulcrologic.fulcro.dom_server.Element x))
+#?(:clj
+   (do
+     (defn element?
+       "Returns true if `x` is a dom-server Element."
+       [x]
+       (instance? com.fulcrologic.fulcro.dom_server.Element x))
 
-(defn text-node?
-  "Returns true if `x` is a dom-server Text or ReactText node."
-  [x]
-  (or (instance? com.fulcrologic.fulcro.dom_server.Text x)
-    (instance? com.fulcrologic.fulcro.dom_server.ReactText x)))
+     (defn text-node?
+       "Returns true if `x` is a dom-server Text or ReactText node."
+       [x]
+       (or (instance? com.fulcrologic.fulcro.dom_server.Text x)
+         (instance? com.fulcrologic.fulcro.dom_server.ReactText x)))
 
-(defn text-content
-  "Extract the string from a Text or ReactText node."
-  [node]
-  (or (:s node) (:text node) ""))
+     (defn text-content
+       "Extract the string from a Text or ReactText node."
+       [node]
+       (or (:s node) (:text node) ""))
 
-(defn element-text
-  "Extract the concatenated text content from an element's children (recursive)."
-  [el]
-  (cond
-    (text-node? el) (text-content el)
-    (element? el) (apply str (mapv element-text (:children el)))
-    (string? el) el
-    (vector? el) (apply str (mapv element-text el))
-    :else ""))
+     (defn element-text
+       "Extract the concatenated text content from an element's children (recursive)."
+       [el]
+       (cond
+         (text-node? el) (text-content el)
+         (element? el) (apply str (mapv element-text (:children el)))
+         (string? el) el
+         (vector? el) (apply str (mapv element-text el))
+         :else ""))
 
-(defn find-all
-  "Find all elements in the tree matching `pred`. Returns a flat vector."
-  [el pred]
-  (cond
-    (nil? el) []
-    (text-node? el) []
-    (element? el)
-    (into (if (pred el) [el] [])
-      (mapcat #(find-all % pred))
-      (:children el))
-    (vector? el)
-    (into [] (mapcat #(find-all % pred)) el)
-    (sequential? el)
-    (into [] (mapcat #(find-all % pred)) el)
-    :else []))
+     (defn find-all
+       "Find all elements in the tree matching `pred`. Returns a flat vector."
+       [el pred]
+       (cond
+         (nil? el) []
+         (text-node? el) []
+         (element? el)
+         (into (if (pred el) [el] [])
+           (mapcat #(find-all % pred))
+           (:children el))
+         (vector? el)
+         (into [] (mapcat #(find-all % pred)) el)
+         (sequential? el)
+         (into [] (mapcat #(find-all % pred)) el)
+         :else []))
 
-(defn find-by-attr
-  "Find all elements with `data-rad-type` equal to `type-val`."
-  [el type-val]
-  (find-all el #(= type-val (get-in % [:attrs :data-rad-type]))))
+     (defn find-by-attr
+       "Find all elements with `data-rad-type` equal to `type-val`."
+       [el type-val]
+       (find-all el #(= type-val (get-in % [:attrs :data-rad-type]))))
 
-(defn find-by-tag
-  "Find all elements with the given tag string."
-  [el tag-str]
-  (find-all el #(= tag-str (:tag %))))
+     (defn find-by-tag
+       "Find all elements with the given tag string."
+       [el tag-str]
+       (find-all el #(= tag-str (:tag %))))
 
-(defn find-first
-  "Find the first element matching `pred`, or nil."
-  [el pred]
-  (first (find-all el pred)))
+     (defn find-first
+       "Find the first element matching `pred`, or nil."
+       [el pred]
+       (first (find-all el pred)))
 
-(defn attr-val
-  "Get an attribute value from an element."
-  [el k]
-  (get-in el [:attrs k]))
+     (defn attr-val
+       "Get an attribute value from an element."
+       [el k]
+       (get-in el [:attrs k]))
 
-(defn on-change!
-  "Invoke the onChange handler of an element with the given value."
-  [el value]
-  (when-let [handler (get-in el [:attrs :onChange])]
-    (handler value)))
+     (defn on-change!
+       "Invoke the onChange handler of an element with the given value."
+       [el value]
+       (when-let [handler (get-in el [:attrs :onChange])]
+         (handler value)))
 
-(defn on-click!
-  "Invoke the onClick handler of an element."
-  [el]
-  (when-let [handler (get-in el [:attrs :onClick])]
-    (handler nil)))
+     (defn on-click!
+       "Invoke the onClick handler of an element."
+       [el]
+       (when-let [handler (get-in el [:attrs :onClick])]
+         (handler nil)))))
 
 ;; =============================================================================
 ;; Test Attribute / Component Definitions
@@ -141,8 +143,13 @@
                   fs/form-config-join]})
 
 ;; =============================================================================
-;; Standard field-context mock for visible, non-invalid fields
+;; CLJ-only: Rendering tests using dom-server Element records.
+;; In CLJS, dom produces React elements with a different structure, so these
+;; tests only run on the JVM where dom-server records are available.
 ;; =============================================================================
+
+#?(:clj
+(do
 
 (defn mock-field-context
   "Build a standard field-context map for testing."
@@ -172,18 +179,13 @@
   {::form/form-instance form-instance
    ::form/master-form   form-instance})
 
-;; =============================================================================
-;; Field Rendering Tests
-;; =============================================================================
-
 (specification "render-text-field"
   (component "Visible text field with value"
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "hello" :label "Name")
-        (ao/required? attr) => false
 
-        (let [el (hfield/render-text-field (mock-env inst) account-name)]
+        (let [el (hfield/render-text-field (mock-env inst) account-email)]
           (assertions
             "Renders a form-field wrapper div"
             (attr-val el :data-rad-type) => "form-field"
@@ -204,9 +206,8 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "x" :visible? false)
-        (ao/required? attr) => false
 
-        (let [el (hfield/render-text-field (mock-env inst) account-name)]
+        (let [el (hfield/render-text-field (mock-env inst) account-email)]
           (assertions
             "Returns nil when not visible"
             el => nil)))))
@@ -215,7 +216,6 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "bad" :invalid? true :validation-message "Required")
-        (ao/required? attr) => true
 
         (let [el (hfield/render-text-field (mock-env inst) account-name)]
           (assertions
@@ -233,15 +233,14 @@
           called-with (atom nil)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "old")
-        (ao/required? attr) => false
         (m/set-string!! form-inst qk & kv-args) => (reset! called-with {:form-inst form-inst :key qk :args (vec kv-args)})
 
-        (let [el    (hfield/render-text-field (mock-env inst) account-name)
+        (let [el    (hfield/render-text-field (mock-env inst) account-email)
               input (first (find-by-tag el "input"))]
           (on-change! input "new-value")
           (assertions
             "Calls set-string!! with :value and the raw value"
-            (:key @called-with) => :account/name
+            (:key @called-with) => :account/email
             (:args @called-with) => [:value "new-value"]))))))
 
 (specification "render-number-field"
@@ -249,8 +248,6 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context 42 :label "Age")
-        (ao/required? attr) => false
-        (ao/type attr) => :int
 
         (let [el    (hfield/render-number-field (mock-env inst) account-age)
               input (first (find-by-tag el "input"))]
@@ -265,8 +262,6 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context 3.14 :label "Rating")
-        (ao/required? attr) => false
-        (ao/type attr) => :double
 
         (let [el    (hfield/render-number-field (mock-env inst) account-rating)
               input (first (find-by-tag el "input"))]
@@ -279,8 +274,6 @@
           called-with (atom nil)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context 0)
-        (ao/required? attr) => false
-        (ao/type attr) => :int
         (m/set-integer!! form-inst qk & kv-args) => (reset! called-with {:key qk :args (vec kv-args)})
 
         (let [el    (hfield/render-number-field (mock-env inst) account-age)
@@ -296,8 +289,6 @@
           called-with (atom nil)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context 0.0)
-        (ao/required? attr) => false
-        (ao/type attr) => :double
         (m/set-string!! form-inst qk & kv-args) => (reset! called-with {:key qk :args (vec kv-args)})
 
         (let [el    (hfield/render-number-field (mock-env inst) account-rating)
@@ -313,7 +304,6 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context true :label "Active?")
-        (ao/required? attr) => false
 
         (let [el    (hfield/render-boolean-field (mock-env inst) account-active)
               input (first (find-by-tag el "input"))]
@@ -329,7 +319,6 @@
           called-with (atom nil)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context true :label "Active?")
-        (ao/required? attr) => false
         (m/set-value!! form-inst qk val) => (reset! called-with {:key qk :val val})
 
         (let [el    (hfield/render-boolean-field (mock-env inst) account-active)
@@ -344,7 +333,6 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "2024-01-15" :label "Created")
-        (ao/required? attr) => false
 
         (let [el    (hfield/render-instant-field (mock-env inst) account-created)
               input (first (find-by-tag el "input"))]
@@ -360,7 +348,6 @@
           called-with (atom nil)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "")
-        (ao/required? attr) => false
         (m/set-string!! form-inst qk & kv-args) => (reset! called-with {:key qk :args (vec kv-args)})
 
         (let [el    (hfield/render-instant-field (mock-env inst) account-created)
@@ -375,11 +362,7 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context :active :label "Status")
-        (ao/required? attr) => false
-        (ao/enumerated-values attr) => [:active :inactive :pending]
-        (ao/enumerated-labels attr) => {:active "Active" :inactive "Inactive" :pending "Pending"}
         (comp/component-options inst) => {fo/enumerated-labels nil}
-        (fo/enumerated-labels opts) => nil
 
         (let [el      (hfield/render-enum-field (mock-env inst) account-status)
               select  (first (find-by-tag el "select"))
@@ -399,11 +382,7 @@
           called-with (atom nil)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context :active)
-        (ao/required? attr) => false
-        (ao/enumerated-values attr) => [:active :inactive]
-        (ao/enumerated-labels attr) => {}
         (comp/component-options inst) => {fo/enumerated-labels nil}
-        (fo/enumerated-labels opts) => nil
         (m/set-value!! form-inst qk val) => (reset! called-with {:key qk :val val})
 
         (let [el     (hfield/render-enum-field (mock-env inst) account-status)
@@ -418,7 +397,6 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "123.45" :label "Balance")
-        (ao/required? attr) => false
 
         (let [el    (hfield/render-decimal-field (mock-env inst) account-balance)
               input (first (find-by-tag el "input"))]
@@ -437,7 +415,6 @@
           called-with (atom nil)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "0")
-        (ao/required? attr) => false
         (m/set-string!! form-inst qk & kv-args) => (reset! called-with {:key qk :args (vec kv-args)})
 
         (let [el    (hfield/render-decimal-field (mock-env inst) account-balance)
@@ -453,8 +430,6 @@
     (let [inst (mock-form-instance :options {fo/subforms {:account/category {fo/ui AddressForm}}})]
       (gsh/when-mocking!
         (comp/component-options inst) => {fo/subforms {:account/category {fo/ui AddressForm}}}
-        (fo/subforms opts) => {:account/category {fo/ui AddressForm}}
-        (ao/qualified-key attr) => :account/category
 
         (let [el (hfield/render-ref-field (mock-env inst) account-category)]
           (assertions
@@ -465,10 +440,7 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (comp/component-options inst) => {fo/subforms {}}
-        (fo/subforms opts) => {}
-        (ao/qualified-key attr) => :account/category
         (form/field-context env attr) => (mock-field-context [:category/id #uuid "00000000-0000-0000-0000-000000000002"] :label "Category")
-        (ao/required? attr) => false
         (po/current-form-options inst attr) => [{:text "Electronics" :value [:category/id #uuid "00000000-0000-0000-0000-000000000002"]}
                                                 {:text "Clothing" :value [:category/id #uuid "00000000-0000-0000-0000-000000000003"]}]
 
@@ -491,10 +463,7 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (comp/component-options inst) => {fo/subforms {}}
-        (fo/subforms opts) => {}
-        (ao/qualified-key attr) => :account/category
         (form/field-context env attr) => (mock-field-context [:category/id #uuid "00000000-0000-0000-0000-000000000002"] :label "Category")
-        (ao/required? attr) => false
         (po/current-form-options inst attr) => nil
 
         (let [el   (hfield/render-ref-field (mock-env inst) account-category)
@@ -511,10 +480,7 @@
           called-with (atom nil)]
       (gsh/when-mocking!
         (comp/component-options inst) => {fo/subforms {}}
-        (fo/subforms opts) => {}
-        (ao/qualified-key attr) => :account/category
         (form/field-context env attr) => (mock-field-context nil :label "Category")
-        (ao/required? attr) => false
         (po/current-form-options inst attr) => [{:text "Electronics" :value [:category/id #uuid "00000000-0000-0000-0000-000000000002"]}]
         (m/set-value!! form-inst qk val) => (reset! called-with {:key qk :val val})
 
@@ -526,18 +492,13 @@
             (:key @called-with) => :account/category
             (:val @called-with) => [:category/id #uuid "00000000-0000-0000-0000-000000000002"]))))))
 
-;; =============================================================================
-;; Field Wrapper Tests — shared behavior
-;; =============================================================================
-
 (specification "Field wrapper behavior"
   (component "Read-only field"
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "locked" :read-only? true)
-        (ao/required? attr) => false
 
-        (let [el    (hfield/render-text-field (mock-env inst) account-name)
+        (let [el    (hfield/render-text-field (mock-env inst) account-email)
               input (first (find-by-tag el "input"))]
           (assertions
             "Input is disabled"
@@ -550,16 +511,11 @@
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
         (form/field-context env attr) => (mock-field-context "v" :omit-label? true)
-        (ao/required? attr) => false
 
-        (let [el (hfield/render-text-field (mock-env inst) account-name)]
+        (let [el (hfield/render-text-field (mock-env inst) account-email)]
           (assertions
             "No label is rendered"
             (count (find-by-attr el "field-label")) => 0))))))
-
-;; =============================================================================
-;; Control Rendering Tests
-;; =============================================================================
 
 (specification "render-control — button"
   (component "Visible enabled button"
@@ -648,6 +604,8 @@
           (assertions
             "onChange toggles to false"
             (:val @param-set) => false))))))
+
+)) ;; end #?(:clj (do ...))
 
 ;; =============================================================================
 ;; Multimethod Registration Tests

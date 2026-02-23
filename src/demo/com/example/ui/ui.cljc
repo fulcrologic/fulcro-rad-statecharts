@@ -67,11 +67,11 @@
 
         ;; Forms
         (form/form-route-state {:route/target AccountForm
-                                :route/params #{:account/id}})
+                                :route/params #{:id}})
         (form/form-route-state {:route/target ItemForm
-                                :route/params #{:item/id}})
+                                :route/params #{:id}})
         (form/form-route-state {:route/target InvoiceForm
-                                :route/params #{:invoice/id}})))))
+                                :route/params #{:id}})))))
 
 ;; ---------------------------------------------------------------------------
 ;; Root component

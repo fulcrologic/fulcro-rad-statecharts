@@ -30,3 +30,6 @@
                                      po/cache-time-ms   30000}}
    fo/route-prefix  "item"
    fo/title         "Edit Item"})
+
+(comment
+  (com.fulcrologic.fulcro.components/get-query ItemForm))

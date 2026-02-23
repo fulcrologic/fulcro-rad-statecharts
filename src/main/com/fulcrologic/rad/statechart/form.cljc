@@ -22,6 +22,7 @@
     [com.fulcrologic.rad.attributes :as attr]
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.application :as rapp]
+    [com.fulcrologic.rad.form :as-alias form]
     [com.fulcrologic.rad.form-render-options :as fro]
     [com.fulcrologic.rad.ids :as ids :refer [new-uuid]]
     [com.fulcrologic.rad.type-support.integer :as int]
@@ -45,8 +46,6 @@
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
     [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
-
-(def ^:dynamic *default-save-form-mutation* `save-form)
 
 (def view-action "view")
 (def create-action "create")
@@ -111,14 +110,6 @@
 
 (>def :com.fulcrologic.rad.form/form-env map?)
 
-(>defn picker-join-key
-  "Returns a :ui/picker keyword customized to the qualified keyword"
-  [qualified-key]
-  [qualified-keyword? => qualified-keyword?]
-  (keyword "ui" (str (namespace qualified-key) "-"
-                  (name qualified-key)
-                  "-picker")))
-
 (defn master-form
   "Return the master form for the given component instance."
   [component]
@@ -134,12 +125,6 @@
   ([rendering-env form-instance]
    (let [master-form (:com.fulcrologic.rad.form/master-form rendering-env)]
      (= form-instance master-form))))
-
-(defn parent-relation
-  "Returns the keyword that was used in the join of the parent form when querying for the data of the current
-   `form-instance`. Returns nil if there is no parent relation."
-  [this]
-  (some-> this comp/get-computed :com.fulcrologic.rad.form/parent-relation))
 
 (defn form-key->attribute
   "Get the RAD attribute definition for the given attribute key, given a class-or-instance that has that attribute
@@ -371,7 +356,7 @@
                               :ui/confirmation-message
                               :ui/route-denied?
                               :com.fulcrologic.rad.form/errors
-                              [:com.fulcrologic.rad.form/picker-options/options-cache '_]
+                              [::po/options-cache '_]
                               [:com.fulcrologic.fulcro.application/active-remotes '_]
                               fs/form-config-join]
                              (map ::attr/qualified-key)
@@ -434,13 +419,6 @@
                                    :com.fulcrologic.rad.form/create? new?
                                    :options                          params}}))))
 
-(defn form-will-enter
-  "DEPRECATED: Routing lifecycle is now managed by statecharts routing via sfro options.
-   This function should not be called. Use `sfro/initialize` and `sfro/statechart` on your form instead."
-  [_app _route-params _form-class]
-  (log/error "form-will-enter is removed. Routing lifecycle is managed by statecharts routing. See sfro/initialize.")
-  (throw (ex-info "form-will-enter is removed. Use statecharts routing (sfro options) instead." {})))
-
 (defn abandon-form!
   "Stop the statechart for the given form without warning. Does not reset the form or give any warnings: just exits the statechart.
    You should only use this when you are embedding the form in something, and you are controlling the form directly. Usually,
@@ -448,20 +426,6 @@
   [app-ish form-ident]
   (let [session-id (sc.session/ident->session-id form-ident)]
     (scf/send! app-ish session-id :event/exit {})))
-
-(defn form-will-leave
-  "DEPRECATED: Routing lifecycle is now managed by statecharts routing via sfro options.
-   This function should not be called."
-  [_this]
-  (log/error "form-will-leave is removed. Routing lifecycle is managed by statecharts routing (sfro/busy?).")
-  (throw (ex-info "form-will-leave is removed. Use statecharts routing (sfro/busy?) instead." {})))
-
-(defn form-allow-route-change
-  "DEPRECATED: Route change guarding is now managed by statecharts routing via `sfro/busy?`.
-   This function should not be called."
-  [_this]
-  (log/error "form-allow-route-change is removed. Use sfro/busy? with form-busy? instead.")
-  (throw (ex-info "form-allow-route-change is removed. Use sfro/busy? instead." {})))
 
 (defn form-busy?
   "Returns true if the form has unsaved changes. Used by the routing system
@@ -474,25 +438,6 @@
   ([env data & _]
    (let [{:actor/keys [form]} (scf/resolve-actors env :actor/form)]
      (boolean (and form (fs/dirty? form))))))
-
-(defn make-form-busy-fn
-  "Creates a busy? function for `FormClass` that works in both the form's own
-   statechart context (via actor resolution) and the routing statechart context
-   (via :route/idents from routing local data)."
-  [FormClass]
-  (fn [env data & _]
-    (let [{:actor/keys [form]} (scf/resolve-actors env :actor/form)]
-      (if form
-        (boolean (fs/dirty? form))
-        ;; Routing context: no actors, use route/idents fallback
-        (let [{:route/keys [idents]} data
-              reg-key    (comp/class->registry-key FormClass)
-              form-ident (get idents reg-key)
-              app        (:fulcro/app env)
-              state-map  (when app (raw.app/current-state app))
-              form-props (when (and state-map form-ident)
-                           (fns/ui->props state-map FormClass form-ident))]
-          (boolean (and form-props (fs/dirty? form-props))))))))
 
 (defn form-pre-merge
   "Generate a pre-merge for a component that has the given for attribute map. Returns a proper
@@ -529,7 +474,7 @@
 
 (defn convert-options
   "Runtime conversion of form options to what comp/configure-component! needs."
-  [get-class location options]
+  [registry-key location options]
   (required! location options :com.fulcrologic.rad.form/attributes vector?)
   (required! location options :com.fulcrologic.rad.form/id attr/attribute?)
   (let [{:com.fulcrologic.rad.form/keys [id attributes query-inclusion]} options
@@ -541,21 +486,19 @@
                                                                                     (not identity?)))
         attribute-map              (attr/attribute-map attributes)
         pre-merge                  (form-pre-merge options attribute-map)
-        Form                       (get-class)
         base-options               (merge
-                                     {:com.fulcrologic.rad.form/validator (attr/make-attribute-validator (form-and-subform-attributes Form) true)
-                                      ::control/controls                  standard-controls}
+                                     {::control/controls standard-controls}
                                      options
                                      (cond->
                                        {:ident                                   (fn [_ props] [id-key (get props id-key)])
                                         :com.fulcrologic.rad.form/key->attribute attribute-map
-                                        :fulcro/registry-key                     (some-> Form (comp/class->registry-key))
+                                        :fulcro/registry-key                     registry-key
                                         :form-fields                             (into #{}
                                                                                    (comp
                                                                                      (filter form-field?)
                                                                                      (map ::attr/qualified-key))
                                                                                    attributes)
-                                        sfro/busy?                               (make-form-busy-fn Form)
+                                        sfro/busy?                               form-busy?
                                         sfro/initialize                          :always}
                                        pre-merge (assoc :pre-merge pre-merge)
                                        (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
@@ -589,9 +532,8 @@
            render-form  (if hooks?
                           (#'comp/build-hooks-render sym thissym propsym computedsym extra-args body)
                           (#'comp/build-render sym thissym propsym computedsym extra-args body))
-           options-expr `(let [get-class# (fn [] ~sym)]
-                           (assoc (convert-options get-class# ~location ~options) :render ~render-form
-                                                                                  :componentName ~fqkw))]
+           options-expr `(assoc (convert-options ~fqkw ~location ~options) :render ~render-form
+                                                                           :componentName ~fqkw)]
        (when (some #(= '_ %) arglist)
          (throw (ana/error env "The arguments of defsc-form must be unique symbols other than _.")))
        (cond
@@ -651,97 +593,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LOGIC
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn save-form*
-  "Internal implementation of clj-side form save. Can be used in your own mutations to accomplish writes through
-   the save middleware.
-
-   params MUST contain:
-
-   * `::form/delta` - The data to save. Map keyed by ident whose values are maps with `:before` and `:after` values.
-   * `::form/id` - The actual ID of the entity being changed.
-   * `::form/master-pk` - The keyword representing the form's ID in your RAD model's attributes.
-
-   Returns:
-
-   {:tempid {} ; tempid remaps
-    master-pk id} ; the k/id of the entity saved. The id here will be remapped already if it was a tempid.
-   "
-  [env params]
-  (let [save-middleware (:com.fulcrologic.rad.form/save-middleware env)
-        save-env        (assoc env :com.fulcrologic.rad.form/params params)
-        result          (if save-middleware
-                          (save-middleware save-env)
-                          (throw (ex-info "form/pathom-plugin is not installed on the parser." {})))
-        {:com.fulcrologic.rad.form/keys [id master-pk]} params
-        {:keys [tempids]} result
-        id              (get tempids id id)]
-    (merge result {master-pk id})))
-
-(def pathom2-server-save-form-mutation
-  {:com.wsscode.pathom.connect/mutate (fn [env params] (save-form* env params))
-   :com.wsscode.pathom.connect/sym    `save-form
-   :com.wsscode.pathom.connect/params [:com.fulcrologic.rad.form/id :com.fulcrologic.rad.form/master-pk :com.fulcrologic.rad.form/delta]})
-
-(def pathom2-server-save-as-form-mutation
-  (assoc pathom2-server-save-form-mutation
-    :com.wsscode.pathom.connect/sym `save-as-form))
-
-;; do-saves! params/env => return value
-;; -> params/env -> middleware-in -> do-saves -> middleware-out
-#?(:clj
-   (def save-form pathom2-server-save-form-mutation)
-   :cljs
-   (m/defmutation save-form
-     "MUTATION: DO NOT USE. See save-as-form mutation for a mutation you can use to leverage the form save mechansims for
-      arbitrary purposes."
-     [_]
-     (action [_] :noop)))
-
-#?(:clj
-   (def save-as-form pathom2-server-save-as-form-mutation)
-   :cljs
-   (m/defmutation save-as-form
-     "MUTATION: Run a full-stack write as-if it were the save of a form. This allows you to leverage the save middleware
-      to do all of the save magic without using a form. Useful for implementing simple model updates from action buttons.
-
-      Required params:
-
-      :root-ident - The ident of the entity to change
-
-      And ONE of:
-
-      :entity - A flat entity to write at :root-ident
-      :delta - A proper form delta, a map ident->attr-key->before-after-map.
-
-      If you specify both, only delta will be used.
-
-      This mutation's ok-action will also update the data in the local state."
-     [{:keys [root-ident entity delta]}]
-     (ok-action [{:keys [state tempid->realid]}]
-       (if delta
-         (doseq [[ident changes] (tempid/resolve-tempids delta tempid->realid)
-                 :let [data-to-merge (reduce-kv
-                                       (fn [m k v] (assoc m k (:after v)))
-                                       {}
-                                       changes)]]
-           (swap! state update-in ident merge data-to-merge))
-         (swap! state
-           update-in
-           (tempid/resolve-tempids root-ident tempid->realid)
-           merge
-           (tempid/resolve-tempids entity tempid->realid))))
-     (remote [env]
-       (let [delta (or delta
-                     {root-ident (reduce-kv
-                                   (fn [m k v]
-                                     (assoc m k {:after v}))
-                                   {}
-                                   entity)})]
-         (-> env
-           (m/with-params {:com.fulcrologic.rad.form/master-pk (first root-ident)
-                           :com.fulcrologic.rad.form/id        (second root-ident)
-                           :com.fulcrologic.rad.form/delta     delta}))))))
 
 (declare default-state)
 
@@ -915,7 +766,7 @@
     m))
 
 (defn mark-all-complete! [master-form-instance]
-  (let [session-id (sc.session/form-session-id master-form-instance)]
+  (let [session-id (sc.session/ident->session-id (comp/get-ident master-form-instance))]
     (scf/send! master-form-instance session-id :event/mark-complete)))
 
 (defn update-tree*
@@ -977,21 +828,22 @@
 (defn create?
   "Condition predicate: Returns true if this form session is for creating a new entity."
   [_env data & _]
+  ;; TASK: Needs to check if id is tempid as well
   (boolean (:com.fulcrologic.rad.form/create? data)))
 
 (defn start-create-expr
   "Expression for creating a new form entity. Generates default state,
    merges it into the Fulcro state map, and sets up form config."
   [_env data _event-name _event-data]
-  (let [FormClass               (actor-class data)
-        form-ident              (actor-ident data)
-        options                 (:options data)
-        form-overrides          (:initial-state options)
-        id                      (second form-ident)
-        initial-state           (merge (default-state FormClass id) form-overrides)
-        entity-to-merge         (fs/add-form-config FormClass initial-state)
-        initialized-keys        (all-keys initial-state)
-        optional-keys           (optional-fields FormClass)]
+  (let [FormClass        (actor-class data)
+        form-ident       (actor-ident data)
+        options          (:options data)
+        form-overrides   (:initial-state options)
+        id               (second form-ident)
+        initial-state    (merge (default-state FormClass id) form-overrides)
+        entity-to-merge  (fs/add-form-config FormClass initial-state)
+        initialized-keys (all-keys initial-state)
+        optional-keys    (optional-fields FormClass)]
     [(fops/apply-action merge/merge-component FormClass entity-to-merge)
      (fops/apply-action mark-fields-complete* {:entity-ident form-ident
                                                :target-keys  (set/union initialized-keys optional-keys)})]))
@@ -1199,12 +1051,11 @@
         master-pk         (::attr/qualified-key id)
         props             (fns/ui->props state-map FormClass form-ident)
         delta             (fs/dirty-fields props true)
-        save-mutation     (or save-mutation-sym
-                            (symbol "com.fulcrologic.rad.statechart.form" "save-form"))
+        save-mutation     (or save-mutation-sym `form/save-form)
         params            (merge event-data
-                            {(keyword "com.fulcrologic.rad.form" "delta")     delta
-                             (keyword "com.fulcrologic.rad.form" "master-pk") master-pk
-                             (keyword "com.fulcrologic.rad.form" "id")        (second form-ident)})]
+                            {::form/delta     delta
+                             ::form/master-pk master-pk
+                             ::form/id        (second form-ident)})]
     [(fops/assoc-alias :server-errors [])
      (fops/invoke-remote [(list save-mutation params)]
        {:returning   :actor/form
@@ -1249,8 +1100,7 @@
         comp-options  (rc/component-options FormClass)
         save-mutation (get comp-options fo/save-mutation)
         {:keys [save-failed]} (get comp-options sfo/triggers)
-        save-mutation (or save-mutation
-                        (symbol "com.fulcrologic.rad.statechart.form" "save-form"))
+        save-mutation (or save-mutation `form/save-form)
         result        (scf/mutation-result data)
         errors        (some-> result (get save-mutation) :com.fulcrologic.rad.form/errors)
         {:keys [on-save-failed]} options
@@ -1339,35 +1189,35 @@
   [env data _event-name event-data]
   (let [{:com.fulcrologic.rad.form/keys [order parent-relation parent child-class
                                          initial-state default-overrides]} event-data
-        form-options       (some-> parent rc/component-options)
+        form-options      (some-> parent rc/component-options)
         {{:keys [on-change]} sfo/triggers} form-options
-        parent-ident       (rc/get-ident parent)
-        relation-attr      (form-key->attribute parent parent-relation)
-        many?              (attr/to-many? relation-attr)
-        target-path        (conj parent-ident parent-relation)
-        state-map          (:fulcro/state-map data)
-        old-value          (get-in state-map target-path)
-        new-child          (if (map? initial-state)
-                             initial-state
-                             (merge
-                               (default-state child-class (tempid/tempid))
-                               default-overrides))
-        child-ident        (rc/get-ident child-class new-child)
-        optional-keys      (optional-fields child-class)
-        merge-and-config   (fn [s]
-                             (-> s
-                               (merge/merge-component child-class new-child
-                                 (if many? (or order :append) :replace) target-path)
-                               (fs/add-form-config* child-class child-ident)
-                               ((fn [sm]
-                                  (reduce
-                                    (fn [s k] (fs/mark-complete* s child-ident k))
-                                    sm
-                                    (concat optional-keys (keys new-child)))))))
-        base-ops           [(fops/apply-action merge-and-config)]
-        derive-event-data  {:form-key   (when parent (rc/class->registry-key (rc/component-type parent)))
-                            :form-ident parent-ident}
-        derive-ops         (derive-fields-ops data derive-event-data)]
+        parent-ident      (rc/get-ident parent)
+        relation-attr     (form-key->attribute parent parent-relation)
+        many?             (attr/to-many? relation-attr)
+        target-path       (conj parent-ident parent-relation)
+        state-map         (:fulcro/state-map data)
+        old-value         (get-in state-map target-path)
+        new-child         (if (map? initial-state)
+                            initial-state
+                            (merge
+                              (default-state child-class (tempid/tempid))
+                              default-overrides))
+        child-ident       (rc/get-ident child-class new-child)
+        optional-keys     (optional-fields child-class)
+        merge-and-config  (fn [s]
+                            (-> s
+                              (merge/merge-component child-class new-child
+                                (if many? (or order :append) :replace) target-path)
+                              (fs/add-form-config* child-class child-ident)
+                              ((fn [sm]
+                                 (reduce
+                                   (fn [s k] (fs/mark-complete* s child-ident k))
+                                   sm
+                                   (concat optional-keys (keys new-child)))))))
+        base-ops          [(fops/apply-action merge-and-config)]
+        derive-event-data {:form-key   (when parent (rc/class->registry-key (rc/component-type parent)))
+                           :form-ident parent-ident}
+        derive-ops        (derive-fields-ops data derive-event-data)]
     (when-not relation-attr
       (log/error "Cannot add child because you forgot to put the attribute for" parent-relation
         "in the fo/attributes of" (when parent (rc/component-name parent))))
@@ -1546,20 +1396,20 @@
          params      (or (?! save-params form-rendering-env) {})]
      (save! form-rendering-env params)))
   ([{this :com.fulcrologic.rad.form/master-form :as _form-rendering-env} addl-save-params]
-   (let [session-id (sc.session/form-session-id this)]
+   (let [session-id (sc.session/ident->session-id (comp/get-ident this))]
      (scf/send! this session-id :event/save addl-save-params))))
 
 (defn undo-all!
   "Trigger an undo of all changes on the given form rendering env."
   [{this :com.fulcrologic.rad.form/master-form}]
-  (let [session-id (sc.session/form-session-id this)]
+  (let [session-id (sc.session/ident->session-id (comp/get-ident this))]
     (scf/send! this session-id :event/reset {})))
 
 (defn cancel!
   "Trigger a cancel of all changes on the given form rendering env. This is like undo, but attempts to route away from
    the form."
   [{this :com.fulcrologic.rad.form/master-form}]
-  (let [session-id (sc.session/form-session-id this)]
+  (let [session-id (sc.session/ident->session-id (comp/get-ident this))]
     (scf/send! this session-id :event/cancel {})))
 
 (defn add-child!
@@ -1594,7 +1444,7 @@
   namespace when passed through to the state machine.
   "
   ([{:com.fulcrologic.rad.form/keys [master-form] :as env}]
-   (let [session-id (sc.session/form-session-id master-form)]
+   (let [session-id (sc.session/ident->session-id (comp/get-ident master-form))]
      (scf/send! master-form session-id :event/add-row env)))
   ([form-instance parent-relation ChildForm]
    (add-child! form-instance parent-relation ChildForm {}))
@@ -1630,7 +1480,7 @@
    (let [{:com.fulcrologic.rad.form/keys [master-form] :as env} (if (comp/component-instance? this-or-rendering-env)
                                                                   (rendering-env this-or-rendering-env)
                                                                   this-or-rendering-env)
-         session-id (sc.session/form-session-id master-form)]
+         session-id (sc.session/ident->session-id (comp/get-ident master-form))]
      (scf/send! master-form session-id :event/delete-row env)))
   ([parent-instance relation-key child-ident]
    (let [env (assoc (rendering-env parent-instance)
@@ -1736,7 +1586,7 @@
    and the current value."
   [{:com.fulcrologic.rad.form/keys [form-instance master-form]} k value]
   (let [form-ident (comp/get-ident form-instance)
-        session-id (sc.session/form-session-id master-form)]
+        session-id (sc.session/ident->session-id (comp/get-ident master-form))]
     (scf/send! master-form session-id :event/blur
       {::attr/qualified-key k
        :form-ident          form-ident
@@ -1756,7 +1606,7 @@
   [{:com.fulcrologic.rad.form/keys [form-instance master-form] :as _env} k value]
   (let [form-ident (comp/get-ident form-instance)
         old-value  (get (comp/props form-instance) k)
-        session-id (sc.session/form-session-id master-form)]
+        session-id (sc.session/ident->session-id (comp/get-ident master-form))]
     (scf/send! form-instance session-id :event/attribute-changed
       {::attr/qualified-key k
        :form-ident          form-ident
@@ -1887,23 +1737,6 @@ then the result will be a deep merge of the two (with form winning)."
                :com.fulcrologic.rad.form/save-middleware save-middleware
                :com.fulcrologic.rad.form/delete-middleware delete-middleware)
        base-wrapper (base-wrapper)))))
-
-(defn pathom-plugin
-  "A pathom 2 plugin that installs general form save/delete support on the pathom parser. Requires
-  save and delete middleware, which will accomplish the actual actions.  Calling RAD form save/delete
-  without this plugin and both bits of middleware will result in a runtime error."
-  [save-middleware delete-middleware]
-  (let [augment (wrap-env save-middleware delete-middleware)]
-    {:com.wsscode.pathom.core/wrap-parser
-     (fn env-wrap-wrap-parser [parser]
-       (fn env-wrap-wrap-internal [env tx]
-         (parser (augment env) tx)))}))
-
-#?(:clj (def resolvers
-          "Form save and delete mutation resolvers. These must be installed on your pathom parser for saves and deletes to
-           work, and you must also install save and delete middleware into your pathom env per the instructions of your
-           database adapter."
-          [save-form delete-entity save-as-form]))
 
 (defn invalid-attribute-value?
   "Returns true if the given `attribute` is invalid in the given form `env` context. This is meant to be used in UI
@@ -2055,7 +1888,7 @@ then the result will be a deep merge of the two (with form winning)."
 (defn undo-via-load!
   "Undo all changes to the current form by reloading it from the server."
   [{:com.fulcrologic.rad.form/keys [master-form] :as _rendering-env}]
-  (let [session-id (sc.session/form-session-id master-form)]
+  (let [session-id (sc.session/ident->session-id (comp/get-ident master-form))]
     (scf/send! master-form session-id :event/reload)))
 
 #?(:clj
@@ -2144,28 +1977,6 @@ then the result will be a deep merge of the two (with form winning)."
   ([app-ish form-session-id event event-data]
    (scf/send! app-ish form-session-id event event-data)))
 
-(defn clear-route-denied!
-  "Cancel the pending route change and dismiss the route-denied indicator. Operates on the
-   global routing chart session. Delegates to `scr/abandon-route-change!`."
-  ([app-ish]
-   (scr/abandon-route-change! app-ish))
-  ([app-ish _form-ident]
-   (log/warn "clear-route-denied! no longer takes a form-ident argument. Use the single-arity version.")
-   (clear-route-denied! app-ish)))
-
-(defn continue-abandoned-route!
-  "Force the most recently denied route change to proceed, overriding the busy guard.
-   Operates on the global routing chart session. Delegates to `scr/force-continue-routing!`."
-  ([app-ish]
-   (scr/force-continue-routing! app-ish))
-  ([app-ish _form-ident]
-   (log/warn "continue-abandoned-route! no longer takes a form-ident argument. Use the single-arity version.")
-   (continue-abandoned-route! app-ish)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ROUTING FUNCTIONS (from routing.cljc)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn form-route-state
   "Creates a routing state for a RAD form. On entry, starts the form's statechart via
    `start-form!`. On exit, abandons the form via `abandon-form!`.
@@ -2197,8 +2008,9 @@ then the result will be a deep merge of the two (with form winning)."
   ([app-ish Form id]
    (edit! app-ish Form id {}))
   ([app-ish Form id params]
-   (scr/route-to! app-ish Form {:id     id
-                                :params params})))
+   (let [new?       (tempid/tempid? id)
+         form-ident [(first (rc/get-ident Form {})) id]]
+     (scr/route-to! app-ish Form {:id id}))))
 
 (defn create!
   "Route to a form and start creating a new entity."

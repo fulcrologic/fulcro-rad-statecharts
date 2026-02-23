@@ -6,15 +6,17 @@
     [com.fulcrologic.fulcro.components :as comp]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+    [com.fulcrologic.fulcro.dom.events :as evt]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.form-render :as fr]
     [com.fulcrologic.rad.options-util :refer [?!]]
+    [com.fulcrologic.rad.type-support.decimal :as math]
     [com.fulcrologic.rad.picker-options :as po]
-    #?(:clj  [clojure.edn :as edn]
-       :cljs [cljs.reader :as reader])))
+    [taoensso.timbre :as log]
+    [clojure.edn :as edn]))
 
 (defn- field-id
   "Generate a stable DOM id for a field based on its qualified key."
@@ -193,11 +195,12 @@
       {:qualified-key      qualified-key :field-label field-label :omit-label? omit-label?
        :required?          required? :visible? visible? :invalid? invalid?
        :validation-message validation-message}
-      (dom/input (-> (common-input-attrs qualified-key (str (or value "")) read-only? required?
-                       (fn [evt]
-                         #?(:cljs (m/set-string! form-instance qualified-key :event evt)
-                            :clj  (m/set-string!! form-instance qualified-key :value evt))))
-                   (assoc :type "number" :step "any"))))))
+      (dom/input
+        (common-input-attrs qualified-key (math/numeric->str value) read-only? required?
+          (fn [evt]
+            (let [sval (evt/target-value evt)
+                  nval (math/numeric sval)]
+              (m/set-value!! form-instance qualified-key nval))))))))
 
 (defn render-ref-field
   "Render a reference field. For picker-style refs, renders a `<select>` dropdown populated
@@ -206,6 +209,7 @@
    picker options are available."
   [{:com.fulcrologic.rad.form/keys [form-instance] :as env} attribute]
   (let [qualified-key (ao/qualified-key attribute)
+        target-key    (ao/target attribute)
         options       (comp/component-options form-instance)
         subforms      (fo/subforms options)
         is-subform?   (contains? subforms qualified-key)]
@@ -213,6 +217,7 @@
       nil                                                   ;; Subform rendering is handled by render-subforms in form.cljc
       (let [{:keys [value field-label visible? invalid? validation-message
                     read-only? omit-label?]} (form/field-context env attribute)
+            value-as-ident [target-key (get value target-key)]
             required?      (ao/required? attribute)
             picker-options (po/current-form-options form-instance attribute)]
         (field-wrapper
@@ -224,12 +229,13 @@
                                  :name           (str qualified-key)
                                  :data-rad-type  "ref-picker"
                                  :data-rad-field (str qualified-key)
-                                 :value          (str value)
+                                 :value          (str value-as-ident)
                                  :onChange       (fn [evt]
+                                                   ;; TASK: headless should use same (evt/target-value) struture for events!
                                                    #?(:cljs
-                                                      (let [raw-val (.. evt -target -value)
-                                                            parsed  (when (seq raw-val) (reader/read-string raw-val))]
-                                                        (m/set-value! form-instance qualified-key parsed))
+                                                      (let [raw-val (evt/target-value evt)
+                                                            parsed  (when (seq raw-val) (edn/read-string raw-val))]
+                                                        (m/set-value!! form-instance qualified-key parsed))
                                                       :clj
                                                       (let [parsed (when (seq (str evt)) (edn/read-string (str evt)))]
                                                         (m/set-value!! form-instance qualified-key parsed))))}
