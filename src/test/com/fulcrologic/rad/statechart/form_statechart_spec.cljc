@@ -3,8 +3,7 @@
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
-    [com.fulcrologic.rad.statechart.form-chart :as fc]
-    [com.fulcrologic.rad.statechart.form-expressions :as fex]
+    [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.statecharts.testing :as t]
     [fulcro-spec.core :refer [=> assertions component specification]]))
 
@@ -18,30 +17,30 @@
   [{:keys [create? valid?]
     :or   {create? true valid? true}
     :as   overrides}]
-  (let [base-mocks {fex/store-options                 nil
-                    fex/create?                       create?
-                    fex/start-create-expr             nil
-                    fex/start-load-expr               nil
-                    fex/on-loaded-expr                nil
-                    fex/on-load-failed-expr           nil
-                    fex/attribute-changed-expr        nil
-                    fex/blur-expr                     nil
-                    fex/mark-all-complete-expr        nil
-                    fex/mark-complete-on-invalid-expr nil
-                    fex/form-valid?                   valid?
-                    fex/prepare-save-expr             nil
-                    fex/on-saved-expr                 nil
-                    fex/on-save-failed-expr           nil
-                    fex/undo-all-expr                 nil
-                    fex/prepare-leave-expr            nil
-                    fex/leave-form-expr               nil
-                    fex/route-denied-expr             nil
-                    fex/continue-abandoned-route-expr nil
-                    fex/clear-route-denied-expr       nil
-                    fex/add-row-expr                  nil
-                    fex/delete-row-expr               nil}
+  (let [base-mocks {form/store-options                 nil
+                    form/create?                       create?
+                    form/start-create-expr             nil
+                    form/start-load-expr               nil
+                    form/on-loaded-expr                nil
+                    form/on-load-failed-expr           nil
+                    form/attribute-changed-expr        nil
+                    form/blur-expr                     nil
+                    form/mark-all-complete-expr        nil
+                    form/mark-complete-on-invalid-expr nil
+                    form/form-valid?                   valid?
+                    form/prepare-save-expr             nil
+                    form/on-saved-expr                 nil
+                    form/on-save-failed-expr           nil
+                    form/undo-all-expr                 nil
+                    form/prepare-leave-expr            nil
+                    form/leave-form-expr               nil
+                    form/route-denied-expr             nil
+                    form/continue-abandoned-route-expr nil
+                    form/clear-route-denied-expr       nil
+                    form/add-row-expr                  nil
+                    form/delete-row-expr               nil}
         mocks      (merge base-mocks (dissoc overrides :create? :valid?))]
-    (t/new-testing-env {:statechart fc/form-chart} mocks)))
+    (t/new-testing-env {:statechart form/form-chart} mocks)))
 
 (defn terminated?
   "Returns true if the statechart session has terminated (entered a final state).
@@ -56,13 +55,13 @@
     (t/start! env)
     (assertions
       "Runs store-options on entry to :initial"
-      (t/ran? env fex/store-options) => true
+      (t/ran? env form/store-options) => true
 
       "Runs create? condition check"
-      (t/ran? env fex/create?) => true
+      (t/ran? env form/create?) => true
 
       "Runs start-create-expr on entry to :state/creating"
-      (t/ran? env fex/start-create-expr) => true
+      (t/ran? env form/start-create-expr) => true
 
       "Ends in :state/editing via eventless transition from :state/creating"
       (t/in? env :state/editing) => true)))
@@ -78,7 +77,7 @@
         (t/in? env :state/loading) => true
 
         "Runs start-load-expr on entry to loading"
-        (t/ran? env fex/start-load-expr) => true)
+        (t/ran? env form/start-load-expr) => true)
 
       (t/run-events! env :event/loaded)
       (assertions
@@ -86,7 +85,7 @@
         (t/in? env :state/editing) => true
 
         "Runs on-loaded-expr"
-        (t/ran? env fex/on-loaded-expr) => true)))
+        (t/ran? env form/on-loaded-expr) => true)))
 
   (component "Failed load"
     (let [env (form-test-env {:create? false})]
@@ -97,7 +96,7 @@
         (t/in? env :state/load-failed) => true
 
         "Runs on-load-failed-expr"
-        (t/ran? env fex/on-load-failed-expr) => true)))
+        (t/ran? env form/on-load-failed-expr) => true)))
 
   (component "Reload from loading"
     (let [env (form-test-env {:create? false})]
@@ -149,7 +148,7 @@
         (t/in? env :state/saving) => true
 
         "Runs prepare-save-expr"
-        (t/ran? env fex/prepare-save-expr) => true)))
+        (t/ran? env form/prepare-save-expr) => true)))
 
   (component "Save when invalid"
     (let [env (form-test-env {:create? true :valid? false})]
@@ -160,10 +159,10 @@
         (t/in? env :state/editing) => true
 
         "Runs mark-complete-on-invalid-expr"
-        (t/ran? env fex/mark-complete-on-invalid-expr) => true
+        (t/ran? env form/mark-complete-on-invalid-expr) => true
 
         "Does NOT run prepare-save-expr"
-        (t/ran? env fex/prepare-save-expr) => false)))
+        (t/ran? env form/prepare-save-expr) => false)))
 
   (component "Save success"
     (let [env (form-test-env {:create? true :valid? true})]
@@ -175,7 +174,7 @@
         (t/in? env :state/editing) => true
 
         "Runs on-saved-expr"
-        (t/ran? env fex/on-saved-expr) => true)))
+        (t/ran? env form/on-saved-expr) => true)))
 
   (component "Save failure"
     (let [env (form-test-env {:create? true :valid? true})]
@@ -187,7 +186,7 @@
         (t/in? env :state/editing) => true
 
         "Runs on-save-failed-expr"
-        (t/ran? env fex/on-save-failed-expr) => true)))
+        (t/ran? env form/on-save-failed-expr) => true)))
 
   (component "Exit from saving"
     (let [env (form-test-env {:create? true :valid? true})]
@@ -210,7 +209,7 @@
         (t/in? env :state/editing) => true
 
         "Runs attribute-changed-expr"
-        (t/ran? env fex/attribute-changed-expr) => true)))
+        (t/ran? env form/attribute-changed-expr) => true)))
 
   (component "Blur"
     (let [env (form-test-env {:create? true})]
@@ -221,7 +220,7 @@
         (t/in? env :state/editing) => true
 
         "Runs blur-expr"
-        (t/ran? env fex/blur-expr) => true)))
+        (t/ran? env form/blur-expr) => true)))
 
   (component "Mark complete"
     (let [env (form-test-env {:create? true})]
@@ -232,7 +231,7 @@
         (t/in? env :state/editing) => true
 
         "Runs mark-all-complete-expr"
-        (t/ran? env fex/mark-all-complete-expr) => true)))
+        (t/ran? env form/mark-all-complete-expr) => true)))
 
   (component "Undo/reset"
     (let [env (form-test-env {:create? true})]
@@ -243,7 +242,7 @@
         (t/in? env :state/editing) => true
 
         "Runs undo-all-expr"
-        (t/ran? env fex/undo-all-expr) => true)))
+        (t/ran? env form/undo-all-expr) => true)))
 
   (component "Add row (subform)"
     (let [env (form-test-env {:create? true})]
@@ -254,7 +253,7 @@
         (t/in? env :state/editing) => true
 
         "Runs add-row-expr"
-        (t/ran? env fex/add-row-expr) => true)))
+        (t/ran? env form/add-row-expr) => true)))
 
   (component "Delete row (subform)"
     (let [env (form-test-env {:create? true})]
@@ -265,7 +264,7 @@
         (t/in? env :state/editing) => true
 
         "Runs delete-row-expr"
-        (t/ran? env fex/delete-row-expr) => true)))
+        (t/ran? env form/delete-row-expr) => true)))
 
   (component "Reload from editing"
     (let [env (form-test-env {:create? true})]
@@ -294,10 +293,10 @@
       (terminated? env) => true
 
       "Runs prepare-leave-expr"
-      (t/ran? env fex/prepare-leave-expr) => true
+      (t/ran? env form/prepare-leave-expr) => true
 
       "Runs leave-form-expr on entry to :state/leaving"
-      (t/ran? env fex/leave-form-expr) => true)))
+      (t/ran? env form/leave-form-expr) => true)))
 
 ;; ===== Route Guarding =====
 
@@ -311,7 +310,7 @@
         (t/in? env :state/editing) => true
 
         "Runs route-denied-expr"
-        (t/ran? env fex/route-denied-expr) => true)))
+        (t/ran? env form/route-denied-expr) => true)))
 
   (component "Continue abandoned route"
     (let [env (form-test-env {:create? true})]
@@ -322,7 +321,7 @@
         (t/in? env :state/editing) => true
 
         "Runs continue-abandoned-route-expr"
-        (t/ran? env fex/continue-abandoned-route-expr) => true)))
+        (t/ran? env form/continue-abandoned-route-expr) => true)))
 
   (component "Clear route denied"
     (let [env (form-test-env {:create? true})]
@@ -333,7 +332,7 @@
         (t/in? env :state/editing) => true
 
         "Runs clear-route-denied-expr"
-        (t/ran? env fex/clear-route-denied-expr) => true))))
+        (t/ran? env form/clear-route-denied-expr) => true))))
 
 ;; ===== goto-configuration! tests =====
 

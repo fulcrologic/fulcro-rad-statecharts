@@ -1,4 +1,6 @@
 (ns com.fulcrologic.rad.statechart.form
+  "Consolidated RAD form namespace. Contains form public API, expression functions,
+   statechart definition, chart fragments, and routing helpers."
   #?(:cljs (:require-macros [com.fulcrologic.rad.statechart.form]))
   (:require
     [clojure.spec.alpha :as s]
@@ -12,8 +14,8 @@
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    ;; uism removed — statechart code path is now the only one
     [com.fulcrologic.guardrails.core :refer [>defn >def => ?]]
     [com.fulcrologic.rad.statechart.control :as control]
     [com.fulcrologic.rad.errors :refer [required! warn-once!]]
@@ -28,17 +30,19 @@
     [taoensso.timbre :as log]
     #?@(:clj [[cljs.analyzer :as ana]])
     [com.fulcrologic.rad.options-util :as opts :refer [?! narrow-keyword]]
-    [com.fulcrologic.rad.picker-options :as picker-options]
+    [com.fulcrologic.rad.picker-options :as po]
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.statechart.form-options :as sfo]
     [com.fulcrologic.rad.form-render :as fr]
-    ;; dynamic-routing removed — statecharts routing is now the only routing layer
     [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
     [com.fulcrologic.statecharts :as sc]
+    [com.fulcrologic.statecharts.chart :refer [statechart]]
+    [com.fulcrologic.statecharts.convenience :refer [handle on]]
+    [com.fulcrologic.statecharts.elements :refer [data-model final on-entry script state transition entry-fn exit-fn]]
+    [com.fulcrologic.statecharts.data-model.operations :as ops]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
     [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.rad.statechart.form-chart :as form-chart]
-    [com.fulcrologic.rad.statechart.form-expressions :as fex]
     [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
     [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
 
@@ -47,7 +51,8 @@
 (def view-action "view")
 (def create-action "create")
 (def edit-action "edit")
-(declare valid? invalid? cancel! undo-all! save! render-field rendering-env)
+(declare valid? invalid? cancel! undo-all! save! render-field rendering-env
+  default-state optional-fields mark-fields-complete* form-key->attribute form-chart)
 
 (defn view-mode?
   "Returns true if the main form was started in view mode. `form-instance` can be from main form or any subform."
@@ -417,7 +422,7 @@
          new?        (tempid/tempid? id)
          form-ident  [qualified-key id]
          session-id  (sc.session/ident->session-id form-ident)
-         chart       (if (map? user-chart) user-chart form-chart/form-chart)]
+         chart       (if (map? user-chart) user-chart form-chart)]
      ;; Register the chart
      (scf/register-statechart! app machine-key chart)
      (scf/start! app {:machine    machine-key
@@ -554,7 +559,7 @@
                                         sfro/initialize                          :always}
                                        pre-merge (assoc :pre-merge pre-merge)
                                        (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                                       (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `form-chart/form-chart))))
+                                       (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `form-chart))))
         attribute-query-inclusions (set (mapcat :com.fulcrologic.rad.form/query-inclusion attributes))
         inclusions                 (set/union attribute-query-inclusions (set query-inclusion))]
     (when (and #?(:cljs goog.DEBUG :clj true) will-enter)
@@ -1549,9 +1554,675 @@ then the result will be a deep merge of the two (with form winning)."
    (log/warn "continue-abandoned-route! no longer takes a form-ident argument. Use the single-arity version.")
    (continue-abandoned-route! app-ish)))
 
-;; Register form functions for CLJS cross-namespace resolution (avoids circular deps)
-(fex/register-form-fn! "default-state" default-state)
-(fex/register-form-fn! "optional-fields" optional-fields)
-(fex/register-form-fn! "mark-fields-complete*" mark-fields-complete*)
-(fex/register-form-fn! "valid?" valid?)
-(fex/register-form-fn! "form-key->attribute" form-key->attribute)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; EXPRESSION HELPERS (merged from form_expressions.cljc)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- actor-ident
+  "Extract the ident for :actor/form from statechart data."
+  [data]
+  (get-in data [:fulcro/actors :actor/form :ident]))
+
+(defn- actor-class
+  "Resolve the component class for :actor/form from statechart data."
+  [data]
+  (scf/resolve-actor-class data :actor/form))
+
+(defn- form-component-options
+  "Get component options for the form actor's class."
+  [data]
+  (some-> (actor-class data) rc/component-options))
+
+(defn- expr-subform-options
+  "Get subform options for expression use. Delegates to fo/subform-options."
+  [form-options ref-key-or-attribute]
+  (fo/subform-options form-options ref-key-or-attribute))
+
+(defn- expr-subform-ui
+  "Get the UI class for a subform in expression context."
+  [form-options ref-key-or-attribute]
+  (some-> (expr-subform-options form-options ref-key-or-attribute) fo/ui))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; EXPRESSION FUNCTIONS (merged from form_expressions.cljc)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn store-options
+  "Stores startup options from the initial event data into the statechart session data.
+   Also invokes the `:started` trigger if defined on the form."
+  [env data _event-name event-data]
+  (let [FormClass   (actor-class data)
+        form-ident  (actor-ident data)
+        {{:keys [started]} sfo/triggers} (some-> FormClass rc/component-options)
+        base-ops    [(ops/assign :options (or (:options data) event-data {}))]
+        trigger-ops (when (fn? started)
+                      (started env data form-ident))]
+    (into base-ops (when (seq trigger-ops) trigger-ops))))
+
+(defn create?
+  "Condition predicate: Returns true if this form session is for creating a new entity."
+  [_env data & _]
+  (boolean (:com.fulcrologic.rad.form/create? data)))
+
+(defn start-create-expr
+  "Expression for creating a new form entity. Generates default state,
+   merges it into the Fulcro state map, and sets up form config."
+  [_env data _event-name _event-data]
+  (let [FormClass               (actor-class data)
+        form-ident              (actor-ident data)
+        options                 (:options data)
+        form-overrides          (:initial-state options)
+        id                      (second form-ident)
+        initial-state           (merge (default-state FormClass id) form-overrides)
+        entity-to-merge         (fs/add-form-config FormClass initial-state)
+        initialized-keys        (all-keys initial-state)
+        optional-keys           (optional-fields FormClass)]
+    [(fops/apply-action merge/merge-component FormClass entity-to-merge)
+     (fops/apply-action mark-fields-complete* {:entity-ident form-ident
+                                               :target-keys  (set/union initialized-keys optional-keys)})]))
+
+(defn start-load-expr
+  "Expression for loading an existing form entity from the server."
+  [_env data _event-name _event-data]
+  (let [FormClass  (actor-class data)
+        form-ident (actor-ident data)]
+    (log/debug "Issuing load of pre-existing form entity" form-ident)
+    [(fops/load form-ident FormClass
+       {::sc/ok-event    :event/loaded
+        ::sc/error-event :event/failed})]))
+
+(defn- build-autocreate-ops
+  "Builds ops to auto-create to-one subform entities that are nil and marked with autocreate-on-load?.
+   Returns a sequence of `fops/apply-action` ops, or nil."
+  [FormClass form-ident state-map]
+  (let [form-options    (rc/component-options FormClass)
+        attributes      (get form-options fo/attributes)
+        subforms        (expr-subform-options form-options nil)
+        possible-keys   (when subforms (set (keys subforms)))
+        form-value      (get-in state-map form-ident)
+        attrs-to-create (when (and attributes possible-keys)
+                          (into []
+                            (filter (fn [{::attr/keys [qualified-key type cardinality]}]
+                                      (and
+                                        (true? (get-in subforms [qualified-key :com.fulcrologic.rad.form/autocreate-on-load?]))
+                                        (nil? (get form-value qualified-key))
+                                        (contains? possible-keys qualified-key)
+                                        (= :ref type)
+                                        (or (= :one cardinality) (nil? cardinality)))))
+                            attributes))]
+    (when (seq attrs-to-create)
+      (mapcat (fn [{::attr/keys [qualified-key target]}]
+                (let [ui-class   (fo/ui (get subforms qualified-key))
+                      id         (tempid/tempid)
+                      new-entity (default-state ui-class id)
+                      new-ident  [target id]]
+                  [(fops/apply-action assoc-in (conj form-ident qualified-key) new-ident)
+                   (fops/apply-action assoc-in new-ident new-entity)]))
+        attrs-to-create))))
+
+(defn- build-ui-props-ops
+  "Builds ops to initialize user-defined UI props on a loaded form entity."
+  [FormClass form-ident]
+  (let [initialize-ui-props (some-> FormClass rc/component-options (get fo/initialize-ui-props))]
+    (when initialize-ui-props
+      [(fops/apply-action
+         (fn [state-map]
+           (let [denorm-props    (fns/ui->props state-map FormClass form-ident)
+                 predefined-keys (set (keys denorm-props))
+                 ui-props        (?! initialize-ui-props FormClass denorm-props)
+                 query           (rc/get-query FormClass state-map)
+                 k->component    (into {}
+                                   (keep (fn [{:keys [key component]}]
+                                           (when component {key component})))
+                                   (:children (eql/query->ast query)))
+                 all-ks          (set (keys ui-props))
+                 allowed-keys    (set/difference all-ks predefined-keys)]
+             (reduce
+               (fn [s k]
+                 (let [raw-value       (get ui-props k)
+                       c               (k->component k)
+                       component-ident (when c (rc/get-ident c raw-value))
+                       value-to-place  (if (and c (vector? component-ident) (some? (second component-ident)))
+                                         component-ident
+                                         raw-value)]
+                   (cond-> (assoc-in s (conj form-ident k) value-to-place)
+                     c (merge/merge-component c raw-value))))
+               state-map
+               allowed-keys))))])))
+
+(defn on-loaded-expr
+  "Expression that runs when form data has been loaded successfully.
+   Clears errors, handles autocreate, sets up form config, and marks complete."
+  [_env data _event-name _event-data]
+  (let [FormClass  (actor-class data)
+        form-ident (actor-ident data)
+        state-map  (:fulcro/state-map data)]
+    (log/debug "Loaded. Marking the form complete.")
+    (into
+      [(fops/assoc-alias :server-errors [])
+       (fops/apply-action fs/add-form-config* FormClass form-ident {:destructive? true})
+       (fops/apply-action fs/mark-complete* form-ident)]
+      (concat
+        (build-autocreate-ops FormClass form-ident state-map)
+        (build-ui-props-ops FormClass form-ident)))))
+
+(defn load-picker-options-expr
+  "Side-effect expression that loads picker options for all ref fields that have
+   field-options configured. Returns nil (pure side-effect)."
+  [env data _event-name _event-data]
+  (let [app        (:fulcro/app env)
+        FormClass  (actor-class data)
+        form-ident (actor-ident data)
+        state-map  (:fulcro/state-map data)
+        props      (get-in state-map form-ident)
+        options    (rc/component-options FormClass)
+        attributes (fo/attributes options)]
+    (when (and app attributes)
+      (doseq [attr attributes]
+        (let [qk            (ao/qualified-key attr)
+              field-options (fo/get-field-options options attr)]
+          (when (and field-options (po/query-key (merge attr field-options)))
+            (po/load-options! app FormClass props attr)))))
+    nil))
+
+(defn on-load-failed-expr
+  "Expression that sets server errors when form load fails."
+  [_env _data _event-name _event-data]
+  [(fops/assoc-alias :server-errors [{:message "Load failed."}])])
+
+(defn- derive-fields-ops
+  "Build operations for applying derive-fields triggers."
+  [data event-data]
+  (let [{:keys [form-key form-ident]} event-data
+        form-class        (some-> form-key rc/registry-key->class)
+        master-form-class (actor-class data)
+        master-form-ident (actor-ident data)
+        {{master-derive :derive-fields} sfo/triggers} (some-> master-form-class rc/component-options)
+        {{:keys [derive-fields]} sfo/triggers} (some-> form-class rc/component-options)]
+    (cond-> []
+      derive-fields
+      (conj (fops/apply-action update-tree* derive-fields form-class form-ident))
+
+      (and (not= master-form-class form-class) master-derive)
+      (conj (fops/apply-action update-tree* master-derive master-form-class master-form-ident)))))
+
+(defn attribute-changed-expr
+  "Expression for handling field value changes.
+   Clears errors, updates value, marks field complete, fires on-change trigger, runs derive-fields."
+  [env data _event-name event-data]
+  (let [{:keys       [old-value form-key value form-ident]
+         ::attr/keys [cardinality type qualified-key]} event-data
+        form-class    (some-> form-key rc/registry-key->class)
+        form-options  (some-> form-class rc/component-options)
+        {{:keys [on-change]} sfo/triggers} form-options
+        many?         (= :many cardinality)
+        ref?          (= :ref type)
+        value         (cond
+                        (and ref? many? (nil? value)) []
+                        (and many? (nil? value)) #{}
+                        (and ref? many?) (filterv #(not (nil? (second %))) value)
+                        (and ref? (nil? (second value))) nil
+                        :else value)
+        path          (when (and form-ident qualified-key)
+                        (conj form-ident qualified-key))
+        base-ops      [(fops/assoc-alias :server-errors [])
+                       (fops/apply-action fs/mark-complete* form-ident qualified-key)]
+        value-ops     (cond
+                        (and path (nil? value))
+                        [(fops/apply-action update-in form-ident dissoc qualified-key)]
+
+                        (and path (some? value))
+                        [(fops/apply-action assoc-in path value)]
+
+                        :else [])
+        on-change-ops (when on-change
+                        (on-change env data form-ident qualified-key old-value value))
+        derive-ops    (derive-fields-ops data event-data)]
+    (when #?(:clj true :cljs goog.DEBUG)
+      (when-not path
+        (log/error "Unable to record attribute change. Path cannot be calculated."))
+      (when (and ref? many? (not (every? eql/ident? value)))
+        (log/error "Setting a ref-many attribute to incorrect type. Value should be a vector of idents:" qualified-key value))
+      (when (and ref? (not many?) (some? value) (not (eql/ident? value)))
+        (log/error "Setting a ref-one attribute to incorrect type. Value should an ident:" qualified-key value)))
+    (into base-ops (concat value-ops (or on-change-ops []) derive-ops))))
+
+(defn blur-expr
+  "Expression for handling blur events. Currently a no-op placeholder."
+  [_env _data _event-name _event-data]
+  nil)
+
+(defn mark-all-complete-expr
+  "Expression for marking all form fields as complete for validation."
+  [_env data _event-name _event-data]
+  (let [form-ident (actor-ident data)]
+    [(fops/apply-action fs/mark-complete* form-ident)]))
+
+(defn mark-complete-on-invalid-expr
+  "Expression that marks all fields complete when save is attempted on an invalid form."
+  [_env data _event-name _event-data]
+  (let [form-ident (actor-ident data)]
+    [(fops/apply-action fs/mark-complete* form-ident)]))
+
+(defn form-valid?
+  "Condition predicate: Returns true if the form passes validation."
+  [_env data & _]
+  (let [FormClass  (actor-class data)
+        form-ident (actor-ident data)
+        state-map  (:fulcro/state-map data)
+        proposed   (fs/completed-form-props state-map FormClass form-ident)]
+    (valid? FormClass proposed)))
+
+(defn prepare-save-expr
+  "Expression for initiating the save flow. Calculates the diff and triggers the remote save mutation."
+  [_env data _event-name event-data]
+  (let [FormClass         (actor-class data)
+        form-ident        (actor-ident data)
+        state-map         (:fulcro/state-map data)
+        form-options      (rc/component-options FormClass)
+        id                (get form-options fo/id)
+        save-mutation-sym (get form-options fo/save-mutation)
+        master-pk         (::attr/qualified-key id)
+        props             (fns/ui->props state-map FormClass form-ident)
+        delta             (fs/dirty-fields props true)
+        save-mutation     (or save-mutation-sym
+                            (symbol "com.fulcrologic.rad.statechart.form" "save-form"))
+        params            (merge event-data
+                            {(keyword "com.fulcrologic.rad.form" "delta")     delta
+                             (keyword "com.fulcrologic.rad.form" "master-pk") master-pk
+                             (keyword "com.fulcrologic.rad.form" "id")        (second form-ident)})]
+    [(fops/assoc-alias :server-errors [])
+     (fops/invoke-remote [(list save-mutation params)]
+       {:returning   :actor/form
+        :ok-event    :event/saved
+        :error-event :event/save-failed})]))
+
+(defn on-saved-expr
+  "Expression that runs after a successful save. Marks form as pristine
+   and invokes any saved triggers or on-saved transactions."
+  [env data _event-name _event-data]
+  (let [form-ident   (actor-ident data)
+        FormClass    (actor-class data)
+        options      (:options data)
+        {{:keys [saved]} sfo/triggers} (some-> FormClass rc/component-options)
+        {:keys [on-saved]} options
+        base-ops     [(fops/apply-action fs/entity->pristine* form-ident)]
+        saved-ops    (when (fn? saved)
+                       (saved env data form-ident))
+        on-saved-ops (when (seq on-saved)
+                       (let [[id-key id] form-ident
+                             {:keys [children] :as ast} (eql/query->ast on-saved)
+                             new-ast (assoc ast :children
+                                                (mapv (fn [{:keys [type] :as node}]
+                                                        (if (= type :call)
+                                                          (assoc-in node [:params id-key] id)
+                                                          node))
+                                                  children))
+                             txn     (eql/ast->query new-ast)
+                             app     (:fulcro/app env)]
+                         (when app
+                           (log/debug "Running on-saved tx:" txn)
+                           (rc/transact! app txn))
+                         nil))]
+    (into base-ops (concat (or saved-ops []) (or on-saved-ops [])))))
+
+(defn on-save-failed-expr
+  "Expression that handles save failure. Extracts errors from mutation result and sets them."
+  [env data _event-name _event-data]
+  (let [FormClass     (actor-class data)
+        form-ident    (actor-ident data)
+        options       (:options data)
+        comp-options  (rc/component-options FormClass)
+        save-mutation (get comp-options fo/save-mutation)
+        {:keys [save-failed]} (get comp-options sfo/triggers)
+        save-mutation (or save-mutation
+                        (symbol "com.fulcrologic.rad.statechart.form" "save-form"))
+        result        (scf/mutation-result data)
+        errors        (some-> result (get save-mutation) :com.fulcrologic.rad.form/errors)
+        {:keys [on-save-failed]} options
+        base-ops      (when (seq errors)
+                        [(fops/assoc-alias :server-errors errors)])
+        trigger-ops   (when (fn? save-failed)
+                        (save-failed env data form-ident))
+        _             (when (seq on-save-failed)
+                        (let [app (:fulcro/app env)]
+                          (when app
+                            (rc/transact! app on-save-failed))))]
+    (into (or base-ops []) (or trigger-ops []))))
+
+(defn undo-all-expr
+  "Expression for undoing all form changes. Clears errors and restores pristine state."
+  [_env data _event-name _event-data]
+  (let [form-ident (actor-ident data)]
+    [(fops/assoc-alias :server-errors [])
+     (fops/apply-action fs/pristine->entity* form-ident)]))
+
+(defn prepare-leave-expr
+  "Expression that prepares data for leaving a form. Stores the abandoned? flag."
+  [_env _data _event-name _event-data]
+  [(ops/assign :abandoned? true)])
+
+(defn leave-form-expr
+  "Expression that executes form cleanup when leaving.
+   Reverts form to pristine, handles cancel routing, runs on-cancel transaction."
+  [env data _event-name _event-data]
+  (let [FormClass    (actor-class data)
+        form-ident   (actor-ident data)
+        state-map    (:fulcro/state-map data)
+        cancel-route (?! (some-> FormClass rc/component-options :com.fulcrologic.rad.form/cancel-route)
+                       (:fulcro/app env)
+                       (fns/ui->props state-map FormClass form-ident))
+        {:keys [on-cancel embedded?]} (:options data)
+        app          (:fulcro/app env)
+        base-ops     [(ops/assign :abandoned? true)
+                      (fops/apply-action fs/pristine->entity* form-ident)]
+        _            (when (and app (seq on-cancel))
+                       (rc/transact! app on-cancel))
+        _            (when (and app (not embedded?) cancel-route)
+                       (cond
+                         (map? cancel-route)
+                         (let [{:keys [route]} cancel-route]
+                           (when (and (seq route) (every? string? route))
+                             (scr/route-to! app nil {:route route})))
+
+                         (= :none cancel-route) nil
+
+                         (and (seq cancel-route) (every? string? cancel-route))
+                         (scr/route-to! app nil {:route cancel-route})))]
+    base-ops))
+
+(defn route-denied-expr
+  "Expression for handling route-denied events."
+  [env data _event-name event-data]
+  (let [{:keys [form]} event-data
+        Form         (some-> form rc/registry-key->class)
+        user-confirm (some-> Form rc/component-options (get :com.fulcrologic.rad.form/confirm))]
+    (if (= :async user-confirm)
+      [(ops/assign :desired-route event-data)
+       (fops/assoc-alias :route-denied? true)]
+      (let [confirm-fn (or user-confirm #?(:cljs js/confirm :clj (constantly true)))]
+        (if (confirm-fn "You will lose unsaved changes. Are you sure?")
+          (leave-form-expr env data nil nil)
+          nil)))))
+
+(defn continue-abandoned-route-expr
+  "Expression for continuing a previously denied route change."
+  [env data _event-name _event-data]
+  (let [form-ident (actor-ident data)
+        {:keys [form relative-root route timeouts-and-params]} (:desired-route data)
+        app        (:fulcro/app env)]
+    (when app
+      (scr/force-continue-routing! app))
+    [(fops/assoc-alias :route-denied? false)
+     (fops/apply-action fs/pristine->entity* form-ident)]))
+
+(defn clear-route-denied-expr
+  "Expression for clearing the route-denied flag."
+  [_env _data _event-name _event-data]
+  [(fops/assoc-alias :route-denied? false)])
+
+(defn add-row-expr
+  "Expression for adding a child row to a subform relation."
+  [env data _event-name event-data]
+  (let [{:com.fulcrologic.rad.form/keys [order parent-relation parent child-class
+                                         initial-state default-overrides]} event-data
+        form-options       (some-> parent rc/component-options)
+        {{:keys [on-change]} sfo/triggers} form-options
+        parent-ident       (rc/get-ident parent)
+        relation-attr      (form-key->attribute parent parent-relation)
+        many?              (attr/to-many? relation-attr)
+        target-path        (conj parent-ident parent-relation)
+        state-map          (:fulcro/state-map data)
+        old-value          (get-in state-map target-path)
+        new-child          (if (map? initial-state)
+                             initial-state
+                             (merge
+                               (default-state child-class (tempid/tempid))
+                               default-overrides))
+        child-ident        (rc/get-ident child-class new-child)
+        optional-keys      (optional-fields child-class)
+        merge-and-config   (fn [s]
+                             (-> s
+                               (merge/merge-component child-class new-child
+                                 (if many? (or order :append) :replace) target-path)
+                               (fs/add-form-config* child-class child-ident)
+                               ((fn [sm]
+                                  (reduce
+                                    (fn [s k] (fs/mark-complete* s child-ident k))
+                                    sm
+                                    (concat optional-keys (keys new-child)))))))
+        base-ops           [(fops/apply-action merge-and-config)]
+        derive-event-data  {:form-key   (when parent (rc/class->registry-key (rc/component-type parent)))
+                            :form-ident parent-ident}
+        derive-ops         (derive-fields-ops data derive-event-data)]
+    (when-not relation-attr
+      (log/error "Cannot add child because you forgot to put the attribute for" parent-relation
+        "in the fo/attributes of" (when parent (rc/component-name parent))))
+    (into base-ops derive-ops)))
+
+(defn delete-row-expr
+  "Expression for deleting a child row from a subform relation."
+  [env data _event-name event-data]
+  (let [{:com.fulcrologic.rad.form/keys [form-instance child-ident parent parent-relation]} event-data
+        form-options      (some-> parent rc/component-options)
+        {{:keys [on-change]} sfo/triggers} form-options
+        relation-attr     (form-key->attribute parent parent-relation)
+        many?             (attr/to-many? relation-attr)
+        child-ident       (or child-ident (when form-instance (rc/get-ident form-instance)))
+        parent-ident      (rc/get-ident parent)
+        target-path       (conj parent-ident parent-relation)
+        delete-ops        (if many?
+                            [(fops/apply-action fns/remove-ident child-ident target-path)]
+                            [(fops/apply-action update-in parent-ident dissoc parent-relation)])
+        derive-event-data {:form-key   (when parent (rc/class->registry-key (rc/component-type parent)))
+                           :form-ident parent-ident}
+        derive-ops        (derive-fields-ops data derive-event-data)]
+    (into delete-ops derive-ops)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CHART DEFINITION (merged from form_chart.cljc)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def form-chart
+  "The default statechart for RAD forms. Manages the full lifecycle of entity editing:
+   loading, creating, editing, saving, undo, route guarding, subform management, and dirty tracking.
+
+   This chart can be overridden per-form via the `sfo/statechart` component option."
+  (statechart {:initial :initial}
+    (data-model {:expr (fn [_ _ _ _] {:options {}})})
+
+    ;; ===== INITIAL (decision state) =====
+    (state {:id :initial}
+      (on-entry {}
+        (script {:expr store-options}))
+      (transition {:cond create? :target :state/creating})
+      (transition {:target :state/loading}))
+
+    ;; ===== CREATING =====
+    (state {:id :state/creating}
+      (on-entry {}
+        (script {:expr start-create-expr}))
+      (transition {:target :state/editing}))
+
+    ;; ===== LOADING =====
+    (state {:id :state/loading}
+      (on-entry {}
+        (script {:expr start-load-expr}))
+
+      (on :event/loaded :state/editing
+        (script {:expr on-loaded-expr}))
+
+      (on :event/failed :state/load-failed
+        (script {:expr on-load-failed-expr}))
+
+      (on :event/exit :state/exited)
+      (on :event/reload :state/loading
+        (script {:expr start-load-expr})))
+
+    ;; ===== LOAD FAILED =====
+    (state {:id :state/load-failed}
+      (on :event/reload :state/loading)
+      (on :event/exit :state/exited))
+
+    ;; ===== EDITING (main interactive state) =====
+    (state {:id :state/editing}
+      (on-entry {}
+        (script {:expr load-picker-options-expr}))
+      (on :event/exit :state/exited)
+      (on :event/reload :state/loading
+        (script {:expr start-load-expr}))
+      (handle :event/mark-complete mark-all-complete-expr)
+
+      (handle :event/attribute-changed attribute-changed-expr)
+      (handle :event/blur blur-expr)
+
+      (handle :event/add-row add-row-expr)
+      (handle :event/delete-row delete-row-expr)
+
+      (transition {:event :event/save :cond form-valid? :target :state/saving}
+        (script {:expr prepare-save-expr}))
+      (handle :event/save mark-complete-on-invalid-expr)
+
+      (handle :event/reset undo-all-expr)
+
+      (on :event/cancel :state/leaving
+        (script {:expr prepare-leave-expr}))
+      (handle :event/route-denied route-denied-expr)
+      (handle :event/continue-abandoned-route continue-abandoned-route-expr)
+      (handle :event/clear-route-denied clear-route-denied-expr))
+
+    ;; ===== SAVING =====
+    (state {:id :state/saving}
+      (on :event/saved :state/editing
+        (script {:expr on-saved-expr}))
+      (on :event/save-failed :state/editing
+        (script {:expr on-save-failed-expr}))
+
+      (on :event/exit :state/exited))
+
+    ;; ===== LEAVING =====
+    (state {:id :state/leaving}
+      (on-entry {}
+        (script {:expr leave-form-expr}))
+      (transition {:target :state/exited}))
+
+    ;; ===== EXITED (final) =====
+    (final {:id :state/exited})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CHART FRAGMENTS (merged from form_machines.cljc)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def global-transitions
+  "Reusable transitions for exit, reload, and mark-complete. Include these
+   in any state that should support the standard global form events."
+  [(on :event/exit :state/exited)
+   (on :event/reload :state/loading
+     (script {:expr start-load-expr}))
+   (handle :event/mark-complete mark-all-complete-expr)])
+
+(def editing-field-transitions
+  "Reusable transitions for field editing events (attribute-changed, blur)."
+  [(handle :event/attribute-changed attribute-changed-expr)
+   (handle :event/blur blur-expr)])
+
+(def editing-subform-transitions
+  "Reusable transitions for subform management events (add-row, delete-row)."
+  [(handle :event/add-row add-row-expr)
+   (handle :event/delete-row delete-row-expr)])
+
+(def editing-save-transitions
+  "Reusable transitions for the save flow. Includes conditional save (validation)
+   with fallback to mark-complete-on-invalid."
+  [(transition {:event :event/save :cond form-valid? :target :state/saving}
+     (script {:expr prepare-save-expr}))
+   (handle :event/save mark-complete-on-invalid-expr)])
+
+(def editing-cancel-transitions
+  "Reusable transitions for cancel, undo, and route guarding."
+  [(handle :event/reset undo-all-expr)
+   (on :event/cancel :state/leaving
+     (script {:expr prepare-leave-expr}))
+   (handle :event/route-denied route-denied-expr)
+   (handle :event/continue-abandoned-route continue-abandoned-route-expr)
+   (handle :event/clear-route-denied clear-route-denied-expr)])
+
+(def all-editing-transitions
+  "All standard editing state transitions combined. Includes global transitions,
+   field editing, subform management, save flow, and cancel/route guarding."
+  (into []
+    (concat global-transitions
+      editing-field-transitions
+      editing-subform-transitions
+      editing-save-transitions
+      editing-cancel-transitions)))
+
+(defn clear-server-errors-ops
+  "Returns ops to clear server errors on the form."
+  []
+  [(fops/assoc-alias :server-errors [])])
+
+(defn undo-all-ops
+  "Returns ops to revert the form to pristine state and clear errors.
+   `form-ident` is the Fulcro ident of the form entity."
+  [form-ident]
+  [(fops/assoc-alias :server-errors [])
+   (fops/apply-action fs/pristine->entity* form-ident)])
+
+(defn mark-complete-ops
+  "Returns ops to mark all form fields as complete for validation.
+   `form-ident` is the Fulcro ident of the form entity."
+  [form-ident]
+  [(fops/apply-action fs/mark-complete* form-ident)])
+
+(defn mark-pristine-ops
+  "Returns ops to mark the current form state as pristine (after save).
+   `form-ident` is the Fulcro ident of the form entity."
+  [form-ident]
+  [(fops/apply-action fs/entity->pristine* form-ident)])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ROUTING FUNCTIONS (moved from routing.cljc)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn form-route-state
+  "Creates a routing state for a RAD form. On entry, starts the form's statechart via
+   `start-form!`. On exit, abandons the form via `abandon-form!`.
+
+   The routing event data should include `:id` and optionally `:params`. If `:id` is a tempid,
+   the form starts in create mode; otherwise it starts in edit mode.
+
+   Options are the same as `scr/rstate`:
+
+   * `:route/target` — (required) The form component class or registry key.
+   * `:route/params` — (optional) Set of keywords for route parameters.
+
+   See `scr/rstate` for full option details."
+  [props]
+  (scr/rstate props
+    (entry-fn [{:fulcro/keys [app]} _data _event-name event-data]
+      (log/debug "Starting form via routing" event-data)
+      (let [{:keys [id params]} event-data
+            form-class (comp/registry-key->class (:route/target props))]
+        (start-form! app id form-class params))
+      nil)
+    (exit-fn [{:fulcro/keys [app]} {:route/keys [idents]} & _]
+      (when-let [form-ident (get idents (rc/class->registry-key (:route/target props)))]
+        (abandon-form! app form-ident)
+        [(ops/delete [:route/idents form-ident])]))))
+
+(defn edit!
+  "Route to a form and start an edit on the given `id`."
+  ([app-ish Form id]
+   (edit! app-ish Form id {}))
+  ([app-ish Form id params]
+   (scr/route-to! app-ish Form {:id     id
+                                :params params})))
+
+(defn create!
+  "Route to a form and start creating a new entity."
+  ([app-ish Form]
+   (edit! app-ish Form (tempid/tempid) {}))
+  ([app-ish Form params]
+   (edit! app-ish Form (tempid/tempid) params)))
+
