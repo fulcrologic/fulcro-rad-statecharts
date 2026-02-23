@@ -36,7 +36,3 @@ The result is a namespaced keyword that:
                 #"[^a-zA-Z0-9]" "")
         n     (str (namespace k) "_" (name k) "--" v-str)]
     (keyword session-ns n)))
-
-(def auth-session-id
-  "Well-known session ID for the singleton auth statechart."
-  ::auth-session)

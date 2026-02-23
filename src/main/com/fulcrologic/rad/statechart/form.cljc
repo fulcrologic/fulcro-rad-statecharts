@@ -436,8 +436,9 @@
    - Routing statechart: falls back to `:route/idents` + `ui->props` when actors
      aren't available (requires `FormClass` to be passed)"
   ([env data & _]
-   (let [{:actor/keys [form]} (scf/resolve-actors env :actor/form)]
-     (boolean (and form (fs/dirty? form))))))
+   (let [{:actor/keys [form]} (log/spy :info (scf/resolve-actors env :actor/form))]
+     (log/spy :info form)
+     (boolean (and form (log/spy :info (fs/dirty? form)))))))
 
 (defn form-pre-merge
   "Generate a pre-merge for a component that has the given for attribute map. Returns a proper
@@ -2008,9 +2009,7 @@ then the result will be a deep merge of the two (with form winning)."
   ([app-ish Form id]
    (edit! app-ish Form id {}))
   ([app-ish Form id params]
-   (let [new?       (tempid/tempid? id)
-         form-ident [(first (rc/get-ident Form {})) id]]
-     (scr/route-to! app-ish Form {:id id}))))
+   (scr/route-to! app-ish Form {:id id})))
 
 (defn create!
   "Route to a form and start creating a new entity."

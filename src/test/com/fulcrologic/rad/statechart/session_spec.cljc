@@ -43,11 +43,3 @@
       (session/ident->session-id [:person/id 42])) => true
     (not= (session/ident->session-id [:account/id 42])
       (session/ident->session-id [:account/id 43])) => true))
-
-(specification "auth-session-id"
-  (assertions
-    "is a keyword (satisfies ::sc/id)"
-    (keyword? session/auth-session-id) => true
-
-    "is namespaced under the session namespace"
-    (namespace session/auth-session-id) => "com.fulcrologic.rad.statechart.session"))

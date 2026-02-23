@@ -7,6 +7,7 @@
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.statechart.control :as control]
     [com.fulcrologic.rad.options-util :refer [?!]]
@@ -70,7 +71,7 @@
                      (let [row-class (ro/BodyItem options)]
                        (when row-class
                          (get (comp/component-options row-class) ro/form-links))))
-        cls        (get form-links qualified-key)
+        cls        (rc/registry-key->class  (get form-links qualified-key))
         id-key     (some-> cls (comp/component-options fo/id) ao/qualified-key)]
     (when cls
       {:edit-form cls
@@ -86,7 +87,7 @@
              :onClick       (fn [_] (report/select-row! report-instance idx))}
       (mapv (fn [col-attr]
               (let [qualified-key (ao/qualified-key col-attr)
-                    cell-text     (str (report/formatted-column-value report-instance row-props col-attr))]
+                    cell-text     (report/formatted-column-value report-instance row-props col-attr)]
                 (dom/td {:key             (str qualified-key)
                          :data-rad-type   "report-cell"
                          :data-rad-column (str qualified-key)}

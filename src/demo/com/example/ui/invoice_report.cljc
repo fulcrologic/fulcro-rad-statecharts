@@ -1,11 +1,14 @@
 (ns com.example.ui.invoice-report
   "Invoice report — lists all invoices with customer, date, and total."
   (:require
+    #?@(:clj  [[com.fulcrologic.fulcro.dom-server :as dom]]
+        :cljs [[com.fulcrologic.fulcro.dom :as dom]])
     [com.example.model.account :as account]
     [com.example.model.invoice :as invoice]
     [com.fulcrologic.rad.report-options :as ro]
     [com.fulcrologic.rad.statechart.control :as control]
     [com.fulcrologic.rad.statechart.report :as report]
+    [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.rad.type-support.date-time :as dt]
     [com.fulcrologic.rad.type-support.decimal :as math]))
 
@@ -14,12 +17,20 @@
    ro/source-attribute    :invoice/all-invoices
    ro/row-pk              invoice/id
    ro/columns             [account/name invoice/date invoice/total]
+   ro/row-query-inclusion [:account/id]
 
    ro/column-headings     {:account/name  "Customer"
                            :invoice/date  "Date"
                            :invoice/total "Total"}
 
-   ro/column-formatters   {:invoice/total (fn [_report v _row _attr]
+   ro/form-links          {:invoice/total `com.example.ui.invoice-forms/InvoiceForm}
+
+   ro/column-formatters   {:account/name  (fn [this v row _]
+                                            (dom/a {:onClick (fn [] (form/edit! this
+                                                                      `com.example.ui.account-forms/AccountForm
+                                                                      (:account/id row)))}
+                                              (str v)))
+                           :invoice/total (fn [_report v _row _attr]
                                             (math/numeric->currency-str v))
                            :invoice/date  (fn [_report v _row _attr]
                                             (when v
