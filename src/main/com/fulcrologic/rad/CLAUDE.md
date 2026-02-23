@@ -22,31 +22,20 @@ The following namespaces were deleted and all references removed from remaining 
 - `dynamic.generator`, `dynamic.generator-options` - dynamic form/report generation
 - `pathom3`, `resolvers-pathom3` - Pathom 3 resolver generation
 
-## Routing Layer (Statecharts Conversion)
+## Routing (Statecharts)
 
-`routing.cljc` was recreated as a thin delegation to `com.fulcrologic.statecharts.integration.fulcro.routing`:
+`routing.cljc` has been deleted. Routing functions are now in their respective modules or used directly from
+`com.fulcrologic.statecharts.integration.fulcro.routing` (`scr/`):
 
-- `route-to!` — compatibility adapter accepting old RAD map pattern `{:target X :route-params {}}` AND new
-  `(route-to! app target data)` pattern
-- `back!` → `scr/route-back!`
-- `route-forward!` → `scr/route-forward!`
-- `force-continue-routing!`, `abandon-route-change!`, `route-denied?` — direct delegation
-- Removed: `install-routing!`, `absolute-path`, `can-change-route?`, `update-route-params!`
-
-### Route State Builders (Phase 3)
-
-- `form-route-state` — creates `scr/rstate` with on-entry calling `form/start-form!` (statechart-based) and on-exit
-  calling `form/abandon-form!`. Replaces `sfr/form-state` which used deprecated `uism/begin!`.
-- `report-route-state` — creates `scr/rstate` with on-entry calling `report/start-report!`. Replaces `sfr/report-state`.
-- `create!` / `edit!` — convenience functions that route to a form with a tempid (create) or existing id (edit). Replace
-  `sfr/create!` / `sfr/edit!`.
-- These functions use `entry-fn`/`exit-fn` macros from `statecharts.elements` as additional children of `scr/rstate` (
-  SCXML allows multiple on-entry/on-exit blocks per state).
-
-### Known Issue: Clojure 1.10.3 + malli
-
-The statecharts dep chain pulls in malli which uses `random-uuid` (Clojure 1.11+). The routing ns cannot load in a
-1.10.3 REPL. This is a project-wide dep issue, not routing-specific.
+- `scr/route-to!`, `scr/route-back!`, `scr/route-forward!` — use directly from statecharts library
+- `scr/force-continue-routing!`, `scr/abandon-route-change!` — use directly from statecharts library
+- `form/form-route-state` — in `form.cljc`, creates `scr/rstate` with on-entry calling `form/start-form!` and on-exit
+  calling `form/abandon-form!`
+- `report/report-route-state` — in `report.cljc`, creates `scr/rstate` with on-entry calling `report/start-report!`
+- `form/create!` / `form/edit!` — in `form.cljc`, convenience functions that route to a form with a tempid (create)
+  or existing id (edit)
+- These route-state functions use `entry-fn`/`exit-fn` macros from `statecharts.elements` as additional children of
+  `scr/rstate` (SCXML allows multiple on-entry/on-exit blocks per state).
 
 ## Stubbed Functions (pending statechart conversion)
 
@@ -111,15 +100,11 @@ Map-based dispatch keys removed from source code:
 
 ### Architecture
 
-- `form_chart.cljc` — Statechart definition replacing `form-machine` UISM
-- `form_expressions.cljc` — All expression functions (4-arg convention: `[env data event-name event-data]`)
-- `form_machines.cljc` — Reusable chart fragments and helper ops for custom charts
-- `form.cljc` — Public API updated to use `scf/send!` instead of `uism/trigger!`
+- `form.cljc` — Contains statechart definition, all expression functions, reusable chart fragments, helper ops, and
+  public API. Previously split across `form_chart.cljc`, `form_expressions.cljc`, and `form_machines.cljc` — all
+  consolidated into `form.cljc` during Phase 9.
 
 ### Key Design Decisions
-
-- **Circular dependency avoidance**: `form_expressions.cljc` uses `requiring-resolve` to access functions from
-  `form.cljc` (like `default-state`, `optional-fields`, `valid?`) to avoid circular requires
 - **Session ID**: Uses `sc.session/ident->session-id` and `sc.session/form-session-id` to convert form idents to
   statechart session IDs
 - **view-mode?**: Now reads from `[::sc/local-data session-id :options :action]` instead of UISM internal storage
@@ -150,9 +135,8 @@ Map-based dispatch keys removed from source code:
 
 ### Architecture
 
-- `container_chart.cljc` — Container statechart replacing `container-machine` UISM
-- `container_expressions.cljc` — Expression functions (4-arg convention)
-- `container.cljc` — Public API updated to use `scf/start!`/`scf/send!` instead of UISM
+- `container.cljc` — Contains statechart definition, expression functions, and public API. Previously split across
+  `container_chart.cljc` and `container_expressions.cljc` — consolidated into `container.cljc` during Phase 9.
 
 ### Key Design Decisions
 
@@ -166,21 +150,20 @@ Map-based dispatch keys removed from source code:
   all removed
 - **New public fn**: `broadcast-to-children!` added to public API for external use
 - **Macro updated**: `defsc-container` macro updated with sfro options (macro-rewrites spec)
-- **No circular dep**: `container_expressions.cljc` requires `report.cljc` directly (report doesn't require container)
+- **No circular dep**: Container expression functions require `report.cljc` directly (report doesn't require container)
 
 ## Report Statechart Conversion
 
 ### Architecture
 
-- `report_chart.cljc` — Standard report statechart replacing `report-machine` UISM
-- `report_expressions.cljc` — All shared expression functions (4-arg convention)
+- `report.cljc` — Contains statechart definition, all shared expression functions, and public API. Previously split
+  across `report_chart.cljc` and `report_expressions.cljc` — consolidated into `report.cljc` during Phase 9.
 - `server_paginated_report.cljc` — Server-paginated report statechart (self-contained)
 - `incrementally_loaded_report.cljc` — Incrementally-loaded report statechart (self-contained)
-- `report.cljc` — Public API updated to use `scf/send!` instead of `uism/trigger!`
 
 ### Key Design Decisions
 
-- **Expression helpers in report_expressions**: `report-class`, `actor-ident`, `resolve-alias-path`, `read-alias`,
+- **Expression helpers**: `report-class`, `actor-ident`, `resolve-alias-path`, `read-alias`,
   `current-control-parameters` provide data access without UISM env
 - **Pure state-map functions**: `preprocess-raw-result`, `filter-rows-state`, `sort-rows-state`, `populate-page-state`
   take `(state-map data)` and return updated state-map, used via `fops/apply-action`

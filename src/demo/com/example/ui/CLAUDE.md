@@ -64,11 +64,11 @@
 - Root component with statecharts routing — no dynamic router (`dr/`), no `defrouter`
 - `Routes` component with `:preserve-dynamic-query? true` uses `scr/ui-current-subroute`
 - `routing-chart` defines all route targets using `scr/routing-regions` + `scr/routes`
-- Forms use `rroute/form-route-state` with `:route/params` (calls `form/start-form!` → `scf/start!`)
-- Reports use `rroute/report-route-state` (calls `report/start-report!`)
+- Forms use `form/form-route-state` with `:route/params` (calls `form/start-form!` → `scf/start!`)
+- Reports use `report/report-route-state` (calls `report/start-report!`)
 - Landing page uses plain `scr/rstate` with backtick-quoted symbol
-- Navigation uses `scr/route-to!` and `rroute/create!` for form creation
-- No `sfr/` (rad_integration) dependency — all routing through `rroute/` (rad.routing)
+- Navigation uses `scr/route-to!` and `form/create!` for form creation
+- No `sfr/` (rad_integration) dependency — routing helpers in `form.cljc` and `report.cljc`
 - Route denial handled via `scf/current-configuration` checking for `:routing-info/open`
 - No auth layer — kept simple for demo purposes
 - `[::sc/session-id '_]` link query in Root needed for routing state reactivity

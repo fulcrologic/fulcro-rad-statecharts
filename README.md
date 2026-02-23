@@ -14,7 +14,7 @@ You will have both `fulcro-rad` and `fulcro-rad-statecharts` on your classpath. 
 |---|---|---|
 | `com.fulcrologic.rad.form` | UISM engine — conflicts with statecharts | `com.fulcrologic.rad.statechart.form` |
 | `com.fulcrologic.rad.report` | UISM engine | `com.fulcrologic.rad.statechart.report` |
-| `com.fulcrologic.rad.routing` (upstream) | Dynamic Router based | `com.fulcrologic.rad.statechart.routing` |
+| `com.fulcrologic.rad.routing` (upstream) | Dynamic Router based | `scr/route-to!` from statecharts library; `form/create!`, `form/edit!` |
 | `com.fulcrologic.rad.authorization` | UISM-based auth system | Not provided — handle auth separately |
 | `com.fulcrologic.fulcro.ui-state-machines` | UISM library | `com.fulcrologic.statecharts.*` |
 | `com.fulcrologic.fulcro.routing.dynamic-routing` | DR-based routing | Statecharts routing |
@@ -165,7 +165,8 @@ Replace Dynamic Router with a statechart that declares all routes:
    [com.example.ui.account-forms :refer [AccountForm]]
    [com.example.ui.inventory-report :refer [InventoryReport]]
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-   [com.fulcrologic.rad.statechart.routing :as rroute]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.statecharts.chart :refer [statechart]]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
 
@@ -187,11 +188,11 @@ Replace Dynamic Router with a statechart that declares all routes:
         (scr/rstate {:route/target `LandingPage})
 
         ;; Reports
-        (rroute/report-route-state {:route/target InventoryReport})
+        (report/report-route-state {:route/target InventoryReport})
 
         ;; Forms (with route params for the entity id)
-        (rroute/form-route-state {:route/target AccountForm
-                                  :route/params #{:account/id}})))))
+        (form/form-route-state {:route/target AccountForm
+                                :route/params #{:account/id}})))))
 ```
 
 ### 6. Bootstrap the Application
@@ -220,17 +221,17 @@ Replace Dynamic Router with a statechart that declares all routes:
 ### 7. Navigate
 
 ```clojure
-(require '[com.fulcrologic.rad.statechart.routing :as rroute])
+(require '[com.fulcrologic.rad.statechart.form :as form])
 (require '[com.fulcrologic.statecharts.integration.fulcro.routing :as scr])
 
 ;; Navigate to a report
 (scr/route-to! this InventoryReport)
 
 ;; Edit an existing entity
-(rroute/edit! this AccountForm account-id)
+(form/edit! this AccountForm account-id)
 
 ;; Create a new entity
-(rroute/create! this AccountForm)
+(form/create! this AccountForm)
 
 ;; Back / forward
 (scr/route-back! this)
@@ -251,7 +252,6 @@ Replace Dynamic Router with a statechart that declares all routes:
 |---|---|---|
 | `com.fulcrologic.rad.statechart.form` | `form` | Form engine (`defsc-form`, `filter-rows!`) |
 | `com.fulcrologic.rad.statechart.report` | `report` | Report engine (`defsc-report`, `filter-rows!`) |
-| `com.fulcrologic.rad.statechart.routing` | `rroute` | RAD routing helpers (`form-route-state`, `report-route-state`, `create!`, `edit!`) |
 | `com.fulcrologic.rad.statechart.application` | `rad-app` | App init (`install-statecharts!`, `start-routing!`, `install-url-sync!`) |
 | `com.fulcrologic.rad.form-options` | `fo/` | Shared form option keys |
 | `com.fulcrologic.rad.statechart.form-options` | `sfo/` | Engine-specific form keys (`sfo/triggers`, `sfo/statechart`) |
@@ -308,6 +308,7 @@ Because everything is CLJC, the full form and report lifecycle is testable from 
 (ns com.example.headless-form-tests
   (:require
    [com.fulcrologic.fulcro.headless-test-driver :as td]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.example.system :as system]
    [com.example.ui.account-forms :refer [AccountForm]]))
 
@@ -315,7 +316,7 @@ Because everything is CLJC, the full form and report lifecycle is testable from 
 
 ;; Create a new account form and fill it in
 (td/with-app test-app
-  (rroute/create! this AccountForm)
+  (form/create! this AccountForm)
   (td/set-field! AccountForm :account/name "Alice")
   (form/save! (td/get-component AccountForm)))
 ```
@@ -332,7 +333,7 @@ See `src/demo/com/example/headless_form_tests.clj` and `headless_routing_tests.c
 |---|---|
 | `[com.fulcrologic.rad.form :as form]` | `[com.fulcrologic.rad.statechart.form :as form]` |
 | `[com.fulcrologic.rad.report :as report]` | `[com.fulcrologic.rad.statechart.report :as report]` |
-| `[com.fulcrologic.rad.routing :as rroute]` | `[com.fulcrologic.rad.statechart.routing :as rroute]` |
+| `[com.fulcrologic.rad.routing :as rroute]` | Removed. Use `form/create!`, `form/edit!`, `form/form-route-state` from `statechart.form`; `report/report-route-state` from `statechart.report`; `scr/route-to!` from statecharts |
 | `[com.fulcrologic.rad.application :as rad-app]` | `[com.fulcrologic.rad.statechart.application :as rad-app]` |
 | Add new: | `[com.fulcrologic.rad.statechart.form-options :as sfo]` |
 | Add new: | `[com.fulcrologic.rad.statechart.report-options :as sro]` |
@@ -346,7 +347,7 @@ See `src/demo/com/example/headless_form_tests.clj` and `headless_routing_tests.c
    #?(:cljs (rad-app/install-url-sync! app))
    ```
 
-2. **Routing** — Replace `defrouter` and `dr/change-route!` with a statechart routing chart (see Quick Start step 5). Use `scr/route-to!` and `rroute/create!` / `rroute/edit!` for navigation.
+2. **Routing** — Replace `defrouter` and `dr/change-route!` with a statechart routing chart (see Quick Start step 5). Use `scr/route-to!` and `form/create!` / `form/edit!` for navigation.
 
 3. **Form triggers** — Move engine-specific trigger keys from `fo/triggers` to `sfo/triggers`. Update `:on-change` callback signature:
    ```clojure
