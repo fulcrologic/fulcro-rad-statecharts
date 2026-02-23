@@ -34,6 +34,7 @@
     [com.fulcrologic.rad.picker-options :as po]
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.statechart.form-options :as sfo]
+    [com.fulcrologic.rad.form.impl :as form-impl]
     [com.fulcrologic.rad.form-render :as fr]
     [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
     [com.fulcrologic.statecharts :as sc]
@@ -110,27 +111,27 @@
 
 (>def :com.fulcrologic.rad.form/form-env map?)
 
-(defn master-form
-  "Return the master form for the given component instance."
-  [component]
-  (or (some-> component comp/get-computed :com.fulcrologic.rad.form/master-form) component))
+(def master-form
+  "[component]
 
-(defn master-form?
-  "Returns true if the given react element `form-instance` is the master form in the supplied rendering env. You can
+   Return the master form for the given component instance."
+  form-impl/master-form)
+
+(def master-form?
+  "[this]
+   [rendering-env form-instance]
+
+   Returns true if the given react element `form-instance` is the master form in the supplied rendering env. You can
    also supply `this` if you have not already created a form rendering env, but that will be less efficient if you
    need the rendering env in other places."
-  ([this]
-   (let [env (rendering-env this)]
-     (master-form? env this)))
-  ([rendering-env form-instance]
-   (let [master-form (:com.fulcrologic.rad.form/master-form rendering-env)]
-     (= form-instance master-form))))
+  form-impl/master-form?)
 
-(defn form-key->attribute
-  "Get the RAD attribute definition for the given attribute key, given a class-or-instance that has that attribute
+(def form-key->attribute
+  "[class-or-instance attribute-key]
+
+   Get the RAD attribute definition for the given attribute key, given a class-or-instance that has that attribute
    as a field. Returns a RAD attribute, or nil if that attribute isn't a form field on the form."
-  [class-or-instance attribute-key]
-  (some-> class-or-instance comp/component-options :com.fulcrologic.rad.form/key->attribute attribute-key))
+  form-impl/form-key->attribute)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RENDERING
@@ -169,15 +170,18 @@
    "
   fo/subform-options)
 
-(defn subform-ui [form-options ref-key-or-attribute]
-  (some-> (subform-options form-options ref-key-or-attribute) fo/ui))
+(def subform-ui
+  "[form-options ref-key-or-attribute]
+
+   Returns the UI component class for a subform of the given ref attribute."
+  form-impl/subform-ui)
 
 (def get-field-options
   "[form-options]
    [form-options attr-or-key]
 
    Get the fo/field-options for a form (arity 1) or a particular field (arity 2). Runs lambdas if necessary."
-  fo/get-field-options)
+  form-impl/get-field-options)
 
 (defn ref-container-renderer
   "Given the current rendering environment and an attribute: Returns the renderer that wraps and lays out
@@ -207,17 +211,19 @@
   [env attr]
   (fn [renv a] (fr/render-field renv a)))
 
-(defn render-field
-  "Given a form rendering environment and an attrbute: renders that attribute as a form field (e.g. a label and an
-   input) according to its type/style/value."
-  [env attr]
-  (fr/render-field env attr))
+(def render-field
+  "[env attr]
 
-(defn render-input
-  "Renders an attribute as a form input according to its type/style/value. This is just like `render-field` but
+   Given a form rendering environment and an attribute: renders that attribute as a form field (e.g. a label and an
+   input) according to its type/style/value."
+  form-impl/render-field)
+
+(def render-input
+  "[env attr]
+
+   Renders an attribute as a form input according to its type/style/value. This is just like `render-field` but
    hints to the rendering layer that the label should NOT be rendered."
-  [env attr]
-  (render-field env (assoc attr fo/omit-label? true)))
+  form-impl/render-input)
 
 (defn default-render-field
   "Default field renderer. Logs a warning when no specific renderer is registered."
@@ -228,28 +234,17 @@
 (defmethod fr/render-field :default [env attr]
   (default-render-field env attr))
 
-(defn rendering-env
-  "Create a form rendering environment. `form-instance` is the react element instance of the form (typically a master form),
+(def rendering-env
+  "[form-instance]
+   [form-instance props]
+
+   Create a form rendering environment. `form-instance` is the react element instance of the form (typically a master form),
    but this function can be called using an active sub-form. `props` should be the props of the `form-instance`, and are
    allowed to be passed as an optimization when you've already got them.
 
    NOTE: This function will automatically extract the master form from the computed props of form-instance in cases
    where you are in the context of a sub-form."
-  ([form-instance]
-   (let [props  (comp/props form-instance)
-         cprops (comp/get-computed props)]
-     (merge cprops
-       {:com.fulcrologic.rad.form/master-form    (master-form form-instance)
-        :com.fulcrologic.rad.form/form-instance  form-instance
-        :com.fulcrologic.rad.form/props          props
-        :com.fulcrologic.rad.form/computed-props cprops})))
-  ([form-instance props]
-   (let [cprops (comp/get-computed props)]
-     (merge cprops
-       {:com.fulcrologic.rad.form/master-form    (master-form form-instance)
-        :com.fulcrologic.rad.form/form-instance  form-instance
-        :com.fulcrologic.rad.form/props          props
-        :com.fulcrologic.rad.form/computed-props cprops}))))
+  form-impl/rendering-env)
 
 (defn render-form-fields
   "Render JUST the form fields (and subforms). This will skip rendering the header/controls on the top-level form, and
@@ -274,15 +269,13 @@
   (let [env (rendering-env form-instance props)]
     (render-element env :form-container)))
 
-(defn render-layout
-  "Render the complete layout of a form. This is the default body of normal form classes. It will call a render factory
+(def render-layout
+  "[form-instance props]
+
+   Render the complete layout of a form. This is the default body of normal form classes. It will call a render factory
    on any subforms, and they, in turn, will use this to render *their* body. Thus, any form can have a manually-overriden
    render body."
-  [form-instance props]
-  (when-not (comp/component? form-instance)
-    (throw (ex-info "Invalid form instance propagated to render layout." {:form-instance form-instance})))
-  (let [env (rendering-env form-instance props)]
-    (fr/render-form env (comp/component-options form-instance fo/id))))
+  form-impl/render-layout)
 
 (defmethod fr/render-form :default [renv _id-attr]
   (render-element renv :form-container))
@@ -291,22 +284,18 @@
 ;; Form creation/logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn find-fields
-  "Recursively walks the definition of a RAD form (form and all subforms), and returns the attribute qualified keys
-   that match `(pred attribute)`"
-  [form-class pred]
-  (let [attributes        (or
-                            (comp/component-options form-class :com.fulcrologic.rad.form/attributes)
-                            [])
-        local-optional    (into #{} (comp (filter pred) (map ::attr/qualified-key)) attributes)
-        children          (some->> form-class comp/get-query eql/query->ast :children (keep :component))
-        children-optional (map #(find-fields % pred) children)]
-    (apply set/union local-optional children-optional)))
+(def find-fields
+  "[form-class pred]
 
-(defn optional-fields
-  "Returns all of the form fields from a form (recursively) that are not marked ao/required?"
-  [form-class]
-  (find-fields form-class #(not (true? (get % ::attr/required?)))))
+   Recursively walks the definition of a RAD form (form and all subforms), and returns the attribute qualified keys
+   that match `(pred attribute)`"
+  form-impl/find-fields)
+
+(def optional-fields
+  "[form-class]
+
+   Returns all of the form fields from a form (recursively) that are not marked ao/required?"
+  form-impl/optional-fields)
 
 #?(:clj
    (defn validate-form-options!
@@ -436,38 +425,18 @@
   [_app props]
   (boolean (and props (fs/dirty? props))))
 
-(defn form-pre-merge
-  "Generate a pre-merge for a component that has the given for attribute map. Returns a proper
-  pre-merge fn, or `nil` if none is needed"
-  [component-options key->attribute]
-  (let [sorters-by-k (into {}
-                       (keep (fn [k]
-                               (when-let [sorter (:com.fulcrologic.rad.form/sort-children (subform-options component-options (key->attribute k)))]
-                                 [k sorter])) (keys key->attribute)))]
-    (when (seq sorters-by-k)
-      (fn [{:keys [data-tree]}]
-        (let [ks (keys sorters-by-k)]
-          (log/debug "Form system sorting data tree children for keys " ks)
-          (reduce
-            (fn [tree k]
-              (if (vector? (get tree k))
-                (try
-                  (update tree k (comp vec (get sorters-by-k k)))
-                  (catch #?(:clj Exception :cljs :default) e
-                    (log/error "Sort failed: " (str e))
-                    tree))
-                tree))
-            data-tree
-            ks))))))
+(def form-pre-merge
+  "[component-options key->attribute]
 
-(defn form-and-subform-attributes
-  "Find all attributes that are referenced by a form and all of its subforms, recursively."
-  [cls]
-  (let [options         (some-> cls (comp/component-options))
-        base-attributes (fo/attributes options)
-        subforms        (keep (fn [a] (fo/ui (subform-options options a))) base-attributes)]
-    (into (set base-attributes)
-      (mapcat form-and-subform-attributes subforms))))
+   Generate a pre-merge for a component that has the given for attribute map. Returns a proper
+  pre-merge fn, or `nil` if none is needed"
+  form-impl/form-pre-merge)
+
+(def form-and-subform-attributes
+  "[cls]
+
+   Find all attributes that are referenced by a form and all of its subforms, recursively."
+  form-impl/form-and-subform-attributes)
 
 (defn convert-options
   "Runtime conversion of form options to what comp/configure-component! needs."
@@ -593,8 +562,10 @@
 
 (declare default-state)
 
-(defn default-to-many
-  "Use `default-state` on the top level form. This is part of the recursive implementation.
+(def default-to-many
+  "[FormClass attribute]
+
+   Use `default-state` on the top level form. This is part of the recursive implementation.
 
    Calculate a default value for any to-many attributes on the form. This is part of the recursive algorithm that
    can generate initial state for a new instance of a form.
@@ -628,40 +599,12 @@
    Default value can be a 0-arg function. Each *value* can be a 1-arg function that receives a tempid to put on the
    new default entity.
    "
-  [FormClass attribute]
-  (let [form-options  (comp/component-options FormClass)
-        {::attr/keys [qualified-key]} attribute
-        default-value (fo/get-default-value form-options attribute)]
-    (enc/if-let [SubClass (subform-ui form-options attribute)]
-      (do
-        (when-not SubClass
-          (log/error "Subforms for class" (comp/component-name FormClass)
-            "must include a ::form/ui entry for" qualified-key))
-        (if (or (nil? default-value) (vector? default-value))
-          (mapv (fn [v]
-                  (let [id          (tempid/tempid)
-                        base-entity (?! v id)
-                        [k iid :as ident] (comp/get-ident SubClass base-entity)
-                        ChildForm   (if (comp/union-component? SubClass)
-                                      (some-> SubClass comp/get-query (get k) comp/query->component)
-                                      SubClass)
-                        id-key      (some-> ChildForm comp/component-options :com.fulcrologic.rad.form/id ::attr/qualified-key)]
-                    (when-not ChildForm
-                      (log/error "Union subform's default-value function failed to assign the ID. Cannot determine which kind of thing we are creating"))
-                    (merge
-                      (default-state ChildForm id)
-                      base-entity
-                      {id-key id})))
-            default-value)
-          (do
-            (log/error "Default value for" qualified-key "MUST be a vector.")
-            nil)))
-      (do
-        (log/error "Subform not declared (or is missing ::form/id) for" qualified-key "on" (comp/component-name FormClass))
-        nil))))
+  form-impl/default-to-many)
 
-(defn default-to-one
-  "Use `default-state` on the top level form. This is part of the recursive implementation.
+(def default-to-one
+  "[FormClass attribute]
+
+   Use `default-state` on the top level form. This is part of the recursive implementation.
 
   Generates the default value for a to-one ref in a new instance of a form set. Has the same
   behavior as default-to-many, though the default values must be a map instead of a vector.
@@ -679,29 +622,12 @@
 
   where `SubClass` is the UI class of the subform for the relation.
   "
-  [FormClass attribute]
-  (let [form-options  (comp/component-options FormClass)
-        {::attr/keys [qualified-key]} attribute
-        default-value (fo/get-default-value form-options attribute)
-        SubClass      (subform-ui form-options attribute)
-        new-id        (tempid/tempid)
-        id-key        (some-> SubClass (comp/component-options :com.fulcrologic.rad.form/id ::attr/qualified-key))]
-    (when-not (comp/union-component? SubClass)
-      (when-not SubClass
-        (log/error "Subforms for class" (comp/component-name FormClass)
-          "must include a ::form/ui entry for" qualified-key))
-      (when-not (keyword? id-key)
-        (log/error "Subform class" (comp/component-name SubClass)
-          "must include a ::form/id that is an attr/attribute"))
-      (if id-key
-        (merge
-          (default-state SubClass new-id)
-          (when (map? default-value) default-value)
-          {id-key new-id})
-        {}))))
+  form-impl/default-to-one)
 
-(defn default-state
-  "Generate a potentially recursive tree of data that represents the tree of initial
+(def default-state
+  "[FormClass new-id]
+
+   Generate a potentially recursive tree of data that represents the tree of initial
   state for the given FormClass. Such generated trees will be rooted with the provided
   `new-id`, and will generate Fulcro tempids for all nested entities. To-one relations
   that have no default will not be included. To-many relations that have no default
@@ -715,44 +641,15 @@
 
   WARNING: If a rendering field style is given to a ref attribute on a field, then the default value will be
   the *raw* default value declared on the attribute or form, but should generally be nil."
-  [FormClass new-id]
-  (when-not (tempid/tempid? new-id)
-    (throw (ex-info (str "Default state received " new-id " for a new form ID. It MUST be a Fulcro tempid.")
-             {})))
-  (if (comp/union-component? FormClass)
-    {}
-    (let [{:com.fulcrologic.rad.form/keys [id attributes default-values initialize-ui-props field-styles]} (comp/component-options FormClass)
-          {id-key ::attr/qualified-key} id
-          entity (reduce
-                   (fn [result {::attr/keys                    [qualified-key type field-style]
-                                :com.fulcrologic.rad.form/keys [default-value] :as attr}]
-                     (let [field-style   (?! (or (get field-styles qualified-key) field-style))
-                           default-value (?! (get default-values qualified-key default-value))]
-                       (cond
-                         (and (not field-style) (= :ref type) (attr/to-many? attr))
-                         (assoc result qualified-key (default-to-many FormClass attr))
+  form-impl/default-state)
 
-                         (and default-value (not field-style) (= :ref type) (not (attr/to-many? attr)))
-                         (assoc result qualified-key (default-to-one FormClass attr))
+(def mark-fields-complete*
+  "[state-map {:keys [entity-ident target-keys]}]
 
-                         :otherwise
-                         (if-not (nil? default-value)
-                           (assoc result qualified-key default-value)
-                           result))))
-                   {id-key new-id}
-                   attributes)]
-      ;; The merge is so that `initialize-ui-props` cannot possibly harm keys that are initialized by defaults
-      (merge (?! initialize-ui-props FormClass entity) entity))))
-
-(defn mark-fields-complete*
-  "Helper function against app state. This function marks `target-keys` as complete on the form given a set of
+   Helper function against app state. This function marks `target-keys` as complete on the form given a set of
    keys that you consider initialized. Like form state's mark-complete, but on all of the target-keys that appear
    on the form or subforms recursively."
-  [state-map {:keys [entity-ident target-keys]}]
-  (let [mark-complete* (fn [entity {::fs/keys [fields complete?] :as form-config}]
-                         (let [to-mark (set/union (set complete?) (set/intersection (set fields) (set target-keys)))]
-                           [entity (assoc form-config ::fs/complete? to-mark)]))]
-    (fs/update-forms state-map mark-complete* entity-ident)))
+  form-impl/mark-fields-complete*)
 
 (defn- all-keys [m]
   (reduce-kv
@@ -766,16 +663,12 @@
   (let [session-id (sc.session/ident->session-id (comp/get-ident master-form-instance))]
     (scf/send! master-form-instance session-id :event/mark-complete)))
 
-(defn update-tree*
-  "Run the given `(xform ui-props)` against the current ui props of `component-class`'s instance at `component-ident`
+(def update-tree*
+  "[state-map xform component-class component-ident]
+
+   Run the given `(xform ui-props)` against the current ui props of `component-class`'s instance at `component-ident`
   in `state-map`. Returns an updated state map with the transformed ui-props re-normalized and merged back into app state."
-  [state-map xform component-class component-ident]
-  (if (and xform component-class component-ident)
-    (let [ui-props      (fns/ui->props state-map component-class component-ident)
-          new-ui-props  (xform ui-props)
-          new-state-map (merge/merge-component state-map component-class new-ui-props)]
-      new-state-map)
-    state-map))
+  form-impl/update-tree*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; EXPRESSION HELPERS (from form_expressions.cljc)
@@ -1611,17 +1504,19 @@
        :old-value           old-value
        :value               value})))
 
-(defn computed-value
-  "Returns the computed value of the given attribute on the form from `env` (if it is a computed attribute).
+(def computed-value
+  "[env attr]
+
+   Returns the computed value of the given attribute on the form from `env` (if it is a computed attribute).
 
   Computed attributes are regular attributes with no storage (though they may have resolvers) and a `::attr/computed-value`
   function. Such a function will be called with the form rendering env and the attribute definition itself."
-  [env {::attr/keys [computed-value] :as attr}]
-  (when computed-value
-    (computed-value env attr)))
+  form-impl/computed-value)
 
-(defn field-label
-  "Returns a human readable label for a given attribute (which can be declared on the attribute, and overridden on the
+(def field-label
+  "[form-env attribute]
+
+   Returns a human readable label for a given attribute (which can be declared on the attribute, and overridden on the
   specific form). Defaults to the capitalized name of the attribute qualified key. Labels can be configured
   on the form that renders them or on the attribute. The form overrides the attribute.
 
@@ -1632,16 +1527,7 @@
 
   If label functions are used they are passed the form instance that is rendering them. They must not side-effect.
   "
-  [form-env attribute]
-  (let [{:com.fulcrologic.rad.form/keys [form-instance]} form-env
-        k           (::attr/qualified-key attribute)
-        options     (comp/component-options form-instance)
-        field-label (?! (or
-                          (get-in options [:com.fulcrologic.rad.form/field-labels k])
-                          (:com.fulcrologic.rad.form/field-label attribute)
-                          (ao/label attribute)
-                          (some-> k name str/capitalize (str/replace #"-" " "))) form-instance)]
-    field-label))
+  form-impl/field-label)
 
 (defn invalid?
   "Returns true if the validator on the form in `env` indicates that some form field(s) are invalid. Note that a
@@ -1707,8 +1593,11 @@ then the result will be a deep merge of the two (with form winning)."
         autocomplete (if (boolean? autocomplete) (if autocomplete "on" "off") autocomplete)]
     autocomplete))
 
-(defn wrap-env
-  "Build a (fn [env] env') that adds RAD form-related data to an env. If `base-wrapper` is supplied, then it will be called
+(def wrap-env
+  "[save-middleware delete-middleware]
+   [base-wrapper save-middleware delete-middleware]
+
+   Build a (fn [env] env') that adds RAD form-related data to an env. If `base-wrapper` is supplied, then it will be called
    as part of the evaluation, allowing you to build up a chain of environment middleware.
 
    ```
@@ -1727,13 +1616,7 @@ then the result will be a deep merge of the two (with form winning)."
 
    similar to Ring middleware.
    "
-  ([save-middleware delete-middleware] (wrap-env nil save-middleware delete-middleware))
-  ([base-wrapper save-middleware delete-middleware]
-   (fn [env]
-     (cond-> (assoc env
-               :com.fulcrologic.rad.form/save-middleware save-middleware
-               :com.fulcrologic.rad.form/delete-middleware delete-middleware)
-       base-wrapper (base-wrapper)))))
+  form-impl/wrap-env)
 
 (defn invalid-attribute-value?
   "Returns true if the given `attribute` is invalid in the given form `env` context. This is meant to be used in UI
@@ -1752,19 +1635,11 @@ then the result will be a deep merge of the two (with form winning)."
                          (and form-validator (= :invalid (form-validator props k))))]
     invalid?))
 
-(defn validation-error-message
-  "Get the string that should be shown for the error message on a given attribute in the given form context."
-  [{:com.fulcrologic.rad.form/keys [form-instance master-form] :as _env} {:keys [:com.fulcrologic.rad.form/validation-message ::attr/qualified-key] :as attribute}]
-  (let [props          (comp/props form-instance)
-        value          (and attribute (get props qualified-key))
-        master-message (comp/component-options master-form :com.fulcrologic.rad.form/validation-messages qualified-key)
-        local-message  (comp/component-options form-instance :com.fulcrologic.rad.form/validation-messages qualified-key)
-        message        (or
-                         (?! master-message props qualified-key)
-                         (?! local-message props qualified-key)
-                         (?! validation-message value)
-                         (tr "Invalid value"))]
-    message))
+(def validation-error-message
+  "[form-env attribute]
+
+   Get the string that should be shown for the error message on a given attribute in the given form context."
+  form-impl/validation-error-message)
 
 (defn field-context
   "Get the field context for a given form field. `env` is the rendering env (see `rendering-env`) and attribute

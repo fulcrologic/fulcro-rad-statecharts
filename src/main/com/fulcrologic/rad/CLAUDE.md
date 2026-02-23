@@ -8,8 +8,17 @@
 `com.fulcrologic.rad.statechart.form/id` instead of `com.fulcrologic.rad.form/id`, causing `form-link`, `link`, and
 `genrow` to silently fail to find form IDs).
 
-`statechart/form.cljc` still does NOT require `form.impl` — evaluate separately if the same delegation pattern
-makes sense there.
+`statechart/form.cljc` delegates 22 functions to `com.fulcrologic.rad.form.impl` via `(def fn-name form-impl/fn-name)`:
+`master-form`, `master-form?`, `form-key->attribute`, `subform-ui`, `get-field-options`, `render-field`,
+`render-input`, `rendering-env`, `render-layout`, `find-fields`, `optional-fields`, `form-pre-merge`,
+`form-and-subform-attributes`, `default-to-many`, `default-to-one`, `default-state`, `mark-fields-complete*`,
+`update-tree*`, `computed-value`, `field-label`, `validation-error-message`, `wrap-env`.
+
+Functions kept local: `render-element` (defmulti), `default-render-field`, `render-form-fields`,
+`default-render-layout`, `ref-container-renderer`, `attr->renderer` (statechart multimethod architecture);
+`invalid?`, `valid?`, `invalid-attribute-value?` (intentional validation simplification — no `->arity-tolerant`);
+`field-visible?`, `omit-label?`, `field-style-config`, `field-autocomplete` (correct `::attr/attribute` specs);
+all statechart-specific functions, expression functions, chart definition, and macros.
 
 ## Dead Reference Cleanup (Phase 0)
 
