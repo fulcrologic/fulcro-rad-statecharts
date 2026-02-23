@@ -9,7 +9,6 @@
     [com.fulcrologic.rad.report-options :as ro]
     [com.fulcrologic.rad.statechart.application :as rad-app]
     [com.fulcrologic.rad.statechart.container :as container]
-    [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
     [com.fulcrologic.rad.statechart.report :as report]
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
@@ -88,7 +87,7 @@
 (defn child-report-sid
   "Returns the session ID for a child report given its class and container-assigned id."
   [child-class id]
-  (cexpr/child-report-session-id child-class id))
+  (container/child-report-session-id child-class id))
 
 (defn child-report-in?
   "Checks if a child report session is in the given state."

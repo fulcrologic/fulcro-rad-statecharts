@@ -3,8 +3,7 @@
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
-    [com.fulcrologic.rad.statechart.container-chart :as cc]
-    [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
+    [com.fulcrologic.rad.statechart.container :as container]
     [com.fulcrologic.statecharts.testing :as t]
     [fulcro-spec.core :refer [=> assertions component specification]]))
 
@@ -14,12 +13,12 @@
   "Creates a testing env for the container chart with optional mock overrides.
    By default, all expressions are mocked to no-op (nil return)."
   [& [overrides]]
-  (let [base-mocks {cexpr/initialize-params-expr nil
-                    cexpr/run-children-expr      nil
-                    cexpr/resume-children-expr   nil
-                    cexpr/unmount-children-expr  nil}
+  (let [base-mocks {container/initialize-params-expr nil
+                    container/run-children-expr      nil
+                    container/resume-children-expr   nil
+                    container/unmount-children-expr  nil}
         mocks      (merge base-mocks overrides)]
-    (t/new-testing-env {:statechart cc/container-statechart} mocks)))
+    (t/new-testing-env {:statechart container/container-statechart} mocks)))
 
 ;; ===== Initialization =====
 
@@ -28,7 +27,7 @@
     (t/start! env)
     (assertions
       "Runs initialize-params-expr on entry to :state/initializing"
-      (t/ran? env cexpr/initialize-params-expr) => true
+      (t/ran? env container/initialize-params-expr) => true
 
       "Transitions to :state/ready via eventless transition"
       (t/in? env :state/ready) => true)))
@@ -45,7 +44,7 @@
         (t/in? env :state/ready) => true
 
         "Runs run-children-expr"
-        (t/ran? env cexpr/run-children-expr) => true)))
+        (t/ran? env container/run-children-expr) => true)))
 
   (component ":event/resume re-initializes and resumes children"
     (let [env (container-test-env)]
@@ -56,7 +55,7 @@
         (t/in? env :state/ready) => true
 
         "Runs resume-children-expr"
-        (t/ran? env cexpr/resume-children-expr) => true))))
+        (t/ran? env container/resume-children-expr) => true))))
 
 ;; ===== On-Exit Behavior (Documented) =====
 ;; The container chart defines on-exit for :state/ready which calls unmount-children-expr
@@ -79,7 +78,7 @@
     ;; The mock map includes unmount-children-expr, proving the chart references it.
     ;; Actual execution is verified in Tier 2 (container_statechart_test) when the
     ;; Fulcro runtime terminates the session.
-    (some? cexpr/unmount-children-expr) => true))
+    (some? container/unmount-children-expr) => true))
 
 ;; ===== goto-configuration! =====
 
@@ -105,4 +104,4 @@
         "Can trigger events from jumped state"
         (t/in? env :state/ready) => true
         "run-children-expr is executed"
-        (t/ran? env cexpr/run-children-expr) => true))))
+        (t/ran? env container/run-children-expr) => true))))
