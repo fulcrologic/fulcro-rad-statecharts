@@ -16,7 +16,7 @@
   [{:keys [run-on-mount? cache-expired?]
     :or   {run-on-mount? true cache-expired? true}
     :as   overrides}]
-  (let [;; The anonymous fn in report_chart for sorting/filtering on-entry needs mocking too.
+  (let [;; The anonymous fn in report.cljc for sorting/filtering on-entry needs mocking too.
         ;; We'll mock all known expression refs.
         base-mocks {report/initialize-params-expr        nil
                     report/should-run-on-mount?          run-on-mount?

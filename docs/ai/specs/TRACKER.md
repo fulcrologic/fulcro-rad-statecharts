@@ -1,22 +1,26 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-22 | Active: 0 | Blocked: 0 | Backlog: 7 | Done: 32 | Deferred: 3 -->
+<!-- Last updated: 2026-02-22 | Active: 1 | Blocked: 5 | Backlog: 0 | Done: 35 | Deferred: 3 -->
 
 ## Active
 
-(none)
+| Spec | Priority | Depends-on | Status |
+|------|----------|------------|--------|
+| [phase9-delete-routing-update-deps](phase9-delete-routing-update-deps.md) | P0 | form-consolidation, report-consolidation, container-consolidation | IN PROGRESS |
 
 ## Blocked
 
-(none)
+| Spec | Priority | Depends-on | Status |
+|------|----------|------------|--------|
+| [phase9-update-tests](phase9-update-tests.md) | P0 | delete-routing-update-deps | BLOCKED |
+| [phase9-update-demo](phase9-update-demo.md) | P1 | delete-routing-update-deps | BLOCKED |
+| [phase9-update-docs](phase9-update-docs.md) | P2 | delete-routing-update-deps | BLOCKED |
+| [phase8-readme](phase8-readme.md) | P2 | delete-routing-update-deps | BLOCKED |
+| [phase9-final-verification](phase9-final-verification.md) | P0 | update-tests, update-demo | BLOCKED |
 
 ## Backlog
 
-### Phase 8: Library Restructuring (MOSTLY COMPLETE)
-
-| Spec | Priority | Depends-on | Status |
-|------|----------|------------|--------|
-| [phase8-readme](phase8-readme.md) | P2 | demo-migration | PENDING |
+(none)
 
 ## Deferred
 
@@ -112,6 +116,14 @@
 | Item | Completed | Summary |
 |------|-----------|---------|
 | headless-chrome-test | 2026-02-22 | All 6 demo pages tested in Chrome: Inventory Report (data, sort, form-links→ItemForm nav), New Account (form+subforms+dropdowns), New Item (form fields), Invoices (report data+formatting), New Invoice (form+date picker+add), Acct 101 Invoices (parameterized report). Fixed form-links bug: `row-form-link` now reads report options first. |
+
+### Phase 9: Namespace Consolidation (partial) — completed 2026-02-22
+
+| Spec | Completed | Summary |
+|------|-----------|---------|
+| [phase9-form-consolidation](phase9-form-consolidation.md) | 2026-02-22 | Merged form_chart, form_expressions, form_machines into form.cljc; moved form-route-state/edit!/create! from routing; deleted form-fn-registry |
+| [phase9-report-consolidation](phase9-report-consolidation.md) | 2026-02-22 | Merged report_chart, report_expressions into report.cljc; moved report-route-state from routing |
+| [phase9-container-consolidation](phase9-container-consolidation.md) | 2026-02-22 | Merged container_chart, container_expressions into container.cljc; resolved broadcast-to-children! collision |
 
 ### Phase 8: Library Restructuring — completed 2026-02-22
 
