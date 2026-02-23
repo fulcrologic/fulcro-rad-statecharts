@@ -91,3 +91,9 @@
      (tools-ns/refresh :after 'development/start)))
 
 #?(:clj (def reset #'restart))
+
+(comment
+
+  (start)
+
+  )

@@ -1022,26 +1022,29 @@
   (let [FormClass    (actor-class data)
         form-ident   (actor-ident data)
         state-map    (:fulcro/state-map data)
-        cancel-route (?! (some-> FormClass rc/component-options :com.fulcrologic.rad.form/cancel-route)
+        cancel-route (?! (some-> FormClass rc/component-options fo/cancel-route)
                        (:fulcro/app env)
                        (fns/ui->props state-map FormClass form-ident))
+
         {:keys [on-cancel embedded?]} (:options data)
         app          (:fulcro/app env)
-        base-ops     [(ops/assign :abandoned? true)
-                      (fops/apply-action fs/pristine->entity* form-ident)]
+        base-ops     [(fops/apply-action fs/pristine->entity* form-ident)]
         _            (when (and app (seq on-cancel))
                        (rc/transact! app on-cancel))
         _            (when (and app (not embedded?) cancel-route)
                        (cond
                          (map? cancel-route)
-                         (let [{:keys [route]} cancel-route]
-                           (when (and (seq route) (every? string? route))
-                             (scr/route-to! app nil {:route route})))
+                         (let [{:keys [target params]} cancel-route]
+                           (when-let [cls (rc/registry-key->class target)]
+                             (scr/route-to! app cls params)))
 
+                         (= :back cancel-route) (scr/route-back! app)
                          (= :none cancel-route) nil
-
-                         (and (seq cancel-route) (every? string? cancel-route))
-                         (scr/route-to! app nil {:route cancel-route})))]
+                         (or (string? cancel-route)
+                           (comp/component-class? cancel-route)
+                           (symbol? cancel-route)
+                           (keyword? cancel-route)) (when-let [cls (rc/registry-key->class cancel-route)]
+                                                      (scr/route-to! app cls {}))))]
     base-ops))
 
 (defn route-denied-expr
