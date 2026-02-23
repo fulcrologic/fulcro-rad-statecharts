@@ -1,7 +1,9 @@
 (ns com.fulcrologic.rad.statechart.session-spec
   (:require
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.rad.ids :refer [new-uuid]]
     [com.fulcrologic.rad.statechart.session :as session]
-    [fulcro-spec.core :refer [=> assertions component specification]]))
+    [fulcro-spec.core :refer [=> assertions specification]]))
 
 (specification "ident->session-id"
   (assertions
@@ -16,7 +18,11 @@
 
     "handles UUID ident values (strips dashes for valid keyword names)"
     (session/ident->session-id [:account/id #uuid "ffffffff-ffff-ffff-ffff-000000000001"])
-    => :com.fulcrologic.rad.sc/account_id--ffffffffffffffff000000000001
+    => :com.fulcrologic.rad.sc/account_id--ffffffffffffffffffff000000000001
+
+    "handles tempid ident values (strips dashes for valid keyword names)"
+    (session/ident->session-id [:account/id (tempid/tempid (new-uuid 1))])
+    => :com.fulcrologic.rad.sc/account_id--fulcrotempidffffffffffffffffffff000000000001
 
     "handles integer ident values"
     (session/ident->session-id [:person/id 42])

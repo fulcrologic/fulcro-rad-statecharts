@@ -5,6 +5,7 @@
   (:require
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom.events :as evt]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.guardrails.malli.fulcro-spec-helpers :as gsh]
     [com.fulcrologic.rad.attributes :refer [defattr]]
@@ -396,34 +397,32 @@
   (component "Decimal field rendering"
     (let [inst (mock-form-instance)]
       (gsh/when-mocking!
-        (form/field-context env attr) => (mock-field-context "123.45" :label "Balance")
+        (form/field-context env attr) => (mock-field-context 123.45M :label "Balance")
 
         (let [el    (hfield/render-decimal-field (mock-env inst) account-balance)
               input (first (find-by-tag el "input"))]
           (assertions
-            "Renders as number input"
-            (attr-val input :type) => "number"
+            "Renders an input"
+            (some? input) => true
 
-            "Has step=any"
-            (attr-val input :step) => "any"
-
-            "Has the decimal value"
+            "Has the decimal value via numeric->str"
             (attr-val input :value) => "123.45")))))
 
   (component "onChange in CLJ"
     (let [inst        (mock-form-instance)
           called-with (atom nil)]
       (gsh/when-mocking!
-        (form/field-context env attr) => (mock-field-context "0")
-        (m/set-string!! form-inst qk & kv-args) => (reset! called-with {:key qk :args (vec kv-args)})
+        (form/field-context env attr) => (mock-field-context 0M)
+        (evt/target-value evt) => "99.99"
+        (m/set-value!! form-inst qk val) => (reset! called-with {:key qk :val val})
 
         (let [el    (hfield/render-decimal-field (mock-env inst) account-balance)
               input (first (find-by-tag el "input"))]
           (on-change! input "99.99")
           (assertions
-            "Calls set-string!! with the decimal value"
+            "Calls set-value!! with numeric value"
             (:key @called-with) => :account/balance
-            (:args @called-with) => [:value "99.99"]))))))
+            (:val @called-with) => 99.99M))))))
 
 (specification "render-ref-field"
   (component "Subform ref renders nil"

@@ -159,6 +159,9 @@
 
 ;; -- render-fields: field layout ----------------------------------------------
 
+(defmethod fr/render-form :default [renv _id-attr]
+  (form/render-element renv :form-container))
+
 (defmethod fr/render-fields :default [env _id-attr]
   (dom/div {:data-rad-type "form-fields"}
     (render-form-fields-by-layout env)))

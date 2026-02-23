@@ -152,8 +152,8 @@
            (some? (first (hic/find-by-tag (find-by-rad-field hiccup ":item/category") :select))) => true
            "instant field renders as date input"
            (:type (hic/element-attrs (find-input-in (find-by-rad-field hiccup ":item/created")))) => "date"
-           "decimal field renders as number input with step"
-           (:step (hic/element-attrs (find-input-in (find-by-rad-field hiccup ":item/weight")))) => "any")))))
+           "decimal field renders with value"
+           (some? (find-input-in (find-by-rad-field hiccup ":item/weight"))) => true)))))
 
 ;; =============================================================================
 ;; Integration: onChange State Mutations

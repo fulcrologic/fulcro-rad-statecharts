@@ -1,13 +1,13 @@
 {:paths   ["src/main" "src/clj-kondo"]
 
- :deps    {com.fulcrologic/fulcro-rad        {:mvn/version "1.6.21"}
+ :deps    {com.fulcrologic/fulcro-rad        {:mvn/version "1.6.22-SNAPSHOT"}
            edn-query-language/eql            {:mvn/version "2025.09.27"}
            com.taoensso/timbre               {:mvn/version "6.8.0"}
            com.taoensso/encore               {:mvn/version "3.159.0"}
            com.fulcrologic/fulcro            {:mvn/version "3.9.3"}
            com.fulcrologic/fulcro-i18n       {:mvn/version "1.1.2"}
            com.fulcrologic/guardrails        {:mvn/version "1.2.16"}
-           com.fulcrologic/statecharts       {:mvn/version "1.4.0-RC1"}
+           com.fulcrologic/statecharts       {:mvn/version "1.4.0-RC3-SNAPSHOT"}
            commons-codec/commons-codec       {:mvn/version "1.21.0"}
            potemkin/potemkin                 {:mvn/version "0.4.9"}
            com.yetanalytics/colossal-squuid  {:mvn/version "0.1.5"}
