@@ -431,14 +431,10 @@
   "Returns true if the form has unsaved changes. Used by the routing system
    (via `sfro/busy?`) to guard against navigating away from dirty forms.
 
-   Works in two contexts:
-   - Form's own statechart: resolves `:actor/form` from the session actors
-   - Routing statechart: falls back to `:route/idents` + `ui->props` when actors
-     aren't available (requires `FormClass` to be passed)"
-  ([env data & _]
-   (let [{:actor/keys [form]} (log/spy :info (scf/resolve-actors env :actor/form))]
-     (log/spy :info form)
-     (boolean (and form (log/spy :info (fs/dirty? form)))))))
+   Called with pre-resolved props: `(form-busy? app props)` where props
+   are the UI props of the form component, resolved by the routing system."
+  [_app props]
+  (boolean (and props (fs/dirty? props))))
 
 (defn form-pre-merge
   "Generate a pre-merge for a component that has the given for attribute map. Returns a proper
