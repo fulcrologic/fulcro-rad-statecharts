@@ -14,22 +14,21 @@
    `com.fulcrologic.rad.routing/form-route-state` calls `form/start-form!`
    on entry, so forms are started as statechart sessions."
   (:require
-   [clojure.test :refer [use-fixtures]]
-   [com.example.components.datomic :refer [datomic-connections]]
-   [com.example.headless-client :refer [test-client]]
-   [com.example.test-server :refer [with-test-system]]
-   [com.example.ui.account-forms :refer [AccountForm]]
-   [com.example.ui.item-forms :refer [ItemForm]]
-   [com.example.ui.invoice-forms :refer [InvoiceForm]]
-   [com.fulcrologic.fulcro.application :as app]
-   [com.fulcrologic.fulcro.headless :as h]
-   [com.fulcrologic.rad.ids :refer [new-uuid]]
-   [com.fulcrologic.rad.statechart.session :as sc.session]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-   [datomic.client.api :as d]
-   [fulcro-spec.core :refer [=> assertions component specification]]
-   [taoensso.timbre :as log]))
+    [clojure.test :refer [use-fixtures]]
+    [com.example.components.datomic :refer [datomic-connections]]
+    [com.example.headless-client :refer [test-client]]
+    [com.example.test-server :refer [with-test-system]]
+    [com.example.ui.account-forms :refer [AccountForm]]
+    [com.example.ui.invoice-forms :refer [InvoiceForm]]
+    [com.example.ui.item-forms :refer [ItemForm]]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.headless :as h]
+    [com.fulcrologic.rad.ids :refer [new-uuid]]
+    [com.fulcrologic.rad.statechart.session :as sc.session]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
+    [datomic.client.api :as d]
+    [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ---------------------------------------------------------------------------
 ;; Fixture — uses shared test_server.clj with unique port 9846
@@ -80,273 +79,273 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing account"
-               (let [app   (test-client 9846)
-                     ident [:account/id (new-uuid 100)]]
-                 (h/render-frame! app)
+  (let [app   (test-client 9846)
+        ident [:account/id (new-uuid 100)]]
+    (h/render-frame! app)
 
     ;; Route to account form for editing
-                 (wait-for-form! app AccountForm {:id (new-uuid 100)})
+    (wait-for-form! app AccountForm {:id (new-uuid 100)})
 
-                 (assertions
-                  "routes to AccountForm state"
-                  (in-route-state? app :com.example.ui.account-forms/AccountForm) => true
+    (assertions
+      "routes to AccountForm state"
+      (in-route-state? app :com.example.ui.account-forms/AccountForm) => true
 
-                  "form statechart enters editing state"
-                  (form-in-state? app ident :state/editing) => true
+      "form statechart enters editing state"
+      (form-in-state? app ident :state/editing) => true
 
-                  "loads the account name from the server"
-                  (:account/name (entity-data app ident)) => "Tony"
+      "loads the account name from the server"
+      (:account/name (entity-data app ident)) => "Tony"
 
-                  "loads the account email from the server"
-                  (:account/email (entity-data app ident)) => "tony@example.com"
+      "loads the account email from the server"
+      (:account/email (entity-data app ident)) => "tony@example.com"
 
-                  "loads the active flag"
-                  (:account/active? (entity-data app ident)) => true)))
+      "loads the active flag"
+      (:account/active? (entity-data app ident)) => true)))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Account Form — Modify and Save
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — modify account and save"
-               (let [app   (test-client 9846)
-                     ident [:account/id (new-uuid 100)]]
-                 (h/render-frame! app)
+  (let [app   (test-client 9846)
+        ident [:account/id (new-uuid 100)]]
+    (h/render-frame! app)
 
     ;; Route to account form
-                 (wait-for-form! app AccountForm {:id (new-uuid 100)})
+    (wait-for-form! app AccountForm {:id (new-uuid 100)})
 
-                 (assertions
-                  "form is in editing state before modification"
-                  (form-in-state? app ident :state/editing) => true)
+    (assertions
+      "form is in editing state before modification"
+      (form-in-state? app ident :state/editing) => true)
 
     ;; Modify the name field directly in app state
-                 (swap! (::app/state-atom app) assoc-in
-                        (conj ident :account/name) "Tony Updated")
-                 (h/render-frame! app)
+    (swap! (::app/state-atom app) assoc-in
+      (conj ident :account/name) "Tony Updated")
+    (h/render-frame! app)
 
-                 (assertions
-                  "name is updated in local state"
-                  (:account/name (entity-data app ident)) => "Tony Updated")
+    (assertions
+      "name is updated in local state"
+      (:account/name (entity-data app ident)) => "Tony Updated")
 
     ;; Trigger save via the form statechart
-                 (scf/send! app (sc.session/ident->session-id ident) :event/save {})
-                 (dotimes [_ 10] (h/render-frame! app))
-                 (h/wait-for-idle! app)
-                 (dotimes [_ 10] (h/render-frame! app))
+    (scf/send! app (sc.session/ident->session-id ident) :event/save {})
+    (dotimes [_ 10] (h/render-frame! app))
+    (h/wait-for-idle! app)
+    (dotimes [_ 10] (h/render-frame! app))
 
-                 (assertions
-                  "form returns to editing state after save"
-                  (form-in-state? app ident :state/editing) => true
+    (assertions
+      "form returns to editing state after save"
+      (form-in-state? app ident :state/editing) => true
 
-                  "saved name persists in state"
-                  (:account/name (entity-data app ident)) => "Tony Updated")
+      "saved name persists in state"
+      (:account/name (entity-data app ident)) => "Tony Updated")
 
     ;; Verify persistence: create a fresh client and re-load
-                 (let [app2   (test-client 9846)
-                       _      (h/render-frame! app2)
-                       _      (wait-for-form! app2 AccountForm {:id (new-uuid 100)})]
-                   (assertions
-                    "saved data persists across client sessions"
-                    (:account/name (entity-data app2 ident)) => "Tony Updated"))))
+    (let [app2 (test-client 9846)
+          _    (h/render-frame! app2)
+          _    (wait-for-form! app2 AccountForm {:id (new-uuid 100)})]
+      (assertions
+        "saved data persists across client sessions"
+        (:account/name (entity-data app2 ident)) => "Tony Updated"))))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Account Form — Cancel (undo changes)
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — cancel account edit"
-               (let [app   (test-client 9846)
-                     ident [:account/id (new-uuid 101)]]
-                 (h/render-frame! app)
+  (let [app   (test-client 9846)
+        ident [:account/id (new-uuid 101)]]
+    (h/render-frame! app)
 
     ;; Route to Sam's account form
-                 (wait-for-form! app AccountForm {:id (new-uuid 101)})
+    (wait-for-form! app AccountForm {:id (new-uuid 101)})
 
-                 (assertions
-                  "form loads Sam's data"
-                  (:account/name (entity-data app ident)) => "Sam"
-                  "form is in editing state"
-                  (form-in-state? app ident :state/editing) => true)
+    (assertions
+      "form loads Sam's data"
+      (:account/name (entity-data app ident)) => "Sam"
+      "form is in editing state"
+      (form-in-state? app ident :state/editing) => true)
 
     ;; Modify the name
-                 (swap! (::app/state-atom app) assoc-in
-                        (conj ident :account/name) "Sam Modified")
-                 (h/render-frame! app)
+    (swap! (::app/state-atom app) assoc-in
+      (conj ident :account/name) "Sam Modified")
+    (h/render-frame! app)
 
-                 (assertions
-                  "name is modified locally"
-                  (:account/name (entity-data app ident)) => "Sam Modified")
+    (assertions
+      "name is modified locally"
+      (:account/name (entity-data app ident)) => "Sam Modified")
 
     ;; Trigger reset (undo all changes without leaving form)
-                 (scf/send! app (sc.session/ident->session-id ident) :event/reset {})
-                 (dotimes [_ 30] (h/render-frame! app))
+    (scf/send! app (sc.session/ident->session-id ident) :event/reset {})
+    (dotimes [_ 30] (h/render-frame! app))
 
-                 (assertions
-                  "after reset, form is still in editing state"
-                  (form-in-state? app ident :state/editing) => true
+    (assertions
+      "after reset, form is still in editing state"
+      (form-in-state? app ident :state/editing) => true
 
-                  "name reverts to original value"
-                  (:account/name (entity-data app ident)) => "Sam")))
+      "name reverts to original value"
+      (:account/name (entity-data app ident)) => "Sam")))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Account Form — Address Subform
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — account with address subform"
-               (let [app   (test-client 9846)
-                     ident [:account/id (new-uuid 100)]]
-                 (h/render-frame! app)
+  (let [app   (test-client 9846)
+        ident [:account/id (new-uuid 100)]]
+    (h/render-frame! app)
 
     ;; Route to Tony's account (which has seeded addresses via autocreate)
-                 (wait-for-form! app AccountForm {:id (new-uuid 100)})
+    (wait-for-form! app AccountForm {:id (new-uuid 100)})
 
-                 (let [account (entity-data app ident)
-                       primary (:account/primary-address account)]
-                   (assertions
-                    "account has a primary address reference"
-                    (vector? primary) => true
+    (let [account (entity-data app ident)
+          primary (:account/primary-address account)]
+      (assertions
+        "account has a primary address reference"
+        (vector? primary) => true
 
-                    "primary address has an address/id key"
-                    (= :address/id (first primary)) => true))
+        "primary address has an address/id key"
+        (= :address/id (first primary)) => true))
 
     ;; Check that primary address data was loaded/created
-                 (let [account     (entity-data app ident)
-                       addr-ident  (:account/primary-address account)
-                       addr-data   (entity-data app addr-ident)]
-                   (assertions
-                    "primary address data was loaded (not nil)"
-                    (some? addr-data) => true
+    (let [account    (entity-data app ident)
+          addr-ident (:account/primary-address account)
+          addr-data  (entity-data app addr-ident)]
+      (assertions
+        "primary address data was loaded (not nil)"
+        (some? addr-data) => true
 
-                    "primary address entity exists in state"
-                    (some? (:address/id addr-data)) => true))))
+        "primary address entity exists in state"
+        (some? (:address/id addr-data)) => true))))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Item Form — Edit Existing
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing item"
-               (let [app   (test-client 9846)
-                     ident [:item/id (new-uuid 200)]]
-                 (h/render-frame! app)
+  (let [app   (test-client 9846)
+        ident [:item/id (new-uuid 200)]]
+    (h/render-frame! app)
 
     ;; Route to Widget item form
-                 (wait-for-form! app ItemForm {:id (new-uuid 200)})
+    (wait-for-form! app ItemForm {:id (new-uuid 200)})
 
-                 (assertions
-                  "routes to ItemForm state"
-                  (in-route-state? app :com.example.ui.item-forms/ItemForm) => true
+    (assertions
+      "routes to ItemForm state"
+      (in-route-state? app :com.example.ui.item-forms/ItemForm) => true
 
-                  "form statechart enters editing state"
-                  (form-in-state? app ident :state/editing) => true
+      "form statechart enters editing state"
+      (form-in-state? app ident :state/editing) => true
 
-                  "loads the item name"
-                  (:item/name (entity-data app ident)) => "Widget"
+      "loads the item name"
+      (:item/name (entity-data app ident)) => "Widget"
 
-                  "loads the item price"
-                  (some? (:item/price (entity-data app ident))) => true)))
+      "loads the item price"
+      (some? (:item/price (entity-data app ident))) => true)))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Item Form — Modify and Save
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — modify item price and save"
-               (let [app   (test-client 9846)
-                     ident [:item/id (new-uuid 201)]]
-                 (h/render-frame! app)
+  (let [app   (test-client 9846)
+        ident [:item/id (new-uuid 201)]]
+    (h/render-frame! app)
 
     ;; Route to Screwdriver item form
-                 (wait-for-form! app ItemForm {:id (new-uuid 201)})
+    (wait-for-form! app ItemForm {:id (new-uuid 201)})
 
-                 (assertions
-                  "form loads Screwdriver data"
-                  (:item/name (entity-data app ident)) => "Screwdriver"
-                  "form is in editing state"
-                  (form-in-state? app ident :state/editing) => true)
+    (assertions
+      "form loads Screwdriver data"
+      (:item/name (entity-data app ident)) => "Screwdriver"
+      "form is in editing state"
+      (form-in-state? app ident :state/editing) => true)
 
     ;; Modify the name
-                 (swap! (::app/state-atom app) assoc-in
-                        (conj ident :item/name) "Screwdriver Pro")
-                 (h/render-frame! app)
+    (swap! (::app/state-atom app) assoc-in
+      (conj ident :item/name) "Screwdriver Pro")
+    (h/render-frame! app)
 
     ;; Save
-                 (scf/send! app (sc.session/ident->session-id ident) :event/save {})
-                 (dotimes [_ 10] (h/render-frame! app))
-                 (h/wait-for-idle! app)
-                 (dotimes [_ 10] (h/render-frame! app))
+    (scf/send! app (sc.session/ident->session-id ident) :event/save {})
+    (dotimes [_ 10] (h/render-frame! app))
+    (h/wait-for-idle! app)
+    (dotimes [_ 10] (h/render-frame! app))
 
-                 (assertions
-                  "form returns to editing after save"
-                  (form-in-state? app ident :state/editing) => true
+    (assertions
+      "form returns to editing after save"
+      (form-in-state? app ident :state/editing) => true
 
-                  "saved name persists"
-                  (:item/name (entity-data app ident)) => "Screwdriver Pro")))
+      "saved name persists"
+      (:item/name (entity-data app ident)) => "Screwdriver Pro")))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Invoice Form — Edit Existing
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing invoice"
-               (let [app        (test-client 9846)
-                     connection  (:main datomic-connections)
-                     ;; Query Datomic for the seeded invoice ID (random UUID)
-                     inv-ids    (d/q '[:find ?id
-                                       :where [?e :invoice/id ?id]]
-                                     (d/db connection))
-                     inv-id     (ffirst inv-ids)]
-                 (h/render-frame! app)
+  (let [app        (test-client 9846)
+        connection (:main datomic-connections)
+        ;; Query Datomic for the seeded invoice ID (random UUID)
+        inv-ids    (d/q '[:find ?id
+                          :where [?e :invoice/id ?id]]
+                     (d/db connection))
+        inv-id     (ffirst inv-ids)]
+    (h/render-frame! app)
 
-                 (assertions
-                  "datomic connection is available"
-                  (some? connection) => true
+    (assertions
+      "datomic connection is available"
+      (some? connection) => true
 
-                  "seeded invoice exists in database"
-                  (some? inv-id) => true)
+      "seeded invoice exists in database"
+      (some? inv-id) => true)
 
-                 (let [ident [:invoice/id inv-id]]
-                   (wait-for-form! app InvoiceForm {:id inv-id})
+    (let [ident [:invoice/id inv-id]]
+      (wait-for-form! app InvoiceForm {:id inv-id})
 
-                   (assertions
-                    "routes to InvoiceForm state"
-                    (in-route-state? app :com.example.ui.invoice-forms/InvoiceForm) => true
+      (assertions
+        "routes to InvoiceForm state"
+        (in-route-state? app :com.example.ui.invoice-forms/InvoiceForm) => true
 
-                    "form enters editing state"
-                    (form-in-state? app ident :state/editing) => true
+        "form enters editing state"
+        (form-in-state? app ident :state/editing) => true
 
-                    "invoice has line items"
-                    (let [invoice (entity-data app ident)]
-                      (vector? (:invoice/line-items invoice))) => true))))
+        "invoice has line items"
+        (let [invoice (entity-data app ident)]
+          (vector? (:invoice/line-items invoice))) => true))))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Sequential Form Navigation
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — sequential navigation between forms"
-               (let [app (test-client 9846)]
-                 (h/render-frame! app)
+  (let [app (test-client 9846)]
+    (h/render-frame! app)
 
-                 (assertions
-                  "starts at landing page"
-                  (in-route-state? app :com.example.ui.ui/LandingPage) => true)
+    (assertions
+      "starts at landing page"
+      (in-route-state? app :com.example.ui.ui/LandingPage) => true)
 
     ;; Navigate to account form
-                 (wait-for-form! app AccountForm {:id (new-uuid 100)})
+    (wait-for-form! app AccountForm {:id (new-uuid 100)})
 
-                 (assertions
-                  "first navigation goes to AccountForm"
-                  (in-route-state? app :com.example.ui.account-forms/AccountForm) => true)
+    (assertions
+      "first navigation goes to AccountForm"
+      (in-route-state? app :com.example.ui.account-forms/AccountForm) => true)
 
     ;; Navigate to item form
-                 (wait-for-form! app ItemForm {:id (new-uuid 200)})
+    (wait-for-form! app ItemForm {:id (new-uuid 200)})
 
-                 (assertions
-                  "second navigation goes to ItemForm"
-                  (in-route-state? app :com.example.ui.item-forms/ItemForm) => true
+    (assertions
+      "second navigation goes to ItemForm"
+      (in-route-state? app :com.example.ui.item-forms/ItemForm) => true
 
-                  "AccountForm is no longer active"
-                  (in-route-state? app :com.example.ui.account-forms/AccountForm) => false)
+      "AccountForm is no longer active"
+      (in-route-state? app :com.example.ui.account-forms/AccountForm) => false)
 
     ;; Navigate back to account form
-                 (wait-for-form! app AccountForm {:id (new-uuid 101)})
+    (wait-for-form! app AccountForm {:id (new-uuid 101)})
 
-                 (assertions
-                  "third navigation goes back to AccountForm"
-                  (in-route-state? app :com.example.ui.account-forms/AccountForm) => true)))
+    (assertions
+      "third navigation goes back to AccountForm"
+      (in-route-state? app :com.example.ui.account-forms/AccountForm) => true)))

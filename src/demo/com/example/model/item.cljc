@@ -1,9 +1,9 @@
 (ns com.example.model.item
   (:require
-   #?(:clj [com.example.components.database-queries :as queries])
-   [com.fulcrologic.rad.attributes :refer [defattr]]
-   [com.fulcrologic.rad.attributes-options :as ao]
-   [com.wsscode.pathom.connect :as pc]))
+    #?(:clj [com.example.components.database-queries :as queries])
+    [com.fulcrologic.rad.attributes :refer [defattr]]
+    [com.fulcrologic.rad.attributes-options :as ao]
+    [com.wsscode.pathom.connect :as pc]))
 
 (defattr id :item/id :uuid
   {ao/identity? true

@@ -17,12 +17,11 @@
        (handle :event/custom my-custom-handler)))
    ```"
   (:require
-   [com.fulcrologic.statecharts.elements :refer [transition script]]
-   [com.fulcrologic.statecharts.convenience :refer [on handle]]
-   [com.fulcrologic.statecharts.data-model.operations :as ops]
-   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-   [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-   [com.fulcrologic.rad.statechart.form-expressions :as fex]))
+    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+    [com.fulcrologic.rad.statechart.form-expressions :as fex]
+    [com.fulcrologic.statecharts.convenience :refer [handle on]]
+    [com.fulcrologic.statecharts.elements :refer [script transition]]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
 
 ;; ===== Reusable Chart Fragments =====
 
@@ -31,7 +30,7 @@
    in any state that should support the standard global form events."
   [(on :event/exit :state/exited)
    (on :event/reload :state/loading
-       (script {:expr fex/start-load-expr}))
+     (script {:expr fex/start-load-expr}))
    (handle :event/mark-complete fex/mark-all-complete-expr)])
 
 (def editing-field-transitions
@@ -48,14 +47,14 @@
   "Reusable transitions for the save flow. Includes conditional save (validation)
    with fallback to mark-complete-on-invalid."
   [(transition {:event :event/save :cond fex/form-valid? :target :state/saving}
-               (script {:expr fex/prepare-save-expr}))
+     (script {:expr fex/prepare-save-expr}))
    (handle :event/save fex/mark-complete-on-invalid-expr)])
 
 (def editing-cancel-transitions
   "Reusable transitions for cancel, undo, and route guarding."
   [(handle :event/reset fex/undo-all-expr)
    (on :event/cancel :state/leaving
-       (script {:expr fex/prepare-leave-expr}))
+     (script {:expr fex/prepare-leave-expr}))
    (handle :event/route-denied fex/route-denied-expr)
    (handle :event/continue-abandoned-route fex/continue-abandoned-route-expr)
    (handle :event/clear-route-denied fex/clear-route-denied-expr)])
@@ -64,11 +63,11 @@
   "All standard editing state transitions combined. Includes global transitions,
    field editing, subform management, save flow, and cancel/route guarding."
   (into []
-        (concat global-transitions
-                editing-field-transitions
-                editing-subform-transitions
-                editing-save-transitions
-                editing-cancel-transitions)))
+    (concat global-transitions
+      editing-field-transitions
+      editing-subform-transitions
+      editing-save-transitions
+      editing-cancel-transitions)))
 
 ;; ===== Expression Helper Functions =====
 ;; These return operation vectors for use in custom expression functions

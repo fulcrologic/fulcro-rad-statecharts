@@ -5,11 +5,10 @@
    event processing, optional URL sync via simulated history, and a settle helper
    for ensuring all events have been processed."
   (:require
-   [com.fulcrologic.fulcro.application :as app]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-   [com.fulcrologic.statecharts.integration.fulcro.routing.simulated-history :as sim]
-   [com.fulcrologic.rad.statechart.application :as rad-app]))
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.rad.statechart.application :as rad-app]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.routing.simulated-history :as sim]))
 
 (defn create-test-app
   "Creates a fully initialized headless test app with routing. Returns the app.
@@ -32,8 +31,8 @@
     (when controls
       (rad-app/install-ui-controls! test-app controls))
     (rad-app/install-statecharts! test-app
-                                  {:event-loop? :immediate
-                                   :extra-env   (or extra-env {})})
+      {:event-loop? :immediate
+       :extra-env   (or extra-env {})})
     (rad-app/start-routing! test-app routing-chart)
     test-app))
 

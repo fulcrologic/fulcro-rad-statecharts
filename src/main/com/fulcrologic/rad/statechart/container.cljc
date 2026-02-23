@@ -9,25 +9,25 @@
   #?(:cljs
      (:require-macros com.fulcrologic.rad.statechart.container))
   (:require
-   [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.fulcro.application :as app]
-   [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-   [com.fulcrologic.fulcro.algorithms.merge :as merge]
-   [com.fulcrologic.rad.statechart.container-chart :as container-chart]
-   [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
-   [com.fulcrologic.rad.statechart.report :as report]
-   [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
-   [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
-   [com.fulcrologic.rad.statechart.session :as sc.session]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   #?@(:clj
-       [[cljs.analyzer :as ana]])
-   [com.fulcrologic.fulcro.data-fetch :as df]
-   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
-   [taoensso.timbre :as log]
-   [taoensso.encore :as enc]
-   [com.fulcrologic.rad.statechart.container-options :as co]
-   [clojure.spec.alpha :as s]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.rad.statechart.container-chart :as container-chart]
+    [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
+    [com.fulcrologic.rad.statechart.report :as report]
+    [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
+    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
+    [com.fulcrologic.rad.statechart.session :as sc.session]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    #?@(:clj
+        [[cljs.analyzer :as ana]])
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
+    [taoensso.timbre :as log]
+    [taoensso.encore :as enc]
+    [com.fulcrologic.rad.statechart.container-options :as co]
+    [clojure.spec.alpha :as s]))
 
 (defn id-child-pairs
   "Returns a sequence of [id cls] pairs for each child (i.e. the seq of the children setting)"
@@ -54,7 +54,7 @@
    instead of using the old `install-layout!` approach."
   [container-instance]
   (log/error "No container layout renderer installed for style"
-             (or (some-> container-instance comp/component-options ::layout-style) :default))
+    (or (some-> container-instance comp/component-options ::layout-style) :default))
   nil)
 
 (defn start-container!
@@ -68,11 +68,11 @@
     (scf/register-statechart! app ::container-chart container-chart/container-statechart)
     (if (not running?)
       (scf/start! app
-                  {:machine    ::container-chart
-                   :session-id session-id
-                   :data       {:fulcro/actors  {:actor/container (scf/actor container-class container-ident)}
-                                :fulcro/aliases {:parameters [:actor/container :ui/parameters]}
-                                :route-params   (:route-params options)}})
+        {:machine    ::container-chart
+         :session-id session-id
+         :data       {:fulcro/actors  {:actor/container (scf/actor container-class container-ident)}
+                      :fulcro/aliases {:parameters [:actor/container :ui/parameters]}
+                      :route-params   (:route-params options)}})
       (scf/send! app session-id :event/resume (merge options {:route-params (:route-params options)})))))
 
 (defn container-will-enter
@@ -105,25 +105,25 @@
          (throw (ana/error &env (str "defsc-container " sym " ::route, when defined, must be a string."))))
        (when (contains? options :will-enter)
          (log/warn "defsc-container" sym ":will-enter is ignored. Routing lifecycle is managed by statecharts routing."))
-       (let [query-expr       (into [:ui/parameters
-                                     {:ui/controls `(comp/get-query Control)}
-                                     [df/marker-table '(quote _)]]
-                                    (map (fn [[id child-sym]] `{~id (comp/get-query ~child-sym)}) children))
-             query            (list 'fn '[] query-expr)
-             nspc             (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
-             fqkw             (keyword (str nspc) (name sym))
-             user-statechart  (::statechart options)
-             options          (cond-> (assoc options
-                                             :query query
-                                             :initial-state (list 'fn '[_]
-                                                                  `(into {:ui/parameters {}
-                                                                          :ui/controls   (mapv #(select-keys % #{::control/id}) (control/control-map->controls ~controls))}
-                                                                         (map (fn [[id# c#]] [id# (comp/get-initial-state c# {::report/id id#})]) ~children)))
-                                             :ident (list 'fn [] [::id fqkw])
-                                             sfro/initialize :once)
-                                (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                                (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `container-chart/container-statechart)))
-             body             (if (seq (rest args))
-                                (rest args)
-                                [`(render-layout ~this-sym)])]
+       (let [query-expr      (into [:ui/parameters
+                                    {:ui/controls `(comp/get-query Control)}
+                                    [df/marker-table '(quote _)]]
+                               (map (fn [[id child-sym]] `{~id (comp/get-query ~child-sym)}) children))
+             query           (list 'fn '[] query-expr)
+             nspc            (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
+             fqkw            (keyword (str nspc) (name sym))
+             user-statechart (::statechart options)
+             options         (cond-> (assoc options
+                                       :query query
+                                       :initial-state (list 'fn '[_]
+                                                        `(into {:ui/parameters {}
+                                                                :ui/controls   (mapv #(select-keys % #{::control/id}) (control/control-map->controls ~controls))}
+                                                           (map (fn [[id# c#]] [id# (comp/get-initial-state c# {::report/id id#})]) ~children)))
+                                       :ident (list 'fn [] [::id fqkw])
+                                       sfro/initialize :once)
+                               (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
+                               (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `container-chart/container-statechart)))
+             body            (if (seq (rest args))
+                               (rest args)
+                               [`(render-layout ~this-sym)])]
          `(comp/defsc ~sym ~arglist ~options ~@body)))))

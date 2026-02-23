@@ -19,17 +19,17 @@
    "
   (:refer-clojure :exclude [run!])
   (:require
-   [clojure.spec.alpha :as s]
-   [com.fulcrologic.guardrails.core :refer [>defn >def => ?]]
-   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-   [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-   [com.fulcrologic.fulcro.raw.application :as raw.app]
-   [com.fulcrologic.rad.errors :refer [warn-once!]]
-   [com.fulcrologic.rad.form-render :as fr]
-   [com.fulcrologic.rad.options-util :as opts :refer [?! debounce child-classes]]
-   [com.fulcrologic.rad.statechart.session :refer [ident->session-id]]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [taoensso.timbre :as log]))
+    [clojure.spec.alpha :as s]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+    [com.fulcrologic.fulcro.raw.application :as raw.app]
+    [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
+    [com.fulcrologic.rad.errors :refer [warn-once!]]
+    [com.fulcrologic.rad.form-render :as fr]
+    [com.fulcrologic.rad.options-util :refer [?! child-classes debounce]]
+    [com.fulcrologic.rad.statechart.session :refer [ident->session-id]]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [taoensso.timbre :as log]))
 
 (defsc Control
   "A component used for normalizing control state in the app so that reports in containers can share controls."
@@ -61,18 +61,18 @@
 
    Run the controlled content with the current values of the controlled parameters."
   (debounce
-   (fn [instance]
-     (let [session-id (ident->session-id (comp/get-ident instance))]
-       (scf/send! instance session-id :event/run)))
-   100))
+    (fn [instance]
+      (let [session-id (ident->session-id (comp/get-ident instance))]
+        (scf/send! instance session-id :event/run)))
+    100))
 
 (defmutation set-parameter [{:keys [k value]}]
   (action [{:keys [component ref state]}]
-          (let [options       (comp/component-options component)
-                {:keys [local?]} (get-in options [::controls k])
-                path          (if local? (conj ref :ui/parameters k) [::id k ::value])]
-            ;; TODO: Route-param tracking will be re-added during statechart routing conversion
-            (swap! state assoc-in path value))))
+    (let [options (comp/component-options component)
+          {:keys [local?]} (get-in options [::controls k])
+          path    (if local? (conj ref :ui/parameters k) [::id k ::value])]
+      ;; TODO: Route-param tracking will be re-added during statechart routing conversion
+      (swap! state assoc-in path value))))
 
 (defn set-parameter!
   "Set the given parameter on a report or container."
@@ -84,10 +84,10 @@
   [control-map]
   (if (map? control-map)
     (reduce-kv
-     (fn [m k v]
-       (conj m (merge {::id k} v)))
-     []
-     control-map)
+      (fn [m k v]
+        (conj m (merge {::id k} v)))
+      []
+      control-map)
     control-map))
 
 (defn current-value
@@ -98,8 +98,8 @@
     (if local?
       (get-in (comp/props instance) [:ui/parameters control-key])
       (-> instance
-          (raw.app/current-state)
-          (get-in [::id control-key ::value])))))
+        (raw.app/current-state)
+        (get-in [::id control-key ::value])))))
 
 (defn component-controls
   "Gets all of the controls declared on the given class or instance (e.g. report, container).
@@ -113,56 +113,56 @@
    (let [parent-controls (comp/component-options class-or-instance ::controls)
          children        (when recursive? (child-classes class-or-instance true))]
      (merge
-      (reduce
-       (fn [controls c]
-         (let [candidates         (comp/component-options c ::controls)
-               non-local-controls (reduce-kv
-                                   (fn [m k v]
-                                     (if (and (map? v) (not (:local? v)))
-                                       (assoc m k v)
-                                       m))
-                                   {}
-                                   candidates)]
-           (merge controls non-local-controls)))
-       {}
-       children)
+       (reduce
+         (fn [controls c]
+           (let [candidates         (comp/component-options c ::controls)
+                 non-local-controls (reduce-kv
+                                      (fn [m k v]
+                                        (if (and (map? v) (not (:local? v)))
+                                          (assoc m k v)
+                                          m))
+                                      {}
+                                      candidates)]
+             (merge controls non-local-controls)))
+         {}
+         children)
        ;; parent always wins
-      parent-controls))))
+       parent-controls))))
 
 (>def ::action-layout (s/coll-of keyword? :kind vector?))
 (>def ::input-layout (s/coll-of (s/coll-of keyword? :kind vector?) :kind vector?))
 
 (>defn standard-control-layout
-       "Returns a map of:
+  "Returns a map of:
 
-  * `:action-layout`: a simple vector of keywords for the order buttons should appear. The default is the order they
-    are returned from the control map (which is stable, but not necessarily the order of appearance in the map).
-  * `:input-layout`: a nested vector of keywords that represents the preferred layout of the controls
-     on `class-or-instance`. This layout can be declared on the class-or-instance, or will default to a
-     single-row layout based on the entry order in the control map (stable but undefined)."
-       [class-or-instance]
-       [(s/or :cls comp/component-class? :inst comp/component?) => (s/keys :req-un [::action-layout ::input-layout])]
-       (let [{::keys [control-layout]} (comp/component-options class-or-instance)
+* `:action-layout`: a simple vector of keywords for the order buttons should appear. The default is the order they
+are returned from the control map (which is stable, but not necessarily the order of appearance in the map).
+* `:input-layout`: a nested vector of keywords that represents the preferred layout of the controls
+on `class-or-instance`. This layout can be declared on the class-or-instance, or will default to a
+single-row layout based on the entry order in the control map (stable but undefined)."
+  [class-or-instance]
+  [(s/or :cls comp/component-class? :inst comp/component?) => (s/keys :req-un [::action-layout ::input-layout])]
+  (let [{::keys [control-layout]} (comp/component-options class-or-instance)
         ;; For backward compat with report option
-             control-layout (or control-layout (comp/component-options class-or-instance :com.fulcrologic.rad.report/control-layout))
-             {:keys [action-buttons inputs]} control-layout]
-         (let [controls            (component-controls class-or-instance)
-               control-button-keys (vec (keep (fn [[k v]] (when (= :button (:type v)) k)) controls))
-               input-keys          (keep (fn [[k v]] (when-not (= :button (:type v)) k)) controls)
-               button-layout       (or action-buttons control-button-keys)
-               input-layout        (or inputs (vector (into [] input-keys)))]
-           (when #?(:cljs js/goog.DEBUG :clj true)
-             (let [expected-layout-keys (->> controls
-                                             (filter #(-> (val %)
-                                                          (get :visible? true)
-                                                          (?! class-or-instance)))
-                                             (map key)
-                                             set)
-                   actual-layout-keys   (disj
-                                         (into (set button-layout) (filter keyword?) (flatten input-layout))
-                                         :_)]
-               (when (and (seq expected-layout-keys) (not= expected-layout-keys actual-layout-keys))
-                 (log/debug "The control layout does not include all controls: "
-                            expected-layout-keys "vs." actual-layout-keys))))
-           {:action-layout button-layout
-            :input-layout  input-layout})))
+        control-layout (or control-layout (comp/component-options class-or-instance :com.fulcrologic.rad.report/control-layout))
+        {:keys [action-buttons inputs]} control-layout]
+    (let [controls            (component-controls class-or-instance)
+          control-button-keys (vec (keep (fn [[k v]] (when (= :button (:type v)) k)) controls))
+          input-keys          (keep (fn [[k v]] (when-not (= :button (:type v)) k)) controls)
+          button-layout       (or action-buttons control-button-keys)
+          input-layout        (or inputs (vector (into [] input-keys)))]
+      (when #?(:cljs js/goog.DEBUG :clj true)
+        (let [expected-layout-keys (->> controls
+                                     (filter #(-> (val %)
+                                                (get :visible? true)
+                                                (?! class-or-instance)))
+                                     (map key)
+                                     set)
+              actual-layout-keys   (disj
+                                     (into (set button-layout) (filter keyword?) (flatten input-layout))
+                                     :_)]
+          (when (and (seq expected-layout-keys) (not= expected-layout-keys actual-layout-keys))
+            (log/debug "The control layout does not include all controls: "
+              expected-layout-keys "vs." actual-layout-keys))))
+      {:action-layout button-layout
+       :input-layout  input-layout})))

@@ -1,9 +1,9 @@
 (ns com.example.components.config
   "Application configuration via Mount."
   (:require
-   [com.fulcrologic.fulcro.server.config :as fserver]
-   [mount.core :refer [args defstate]]
-   [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.server.config :as fserver]
+    [mount.core :refer [args defstate]]
+    [taoensso.timbre :as log]))
 
 (defstate config
   "Load config from EDN file. The `args` map may contain:

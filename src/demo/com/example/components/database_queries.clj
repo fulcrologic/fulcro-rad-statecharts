@@ -1,9 +1,9 @@
 (ns com.example.components.database-queries
   "Database query functions used by model resolvers."
   (:require
-   [com.fulcrologic.rad.database-adapters.datomic-options :as do]
-   [datomic.client.api :as d]
-   [taoensso.timbre :as log]))
+    [com.fulcrologic.rad.database-adapters.datomic-options :as do]
+    [datomic.client.api :as d]
+    [taoensso.timbre :as log]))
 
 (defn- env->db
   "Extract the Datomic db value for the :production schema from the pathom env."
@@ -57,12 +57,12 @@
   [env invoice-id]
   (if-let [db (env->db env)]
     (ffirst
-     (d/q '[:find ?account-uuid
-            :in $ ?invoice-uuid
-            :where
-            [?i :invoice/id ?invoice-uuid]
-            [?i :invoice/customer ?c]
-            [?c :account/id ?account-uuid]] db invoice-id))
+      (d/q '[:find ?account-uuid
+             :in $ ?invoice-uuid
+             :where
+             [?i :invoice/id ?invoice-uuid]
+             [?i :invoice/customer ?c]
+             [?c :account/id ?account-uuid]] db invoice-id))
     (log/error "No database atom for production schema!")))
 
 (defn get-all-items
@@ -98,11 +98,11 @@
   [env line-item-id]
   (if-let [db (env->db env)]
     (ffirst
-     (d/q '[:find ?cid
-            :in $ ?line-item-id
-            :where
-            [?e :line-item/id ?line-item-id]
-            [?e :line-item/item ?item]
-            [?item :item/category ?c]
-            [?c :category/id ?cid]] db line-item-id))
+      (d/q '[:find ?cid
+             :in $ ?line-item-id
+             :where
+             [?e :line-item/id ?line-item-id]
+             [?e :line-item/item ?item]
+             [?item :item/category ?c]
+             [?c :category/id ?cid]] db line-item-id))
     (log/error "No database atom for production schema!")))

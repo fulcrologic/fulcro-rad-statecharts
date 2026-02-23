@@ -1,14 +1,14 @@
 (ns com.example.ui.address-forms
   "Address subform for account editing."
   (:require
-   [com.example.model.address :as address]
-   [com.fulcrologic.rad.statechart.form :as form]
-   [com.fulcrologic.rad.form-options :as fo]))
+    [com.example.model.address :as address]
+    [com.fulcrologic.rad.form-options :as fo]
+    [com.fulcrologic.rad.statechart.form :as form]))
 
 (form/defsc-form AddressForm [this props]
-  {fo/id         address/id
-   fo/attributes [address/street address/city address/state address/zip]
+  {fo/id           address/id
+   fo/attributes   [address/street address/city address/state address/zip]
    fo/route-prefix "address"
-   fo/title      "Edit Address"
-   fo/layout     [[:address/street]
-                  [:address/city :address/state :address/zip]]})
+   fo/title        "Edit Address"
+   fo/layout       [[:address/street]
+                    [:address/city :address/state :address/zip]]})

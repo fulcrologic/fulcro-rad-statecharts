@@ -5,22 +5,20 @@
    These expressions are shared across all report variants (standard, server-paginated,
    incrementally-loaded). Variant-specific expressions live in their respective namespaces."
   (:require
-   [com.fulcrologic.fulcro.algorithms.normalized-state :as fstate]
-   [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.fulcro.raw.components :as rc]
-   [com.fulcrologic.rad.attributes :as attr]
-   [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.statechart.control :as control]
-   [com.fulcrologic.rad.options-util :as opts :refer [?!]]
-   [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.type-support.date-time :as dt]
-   [com.fulcrologic.statecharts :as-alias sc]
-   [com.fulcrologic.statecharts.data-model.operations :as ops]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-   [edn-query-language.core :as eql]
-   [taoensso.encore :as enc]
-   [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as fstate]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.rad.attributes :as attr]
+    [com.fulcrologic.rad.options-util :refer [?!]]
+    [com.fulcrologic.rad.report-options :as ro]
+    [com.fulcrologic.rad.statechart.control :as control]
+    [com.fulcrologic.rad.type-support.date-time :as dt]
+    [com.fulcrologic.statecharts :as-alias sc]
+    [com.fulcrologic.statecharts.data-model.operations :as ops]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+    [edn-query-language.core :as eql]
+    [taoensso.encore :as enc]
+    [taoensso.timbre :as log]))
 
 ;; ---- Helpers ----
 
@@ -48,29 +46,29 @@
   "Reads the current control parameter values from the Fulcro state map.
    Returns a map of control-key -> value."
   [data]
-  (let [state-map     (:fulcro/state-map data)
-        Report        (report-class data)
-        report-ident  (actor-ident data :actor/report)
-        controls      (comp/component-options Report ::control/controls)
-        controls      (control/control-map->controls controls)]
+  (let [state-map    (:fulcro/state-map data)
+        Report       (report-class data)
+        report-ident (actor-ident data :actor/report)
+        controls     (comp/component-options Report ::control/controls)
+        controls     (control/control-map->controls controls)]
     (reduce
-     (fn [result {:keys          [local?]
-                  ::control/keys [id]}]
-       (let [v (if local?
-                 (get-in state-map (conj report-ident :ui/parameters id))
-                 (get-in state-map [::control/id id ::control/value]))]
-         (if (nil? v)
-           result
-           (assoc result id v))))
-     {}
-     controls)))
+      (fn [result {:keys          [local?]
+                   ::control/keys [id]}]
+        (let [v (if local?
+                  (get-in state-map (conj report-ident :ui/parameters id))
+                  (get-in state-map [::control/id id ::control/value]))]
+          (if (nil? v)
+            result
+            (assoc result id v))))
+      {}
+      controls)))
 
 (defn initial-sort-params
   "Returns the initial sort parameters for a report."
   [data]
   (merge {:ascending? true}
-         (comp/component-options (report-class data)
-                                 :com.fulcrologic.rad.report/initial-sort-params)))
+    (comp/component-options (report-class data)
+      :com.fulcrologic.rad.report/initial-sort-params)))
 
 ;; ---- Expression Functions ----
 
@@ -78,37 +76,37 @@
   "Expression: Initialize report parameters from route params, control defaults, and state.
    Called on entry to :state/initializing."
   [env data _event-name event-data]
-  (let [state-map      (:fulcro/state-map data)
-        app            (:fulcro/app env)
-        report-ident   (actor-ident data :actor/report)
-        Report         (report-class data)
-        path           (conj report-ident :ui/parameters)
-        params         (or (:params event-data) (:params data))
+  (let [state-map              (:fulcro/state-map data)
+        app                    (:fulcro/app env)
+        report-ident           (actor-ident data :actor/report)
+        Report                 (report-class data)
+        path                   (conj report-ident :ui/parameters)
+        params                 (or (:params event-data) (:params data))
         externally-controlled? (or (:com.fulcrologic.rad.report/externally-controlled? event-data)
-                                   (:com.fulcrologic.rad.report/externally-controlled? data))
-        controls       (comp/component-options Report ::control/controls)
-        init-params    {:com.fulcrologic.rad.report/sort         (initial-sort-params data)
-                        :com.fulcrologic.rad.report/current-page 1}
+                                 (:com.fulcrologic.rad.report/externally-controlled? data))
+        controls               (comp/component-options Report ::control/controls)
+        init-params            {:com.fulcrologic.rad.report/sort         (initial-sort-params data)
+                                :com.fulcrologic.rad.report/current-page 1}
         ;; First operation: set initial parameters
-        ops            [(fops/apply-action
-                         (fn [sm]
-                           (as-> sm $
-                             (assoc-in $ path (merge init-params {:com.fulcrologic.rad.report/sort {}}))
-                             (reduce-kv
-                              (fn [s control-key {:keys [local? retain? default-value]}]
-                                (let [event-value        (enc/nnil (get params control-key))
-                                      control-value-path (if local?
-                                                           (conj report-ident :ui/parameters control-key)
-                                                           [::control/id control-key ::control/value])
-                                      state-value        (when-not (false? retain?) (get-in state-map control-value-path))
-                                      explicit-value     event-value
-                                      default-value      (?! default-value app)
-                                      v                  (enc/nnil explicit-value state-value default-value)
-                                      skip?              (or (and (not local?) externally-controlled?)
-                                                             (nil? v))]
-                                  (if skip? s (assoc-in s control-value-path v))))
-                              $
-                              controls))))]]
+        ops                    [(fops/apply-action
+                                  (fn [sm]
+                                    (as-> sm $
+                                      (assoc-in $ path (merge init-params {:com.fulcrologic.rad.report/sort {}}))
+                                      (reduce-kv
+                                        (fn [s control-key {:keys [local? retain? default-value]}]
+                                          (let [event-value        (enc/nnil (get params control-key))
+                                                control-value-path (if local?
+                                                                     (conj report-ident :ui/parameters control-key)
+                                                                     [::control/id control-key ::control/value])
+                                                state-value        (when-not (false? retain?) (get-in state-map control-value-path))
+                                                explicit-value     event-value
+                                                default-value      (?! default-value app)
+                                                v                  (enc/nnil explicit-value state-value default-value)
+                                                skip?              (or (and (not local?) externally-controlled?)
+                                                                     (nil? v))]
+                                            (if skip? s (assoc-in s control-value-path v))))
+                                        $
+                                        controls))))]]
     ops))
 
 (defn should-run-on-mount?
@@ -120,28 +118,28 @@
   "Expression: Start loading report data from the server.
    Called on entry to :state/loading."
   [env data _event-name _event-data]
-  (let [Report         (report-class data)
-        report-ident   (actor-ident data :actor/report)
+  (let [Report           (report-class data)
+        report-ident     (actor-ident data :actor/report)
         opts             (comp/component-options Report)
         BodyItem         (get opts ro/BodyItem)
         source-attribute (get opts ro/source-attribute)
         load-options     (get opts ro/load-options)
         before-load      (get opts ro/before-load)
-        load-options   (?! load-options env)
-        current-params (current-control-parameters data)
-        path           (conj report-ident :ui/loaded-data)]
+        load-options     (?! load-options env)
+        current-params   (current-control-parameters data)
+        path             (conj report-ident :ui/loaded-data)]
     (log/debug "Loading report" source-attribute (comp/component-name Report) (comp/component-name BodyItem))
     (cond-> []
       before-load (conj (fops/apply-action (fn [sm] (before-load sm))))
       true (conj (fops/assoc-alias :busy? true)
-                 (fops/load source-attribute BodyItem
-                            (merge
-                             {:params              current-params
-                              ::sc/ok-event       :event/loaded
-                              ::sc/error-event    :event/failed
-                              :marker              report-ident
-                              :target              path}
-                             load-options))))))
+             (fops/load source-attribute BodyItem
+               (merge
+                 {:params          current-params
+                  ::sc/ok-event    :event/loaded
+                  ::sc/error-event :event/failed
+                  :marker          report-ident
+                  :target          path}
+                 load-options))))))
 
 (defn preprocess-raw-result
   "Pure function: Apply raw-result-xform if defined. Returns updated state-map."
@@ -151,9 +149,9 @@
         raw-alias (get-in data [:fulcro/aliases :raw-rows])
         raw-path  (when raw-alias
                     ;; resolve the actor-based alias path to absolute path
-                    (let [actor-k  (first raw-alias)
-                          fields   (rest raw-alias)
-                          ident    (actor-ident data actor-k)]
+                    (let [actor-k (first raw-alias)
+                          fields  (rest raw-alias)
+                          ident   (actor-ident data actor-k)]
                       (into ident fields)))]
     (if (and xform raw-path)
       (let [raw-result (get-in state-map raw-path)
@@ -171,7 +169,7 @@
       (let [first-element (first alias-def)
             rest-path     (vec (rest alias-def))]
         (if (and (keyword? first-element)
-                 (= "actor" (namespace first-element)))
+              (= "actor" (namespace first-element)))
           (into (actor-ident data first-element) rest-path)
           alias-def)))))
 
@@ -185,21 +183,21 @@
 (defn filter-rows-state
   "Pure function: Apply row-visible? filter to raw rows. Returns updated state-map with filtered-rows set."
   [state-map data]
-  (let [Report     (report-class data)
-        all-rows   (read-alias state-map data :raw-rows)
-        parameters (current-control-parameters data)
-        row-visible?     (comp/component-options Report ro/row-visible?)
-        skip-filtering?  (comp/component-options Report ro/skip-filtering?)
-        filtered   (if (and row-visible? (not (true? (?! skip-filtering? parameters))))
-                     (let [normalized?  (some-> all-rows first eql/ident?)
-                           BodyItem     (comp/component-options Report ro/BodyItem)]
-                       (filterv
-                        (fn [row]
-                          (let [row (if normalized? (fstate/ui->props state-map BodyItem row) row)]
-                            (row-visible? parameters row)))
-                        all-rows))
-                     all-rows)
-        path       (resolve-alias-path data :filtered-rows)]
+  (let [Report          (report-class data)
+        all-rows        (read-alias state-map data :raw-rows)
+        parameters      (current-control-parameters data)
+        row-visible?    (comp/component-options Report ro/row-visible?)
+        skip-filtering? (comp/component-options Report ro/skip-filtering?)
+        filtered        (if (and row-visible? (not (true? (?! skip-filtering? parameters))))
+                          (let [normalized? (some-> all-rows first eql/ident?)
+                                BodyItem    (comp/component-options Report ro/BodyItem)]
+                            (filterv
+                              (fn [row]
+                                (let [row (if normalized? (fstate/ui->props state-map BodyItem row) row)]
+                                  (row-visible? parameters row)))
+                              all-rows))
+                          all-rows)
+        path            (resolve-alias-path data :filtered-rows)]
     (assoc-in state-map path filtered)))
 
 (defn sort-rows-state
@@ -225,62 +223,62 @@
 (defn populate-page-state
   "Pure function: Paginate sorted rows. Returns updated state-map with current-rows, current-page, page-count set."
   [state-map data]
-  (let [Report       (report-class data)
-        paginate?    (comp/component-options Report :com.fulcrologic.rad.report/paginate?)
-        page-size    (or (?! (comp/component-options Report :com.fulcrologic.rad.report/page-size) nil) 20)
-        sorted-rows  (or (read-alias state-map data :sorted-rows) [])
-        cr-path      (resolve-alias-path data :current-rows)
-        cp-path      (resolve-alias-path data :current-page)
-        pc-path      (resolve-alias-path data :page-count)]
+  (let [Report      (report-class data)
+        paginate?   (comp/component-options Report :com.fulcrologic.rad.report/paginate?)
+        page-size   (or (?! (comp/component-options Report :com.fulcrologic.rad.report/page-size) nil) 20)
+        sorted-rows (or (read-alias state-map data :sorted-rows) [])
+        cr-path     (resolve-alias-path data :current-rows)
+        cp-path     (resolve-alias-path data :current-page)
+        pc-path     (resolve-alias-path data :page-count)]
     (if paginate?
-      (let [current-page   (max 1 (or (read-alias state-map data :current-page) 1))
-            n              (count sorted-rows)
-            stragglers?    (pos? (rem n page-size))
-            pages          (cond-> (int (/ n page-size))
-                             stragglers? inc)
-            current-page   (cond
-                             (zero? pages) 1
-                             (> current-page pages) pages
-                             :else current-page)
-            page-start     (* (dec current-page) page-size)
-            rows           (cond
-                             (= pages current-page) (subvec sorted-rows page-start n)
-                             (> n page-size) (subvec sorted-rows page-start (+ page-start page-size))
-                             :else sorted-rows)]
+      (let [current-page (max 1 (or (read-alias state-map data :current-page) 1))
+            n            (count sorted-rows)
+            stragglers?  (pos? (rem n page-size))
+            pages        (cond-> (int (/ n page-size))
+                           stragglers? inc)
+            current-page (cond
+                           (zero? pages) 1
+                           (> current-page pages) pages
+                           :else current-page)
+            page-start   (* (dec current-page) page-size)
+            rows         (cond
+                           (= pages current-page) (subvec sorted-rows page-start n)
+                           (> n page-size) (subvec sorted-rows page-start (+ page-start page-size))
+                           :else sorted-rows)]
         (if (and (not= 1 current-page) (empty? rows))
           ;; retry from page 1
           (let [rows (if (> n page-size) (subvec sorted-rows 0 page-size) sorted-rows)]
             (-> state-map
-                (assoc-in cp-path 1)
-                (assoc-in cr-path rows)
-                (assoc-in pc-path pages)))
-          (-> state-map
-              (assoc-in cp-path current-page)
+              (assoc-in cp-path 1)
               (assoc-in cr-path rows)
-              (assoc-in pc-path pages))))
+              (assoc-in pc-path pages)))
+          (-> state-map
+            (assoc-in cp-path current-page)
+            (assoc-in cr-path rows)
+            (assoc-in pc-path pages))))
       (-> state-map
-          (assoc-in pc-path 1)
-          (assoc-in cr-path sorted-rows)))))
+        (assoc-in pc-path 1)
+        (assoc-in cr-path sorted-rows)))))
 
 (defn process-loaded-data-expr
   "Expression: Process loaded data — preprocess, filter, sort, paginate.
    Called on entry to :state/processing."
   [env data _event-name _event-data]
-  (let [state-map (:fulcro/state-map data)
-        Report    (report-class data)
-        row-pk         (comp/component-options Report ro/row-pk)
-        report-loaded  (comp/component-options Report ro/report-loaded)
-        table-name (::attr/qualified-key row-pk)
+  (let [state-map        (:fulcro/state-map data)
+        Report           (report-class data)
+        row-pk           (comp/component-options Report ro/row-pk)
+        report-loaded    (comp/component-options Report ro/report-loaded)
+        table-name       (::attr/qualified-key row-pk)
         ;; Apply transformations to current state-map at swap! time rather than
         ;; capturing a snapshot. Using (constantly snapshot) would overwrite the
         ;; entire Fulcro state including statechart working memory, causing a
         ;; race condition where async load callbacks lose their state transitions.
         apply-transforms (fn [current-state-map]
                            (-> current-state-map
-                               (preprocess-raw-result data)
-                               (filter-rows-state data)
-                               (sort-rows-state data)
-                               (populate-page-state data)))]
+                             (preprocess-raw-result data)
+                             (filter-rows-state data)
+                             (sort-rows-state data)
+                             (populate-page-state data)))]
     [(fops/apply-action apply-transforms)
      (fops/assoc-alias :busy? false)
      (ops/assign :last-load-time (inst-ms (dt/now)))
@@ -295,11 +293,11 @@
     (if (and page (not= cur-page page))
       [(fops/assoc-alias :current-page (max 1 page) :selected-row -1)
        (fops/apply-action
-        (fn [sm]
-          (let [sm (assoc-in sm (resolve-alias-path data :current-page) (max 1 page))
-                sm (assoc-in sm (resolve-alias-path data :selected-row) -1)]
-            (-> sm
-                (populate-page-state data)))))]
+         (fn [sm]
+           (let [sm (assoc-in sm (resolve-alias-path data :current-page) (max 1 page))
+                 sm (assoc-in sm (resolve-alias-path data :selected-row) -1)]
+             (-> sm
+               (populate-page-state data)))))]
       [])))
 
 (defn next-page-expr
@@ -336,12 +334,12 @@
     (if qk
       [(fops/assoc-alias :busy? false :sort-by qk :ascending? ascending)
        (fops/apply-action
-        (fn [sm]
-          (let [sm (assoc-in sm (resolve-alias-path data :sort-by) qk)
-                sm (assoc-in sm (resolve-alias-path data :ascending?) ascending)]
-            (-> sm
-                (sort-rows-state data)
-                (populate-page-state data)))))]
+         (fn [sm]
+           (let [sm (assoc-in sm (resolve-alias-path data :sort-by) qk)
+                 sm (assoc-in sm (resolve-alias-path data :ascending?) ascending)]
+             (-> sm
+               (sort-rows-state data)
+               (populate-page-state data)))))]
       [(fops/assoc-alias :busy? false)])))
 
 (defn do-filter-and-clear-busy-expr
@@ -351,11 +349,11 @@
   (let [state-map (:fulcro/state-map data)]
     [(fops/assoc-alias :busy? false)
      (fops/apply-action
-      (fn [sm]
-        (-> sm
-            (filter-rows-state data)
-            (sort-rows-state data)
-            (populate-page-state data))))]))
+       (fn [sm]
+         (-> sm
+           (filter-rows-state data)
+           (sort-rows-state data)
+           (populate-page-state data))))]))
 
 (defn select-row-expr
   "Expression: Select a row by index."
@@ -373,28 +371,28 @@
   [_env data _event-name _event-data]
   (let [sort-by-path (resolve-alias-path data :sort-by)]
     [(fops/apply-action
-      (fn [sm]
-        (update-in sm (butlast sort-by-path) dissoc (last sort-by-path))))]))
+       (fn [sm]
+         (update-in sm (butlast sort-by-path) dissoc (last sort-by-path))))]))
 
 (defn cache-expired?
   "Condition: Returns true if the report cache has expired."
   [_env data _event-name _event-data]
-  (let [state-map  (:fulcro/state-map data)
-        Report     (report-class data)
-        load-cache-seconds   (comp/component-options Report ro/load-cache-seconds)
-        load-cache-expired?  (comp/component-options Report ro/load-cache-expired?)
-        row-pk               (comp/component-options Report ro/row-pk)
-        now-ms             (inst-ms (dt/now))
-        last-load-time     (:last-load-time data)
-        last-table-count   (:raw-items-in-table data)
-        cache-exp-ms       (* 1000 (or load-cache-seconds 0))
-        table-name         (::attr/qualified-key row-pk)
+  (let [state-map           (:fulcro/state-map data)
+        Report              (report-class data)
+        load-cache-seconds  (comp/component-options Report ro/load-cache-seconds)
+        load-cache-expired? (comp/component-options Report ro/load-cache-expired?)
+        row-pk              (comp/component-options Report ro/row-pk)
+        now-ms              (inst-ms (dt/now))
+        last-load-time      (:last-load-time data)
+        last-table-count    (:raw-items-in-table data)
+        cache-exp-ms        (* 1000 (or load-cache-seconds 0))
+        table-name          (::attr/qualified-key row-pk)
         current-table-count (count (keys (get state-map table-name)))
-        looks-stale?       (or
-                            (nil? last-load-time)
-                            (not= current-table-count last-table-count)
-                            (< last-load-time (- now-ms cache-exp-ms)))
-        user-expired?      (?! load-cache-expired? nil looks-stale?)]
+        looks-stale?        (or
+                              (nil? last-load-time)
+                              (not= current-table-count last-table-count)
+                              (< last-load-time (- now-ms cache-exp-ms)))
+        user-expired?       (?! load-cache-expired? nil looks-stale?)]
     (if (boolean user-expired?)
       user-expired?
       looks-stale?)))
@@ -410,9 +408,9 @@
   (let [state-map (:fulcro/state-map data)]
     [(fops/assoc-alias :busy? true)
      (fops/apply-action
-      (fn [sm]
-        (-> sm
-            (filter-rows-state data)
-            (sort-rows-state data)
-            (populate-page-state data))))
+       (fn [sm]
+         (-> sm
+           (filter-rows-state data)
+           (sort-rows-state data)
+           (populate-page-state data))))
      (fops/assoc-alias :busy? false)]))

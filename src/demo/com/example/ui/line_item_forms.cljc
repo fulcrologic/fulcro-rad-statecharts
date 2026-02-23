@@ -2,17 +2,17 @@
   "Line item subform for invoices. Ported from fulcro-rad-demo with
    UISM on-change converted to statechart ops-returning convention."
   (:require
-   [com.example.model :as model]
-   [com.example.model.line-item :as line-item]
-   [com.example.ui.item-forms :as item-forms]
-   [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.fulcro.raw.components :as rc]
-   [com.fulcrologic.rad.statechart.form :as form]
-   [com.fulcrologic.rad.form-options :as fo]
-   [com.fulcrologic.rad.statechart.form-options :as sfo]
-   [com.fulcrologic.rad.picker-options :as po]
-   [com.fulcrologic.rad.type-support.decimal :as math]
-   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
+    [com.example.model :as model]
+    [com.example.model.line-item :as line-item]
+    [com.example.ui.item-forms :as item-forms]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.rad.form-options :as fo]
+    [com.fulcrologic.rad.picker-options :as po]
+    [com.fulcrologic.rad.statechart.form :as form]
+    [com.fulcrologic.rad.statechart.form-options :as sfo]
+    [com.fulcrologic.rad.type-support.decimal :as math]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
 
 (defn add-subtotal*
   "Compute line-item subtotal from quantity and quoted-price."
@@ -49,21 +49,21 @@
                                           po/query-component (rc/nc [:category/id :category/label])
                                           po/options-xform   (fn [_ options]
                                                                (mapv
-                                                                (fn [{:category/keys [id label]}]
-                                                                  {:text (str label) :value [:category/id id]})
-                                                                (sort-by :category/label options)))
+                                                                 (fn [{:category/keys [id label]}]
+                                                                   {:text (str label) :value [:category/id id]})
+                                                                 (sort-by :category/label options)))
                                           po/cache-time-ms   10000}
                      :line-item/item     {po/query-key        :item/all-items
                                           po/cache-key        (fn [_ {:line-item/keys [id] :as props}]
                                                                 (keyword "item-list" (or
-                                                                                      (some-> props :line-item/category :category/id str)
-                                                                                      "all")))
+                                                                                       (some-> props :line-item/category :category/id str)
+                                                                                       "all")))
                                           po/query-component  item-forms/ItemForm
                                           po/options-xform    (fn [_ options]
                                                                 (mapv
-                                                                 (fn [{:item/keys [id name price]}]
-                                                                   {:text (str name " - " (math/numeric->currency-str price)) :value [:item/id id]})
-                                                                 (sort-by :item/name options)))
+                                                                  (fn [{:item/keys [id name price]}]
+                                                                    {:text (str name " - " (math/numeric->currency-str price)) :value [:item/id id]})
+                                                                  (sort-by :item/name options)))
                                           po/query-parameters (fn [_app _form-class props]
                                                                 (let [category (get props :line-item/category)]
                                                                   category))

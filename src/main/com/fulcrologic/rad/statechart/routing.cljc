@@ -12,15 +12,15 @@
    - `can-change-route?` — replaced by `busy?` guard on `routes`
    - `update-route-params!` — params flow through statechart events"
   (:require
-   [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-   [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.fulcro.raw.components :as rc]
-   [com.fulcrologic.rad.statechart.form :as form]
-   [com.fulcrologic.rad.statechart.report :as report]
-   [com.fulcrologic.statecharts.data-model.operations :as ops]
-   [com.fulcrologic.statecharts.elements :refer [entry-fn exit-fn]]
-   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-   [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.rad.statechart.form :as form]
+    [com.fulcrologic.rad.statechart.report :as report]
+    [com.fulcrologic.statecharts.data-model.operations :as ops]
+    [com.fulcrologic.statecharts.elements :refer [entry-fn exit-fn]]
+    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
+    [taoensso.timbre :as log]))
 
 (defn route-to!
   "Route to a target. Accepts both old RAD patterns and new statecharts patterns.
@@ -83,12 +83,12 @@
   [{:route/keys  [target]
     :report/keys [param-keys] :as props}]
   (scr/rstate props
-              (entry-fn [{:fulcro/keys [app]} data _event-name event-data]
-                        (log/debug "Starting report via routing")
-                        (report/start-report! app (comp/registry-key->class target)
-                                              {:route-params (cond-> (merge data event-data)
-                                                               (seq param-keys) (select-keys param-keys))})
-                        nil)))
+    (entry-fn [{:fulcro/keys [app]} data _event-name event-data]
+      (log/debug "Starting report via routing")
+      (report/start-report! app (comp/registry-key->class target)
+        {:route-params (cond-> (merge data event-data)
+                         (seq param-keys) (select-keys param-keys))})
+      nil)))
 
 (defn form-route-state
   "Creates a routing state for a RAD form. On entry, starts the form's statechart via
@@ -105,16 +105,16 @@
    See `scr/rstate` for full option details."
   [props]
   (scr/rstate props
-              (entry-fn [{:fulcro/keys [app]} _data _event-name event-data]
-                        (log/debug "Starting form via routing" event-data)
-                        (let [{:keys [id params]} event-data
-                              form-class (comp/registry-key->class (:route/target props))]
-                          (form/start-form! app id form-class params))
-                        nil)
-              (exit-fn [{:fulcro/keys [app]} {:route/keys [idents]} & _]
-                       (when-let [form-ident (get idents (rc/class->registry-key (:route/target props)))]
-                         (form/abandon-form! app form-ident)
-                         [(ops/delete [:route/idents form-ident])]))))
+    (entry-fn [{:fulcro/keys [app]} _data _event-name event-data]
+      (log/debug "Starting form via routing" event-data)
+      (let [{:keys [id params]} event-data
+            form-class (comp/registry-key->class (:route/target props))]
+        (form/start-form! app id form-class params))
+      nil)
+    (exit-fn [{:fulcro/keys [app]} {:route/keys [idents]} & _]
+      (when-let [form-ident (get idents (rc/class->registry-key (:route/target props)))]
+        (form/abandon-form! app form-ident)
+        [(ops/delete [:route/idents form-ident])]))))
 
 (defn edit!
   "Route to a form and start an edit on the given `id`."

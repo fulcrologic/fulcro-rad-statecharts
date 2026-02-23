@@ -2,12 +2,12 @@
   "System statechart and bootstrap for the demo application.
    Installs headless renderers, statecharts, and starts routing."
   (:require
-   [com.example.ui.ui :refer [routing-chart]]
-   [com.fulcrologic.fulcro.application :as app]
-   [com.fulcrologic.rad.statechart.application :as rad-app]
-   [com.fulcrologic.rad.rendering.headless.plugin]
-   [com.fulcrologic.rad.type-support.date-time :as dt]
-   [taoensso.timbre :as log]))
+    [com.example.ui.ui :refer [routing-chart]]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.rad.rendering.headless.plugin]
+    [com.fulcrologic.rad.statechart.application :as rad-app]
+    [com.fulcrologic.rad.type-support.date-time :as dt]
+    [taoensso.timbre :as log]))
 
 (defn setup-RAD
   "Installs headless renderers. No `install-ui-controls!` needed — the headless

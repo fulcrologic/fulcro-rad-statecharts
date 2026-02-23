@@ -7,8 +7,7 @@
            com.fulcrologic/fulcro                 {:mvn/version "3.9.3"}
            com.fulcrologic/fulcro-i18n            {:mvn/version "1.1.2"}
            com.fulcrologic/guardrails             {:mvn/version "1.2.16"}
-           com.fulcrologic/statecharts            {:mvn/version "1.4.0-RC1"
-                                                   :exclusions  [com.fulcrologic/fulcro-rad]}
+           com.fulcrologic/statecharts            {:mvn/version "1.4.0-RC1"}
            com.fulcrologic/fulcro-devtools-remote {:mvn/version "0.2.8"}
            com.fulcrologic/fulcro-inspect         {:mvn/version "1.0.5"}
            commons-codec/commons-codec            {:mvn/version "1.21.0"}
@@ -34,21 +33,19 @@
                                      org.clojure/tools.namespace {:mvn/version "1.5.1"}
                                      thheller/shadow-cljs        {:mvn/version "3.3.6"}}}
 
-           :demo      {:extra-paths   ["src/demo"]
-                       :extra-deps    {com.fulcrologic/fulcro-rad-datomic {:mvn/version "1.5.6"
-                                                                           :exclusions [com.fulcrologic/fulcro-rad]}
-                                       com.datomic/local                  {:mvn/version "1.0.291"}
-                                       com.datomic/client-cloud           {:mvn/version "1.0.131"}
-                                       mount/mount                        {:mvn/version "0.1.23"}
-                                       http-kit/http-kit                  {:mvn/version "2.8.1"}
-                                       ring/ring-core                     {:mvn/version "1.15.3"}
-                                       ring/ring-defaults                 {:mvn/version "0.7.0"}
-                                       hiccup/hiccup                      {:mvn/version "2.0.0"}
-                                       com.wsscode/pathom                 {:mvn/version "2.4.0"}
-                                       org.clojure/tools.namespace        {:mvn/version "1.5.1"}
-                                       ;; Unified logging
-                                       org.slf4j/log4j-over-slf4j         {:mvn/version "2.0.17"}
-                                       org.slf4j/jul-to-slf4j             {:mvn/version "2.0.17"}
-                                       org.slf4j/jcl-over-slf4j           {:mvn/version "2.0.17"}
-                                       com.fzakaria/slf4j-timbre          {:mvn/version "0.4.1"}}
-                       :override-deps {com.fulcrologic/fulcro-rad {:local/root "."}}}}}
+           :demo      {:extra-paths ["src/demo"]
+                       :extra-deps  {com.fulcrologic/fulcro-rad-datomic {:mvn/version "1.5.6"}
+                                     com.datomic/local                  {:mvn/version "1.0.291"}
+                                     com.datomic/client-cloud           {:mvn/version "1.0.131"}
+                                     mount/mount                        {:mvn/version "0.1.23"}
+                                     http-kit/http-kit                  {:mvn/version "2.8.1"}
+                                     ring/ring-core                     {:mvn/version "1.15.3"}
+                                     ring/ring-defaults                 {:mvn/version "0.7.0"}
+                                     hiccup/hiccup                      {:mvn/version "2.0.0"}
+                                     com.wsscode/pathom                 {:mvn/version "2.4.0"}
+                                     org.clojure/tools.namespace        {:mvn/version "1.5.1"}
+                                     ;; Unified logging
+                                     org.slf4j/log4j-over-slf4j         {:mvn/version "2.0.17"}
+                                     org.slf4j/jul-to-slf4j             {:mvn/version "2.0.17"}
+                                     org.slf4j/jcl-over-slf4j           {:mvn/version "2.0.17"}
+                                     com.fzakaria/slf4j-timbre          {:mvn/version "0.4.1"}}}}}

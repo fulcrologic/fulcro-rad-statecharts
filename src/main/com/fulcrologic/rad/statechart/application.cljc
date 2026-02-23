@@ -12,9 +12,9 @@
    * `start-routing!` — registers and starts a routing statechart
    * `install-url-sync!` — installs bidirectional URL synchronization"
   (:require
-   [com.fulcrologic.rad.application :as rad-app]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
+    [com.fulcrologic.rad.application :as rad-app]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
 
 (def fulcro-rad-app
   "Creates a Fulcro RAD application. Re-exported from `com.fulcrologic.rad.application`."
@@ -43,7 +43,7 @@
                            (fn [session-id wmem]
                              (scr/url-sync-on-save session-id wmem app)))]
     (scf/install-fulcro-statecharts! app
-                                     (assoc (or options {}) :on-save combined-on-save))))
+      (assoc (or options {}) :on-save combined-on-save))))
 
 (defn start-routing!
   "Registers and starts the routing `statechart`. Wraps `scr/start!`.

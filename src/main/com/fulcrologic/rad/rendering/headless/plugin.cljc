@@ -14,7 +14,7 @@
    No CSS, no React component libraries — just structural HTML."
   (:require
     ;; Requiring these namespaces registers all defmethod implementations
-   com.fulcrologic.rad.rendering.headless.field
-   com.fulcrologic.rad.rendering.headless.form
-   com.fulcrologic.rad.rendering.headless.report
-   com.fulcrologic.rad.rendering.headless.controls))
+    [com.fulcrologic.rad.rendering.headless.controls]
+    [com.fulcrologic.rad.rendering.headless.field]
+    [com.fulcrologic.rad.rendering.headless.form]
+    [com.fulcrologic.rad.rendering.headless.report]))

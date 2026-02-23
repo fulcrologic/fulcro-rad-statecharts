@@ -1,24 +1,24 @@
 (ns com.example.model.invoice
   (:require
-   #?(:clj [com.example.components.database-queries :as queries])
-   [com.fulcrologic.rad.attributes :refer [defattr]]
-   [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.form-options :as fo]
-   [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.type-support.date-time :as dt]
-   [com.fulcrologic.rad.type-support.decimal :as math]
-   [com.wsscode.pathom.connect :as pc]))
+    #?(:clj [com.example.components.database-queries :as queries])
+    [com.fulcrologic.rad.attributes :refer [defattr]]
+    [com.fulcrologic.rad.attributes-options :as ao]
+    [com.fulcrologic.rad.form-options :as fo]
+    [com.fulcrologic.rad.report-options :as ro]
+    [com.fulcrologic.rad.type-support.date-time :as dt]
+    [com.fulcrologic.rad.type-support.decimal :as math]
+    [com.wsscode.pathom.connect :as pc]))
 
 (defattr id :invoice/id :uuid
   {ao/identity? true
    ao/schema    :production})
 
 (defattr date :invoice/date :instant
-  {fo/field-style             :date-at-noon
-   ::dt/default-time-zone     "America/Los_Angeles"
-   ao/required?               true
-   ao/identities              #{:invoice/id}
-   ao/schema                  :production})
+  {fo/field-style         :date-at-noon
+   ::dt/default-time-zone "America/Los_Angeles"
+   ao/required?           true
+   ao/identities          #{:invoice/id}
+   ao/schema              :production})
 
 (defattr line-items :invoice/line-items :ref
   {ao/target                                                       :line-item/id
@@ -26,18 +26,18 @@
    ao/required?                                                    true
    ao/valid?                                                       (fn [v props k]
                                                                      (and
-                                                                      (vector? v)
-                                                                      (pos? (count v))))
+                                                                       (vector? v)
+                                                                       (pos? (count v))))
    fo/validation-message                                           "You must have a least one line item."
    ao/cardinality                                                  :many
    ao/identities                                                   #{:invoice/id}
    ao/schema                                                       :production})
 
 (defattr total :invoice/total :decimal
-  {ao/identities      #{:invoice/id}
-   ao/schema          :production
+  {ao/identities       #{:invoice/id}
+   ao/schema           :production
    ro/column-formatter (fn [_report v _row _attr] (math/numeric->currency-str v))
-   ao/read-only?      true})
+   ao/read-only?       true})
 
 (defattr customer :invoice/customer :ref
   {ao/cardinality :one

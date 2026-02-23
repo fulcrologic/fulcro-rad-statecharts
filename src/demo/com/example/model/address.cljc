@@ -1,7 +1,7 @@
 (ns com.example.model.address
   (:require
-   [com.fulcrologic.rad.attributes :refer [defattr]]
-   [com.fulcrologic.rad.attributes-options :as ao]))
+    [com.fulcrologic.rad.attributes :refer [defattr]]
+    [com.fulcrologic.rad.attributes-options :as ao]))
 
 (defattr id :address/id :uuid
   {ao/identity? true

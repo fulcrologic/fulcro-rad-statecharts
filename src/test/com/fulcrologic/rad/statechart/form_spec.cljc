@@ -1,16 +1,13 @@
 (ns com.fulcrologic.rad.statechart.form-spec
   (:require
-   [clojure.pprint :refer [pprint]]
-   [clojure.test :refer [use-fixtures]]
-   [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-   [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-   [com.fulcrologic.rad.attributes :as attr :refer [defattr]]
-   [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.statechart.form :as form]
-   [com.fulcrologic.rad.form-options :as fo]
-   [fulcro-spec.core :refer [assertions specification when-mocking! component]]
-   [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.rad.attributes :refer [defattr]]
+    [com.fulcrologic.rad.attributes-options :as ao]
+    [com.fulcrologic.rad.form-options :as fo]
+    [com.fulcrologic.rad.statechart.form :as form]
+    [fulcro-spec.core :refer [assertions component specification]]))
 
 (def default-street "111 Main")
 (def default-email "nobody@example.net")
@@ -32,7 +29,7 @@
    fo/default-values {:address/street default-street}
    ao/target         :address/id
    fo/id             address-id
-   :query                [:mocked/query]})
+   :query            [:mocked/query]})
 
 (defsc PersonForm [_ _]
   {fo/attributes [person-name]
@@ -46,48 +43,48 @@
                       :account/spouse    {fo/ui PersonForm}}})
 
 (specification "attributes->form-query"
-               (component "Single-level query conversion"
-                          (let [eql       (form/form-options->form-query (comp/component-options AddressForm))
-                                eql-items (set eql)]
-                            (assertions
-                             "Returns an EQL vector"
-                             (vector? eql) => true
-                             "Includes the ID of the form in the query"
-                             (contains? eql-items :address/id) => true
-                             "No longer includes the ASM table (removed during statecharts conversion)"
-                             (contains? eql-items [:com.fulcrologic.fulcro.ui-state-machines/asm-id '_]) => false
-                             "Includes the form config join"
-                             (contains? eql-items fs/form-config-join) => true
-                             "Includes the scalar attribute keys"
-                             (contains? eql-items :address/street) => true)))
-               (component "Nested query conversion"
-                          (let [eql       (form/form-options->form-query (comp/component-options AccountForm))
-                                eql-items (set eql)]
-                            (assertions
-                             "Includes a join to the proper sub-query"
-                             (contains? eql-items {:account/addresses [:mocked/query]}) => true))))
+  (component "Single-level query conversion"
+    (let [eql       (form/form-options->form-query (comp/component-options AddressForm))
+          eql-items (set eql)]
+      (assertions
+        "Returns an EQL vector"
+        (vector? eql) => true
+        "Includes the ID of the form in the query"
+        (contains? eql-items :address/id) => true
+        "No longer includes the ASM table (removed during statecharts conversion)"
+        (contains? eql-items [:com.fulcrologic.fulcro.ui-state-machines/asm-id '_]) => false
+        "Includes the form config join"
+        (contains? eql-items fs/form-config-join) => true
+        "Includes the scalar attribute keys"
+        (contains? eql-items :address/street) => true)))
+  (component "Nested query conversion"
+    (let [eql       (form/form-options->form-query (comp/component-options AccountForm))
+          eql-items (set eql)]
+      (assertions
+        "Includes a join to the proper sub-query"
+        (contains? eql-items {:account/addresses [:mocked/query]}) => true))))
 
 (specification "New entity initial state"
-               (component "simple entity"
-                          (let [id (tempid/tempid)
-                                v  (form/default-state AddressForm id)]
-                            (assertions
-                             "Includes the new ID as the ID of the entity"
-                             (get v :address/id) => id
-                             "Adds any default fields to the entity"
-                             (get v :address/street) => default-street)))
-               (component "nested entity"
-                          (let [id (tempid/tempid)
-                                v  (form/default-state AccountForm id)]
-                            (assertions
-                             "Includes the new ID as the ID of the entity"
-                             (get v :account/id) => id
-                             "Adds default values from attribute declaration to the entity"
-                             (get v :account/email) => default-email
-                             "Includes a map with a new tempid for to-one entities that have a default value"
-                             (some-> (get-in v [:account/spouse :person/id]) (tempid/tempid?)) => true
-                             "Includes an empty vector for any to-many relation that has no default"
-                             (get v :account/addresses) => []))))
+  (component "simple entity"
+    (let [id (tempid/tempid)
+          v  (form/default-state AddressForm id)]
+      (assertions
+        "Includes the new ID as the ID of the entity"
+        (get v :address/id) => id
+        "Adds any default fields to the entity"
+        (get v :address/street) => default-street)))
+  (component "nested entity"
+    (let [id (tempid/tempid)
+          v  (form/default-state AccountForm id)]
+      (assertions
+        "Includes the new ID as the ID of the entity"
+        (get v :account/id) => id
+        "Adds default values from attribute declaration to the entity"
+        (get v :account/email) => default-email
+        "Includes a map with a new tempid for to-one entities that have a default value"
+        (some-> (get-in v [:account/spouse :person/id]) (tempid/tempid?)) => true
+        "Includes an empty vector for any to-many relation that has no default"
+        (get v :account/addresses) => []))))
 
 (defattr test-id :test/id :uuid {ao/identity? true})
 (defattr test-name :test/name :string {ao/identities #{:test/id} ao/required? true})
@@ -116,15 +113,15 @@
    fo/subforms   {:test/children {fo/ui ChildForm}}})
 
 (specification "find-fields"
-               (let [fields (form/find-fields TestForm #(#{:ref :boolean} (get % ao/type)))]
-                 (assertions
-                  "Finds all of the fields (recursively) that match the predicate."
-                  fields => #{:test/children :test/marketing? :test/agree? :child/node})))
+  (let [fields (form/find-fields TestForm #(#{:ref :boolean} (get % ao/type)))]
+    (assertions
+      "Finds all of the fields (recursively) that match the predicate."
+      fields => #{:test/children :test/marketing? :test/agree? :child/node})))
 
 (specification "optional-fields"
-               (let [fields (form/optional-fields TestForm)]
-                 (assertions
-                  "Finds all of the fields (recursively) that are used in forms but are not required by the data model."
+  (let [fields (form/optional-fields TestForm)]
+    (assertions
+      "Finds all of the fields (recursively) that are used in forms but are not required by the data model."
       ;; Booleans??? What if we just want to leave false == nil?
-                  fields => #{:test/note :test/children :test/marketing? :child/b :child/node :subchild/x})))
+      fields => #{:test/note :test/children :test/marketing? :child/b :child/node :subchild/x})))
 

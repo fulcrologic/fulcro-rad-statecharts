@@ -1,7 +1,7 @@
 (ns com.example.model.line-item
   (:require
-   [com.fulcrologic.rad.attributes :refer [defattr]]
-   [com.fulcrologic.rad.attributes-options :as ao]))
+    [com.fulcrologic.rad.attributes :refer [defattr]]
+    [com.fulcrologic.rad.attributes-options :as ao]))
 
 (defattr id :line-item/id :uuid
   {ao/identity? true

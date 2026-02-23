@@ -1,14 +1,14 @@
 (ns com.example.model.account
   (:refer-clojure :exclude [name])
   (:require
-   #?(:clj [com.example.components.database-queries :as queries])
-   [clojure.string :as str]
-   [com.fulcrologic.rad.attributes :as attr :refer [defattr]]
-   [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.form :as form]
-   [com.fulcrologic.rad.form-options :as fo]
-   [com.fulcrologic.fulcro.mutations :as m]
-   [com.wsscode.pathom.connect :as pc]))
+    #?(:clj [com.example.components.database-queries :as queries])
+    [clojure.string :as str]
+    [com.fulcrologic.rad.attributes :as attr :refer [defattr]]
+    [com.fulcrologic.rad.attributes-options :as ao]
+    [com.fulcrologic.rad.form :as form]
+    [com.fulcrologic.rad.form-options :as fo]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.wsscode.pathom.connect :as pc]))
 
 (defattr id :account/id :uuid
   {ao/identity? true
@@ -23,17 +23,17 @@
    fo/validation-message "Must use your lower-case first name as the email address name."
    ao/valid?             (fn [v props _]
                            (let [prefix (or
-                                         (some-> props
-                                                 :account/name
-                                                 (str/split #"\s")
-                                                 (first)
-                                                 (str/lower-case))
-                                         "")]
+                                          (some-> props
+                                            :account/name
+                                            (str/split #"\s")
+                                            (first)
+                                            (str/lower-case))
+                                          "")]
                              (str/starts-with? (or v "") prefix)))})
 
 (defattr active? :account/active? :boolean
-  {ao/identities   #{:account/id}
-   ao/schema       :production
+  {ao/identities    #{:account/id}
+   ao/schema        :production
    fo/default-value true})
 
 (defattr password :password/hashed-value :string
@@ -67,17 +67,17 @@
    ao/required?   true})
 
 (defattr primary-address :account/primary-address :ref
-  {ao/target      :address/id
-   ao/cardinality :one
-   ao/identities  #{:account/id}
+  {ao/target                                                       :address/id
+   ao/cardinality                                                  :one
+   ao/identities                                                   #{:account/id}
    :com.fulcrologic.rad.database-adapters.datomic/attribute-schema {:db/isComponent true}
-   ao/schema      :production})
+   ao/schema                                                       :production})
 
 (defattr addresses :account/addresses :ref
-  {ao/target      :address/id
-   ao/cardinality :many
-   ao/identities  #{:account/id}
-   ao/schema      :production
+  {ao/target                                                       :address/id
+   ao/cardinality                                                  :many
+   ao/identities                                                   #{:account/id}
+   ao/schema                                                       :production
    :com.fulcrologic.rad.database-adapters.datomic/attribute-schema {:db/isComponent true}})
 
 (defattr all-accounts :account/all-accounts :ref
@@ -96,7 +96,7 @@
 
 (m/defmutation set-account-active [{:account/keys [id active?]}]
   (action [{:keys [state]}]
-          (swap! state assoc-in [:account/id id :account/active?] active?))
+    (swap! state assoc-in [:account/id id :account/active?] active?))
   (remote [_] true))
 
 #?(:clj

@@ -1,11 +1,11 @@
 (ns com.example.components.server
   "HTTP server using http-kit, managed by Mount."
   (:require
-   [com.example.components.config :refer [config]]
-   [com.example.components.ring-middleware :refer [middleware]]
-   [mount.core :refer [defstate]]
-   #?@(:clj [[org.httpkit.server :refer [run-server]]
-             [taoensso.timbre :as log]])))
+    [com.example.components.config :refer [config]]
+    [com.example.components.ring-middleware :refer [middleware]]
+    [mount.core :refer [defstate]]
+    #?@(:clj [[org.httpkit.server :refer [run-server]]
+              [taoensso.timbre :as log]])))
 
 #?(:clj
    (defstate http-server

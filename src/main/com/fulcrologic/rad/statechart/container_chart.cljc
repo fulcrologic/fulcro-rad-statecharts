@@ -5,27 +5,27 @@
    States: initializing -> ready
    Events: :event/run (broadcast to children), :event/resume, :event/unmount"
   (:require
-   [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
-   [com.fulcrologic.statecharts.chart :refer [statechart]]
-   [com.fulcrologic.statecharts.convenience :refer [on handle]]
-   [com.fulcrologic.statecharts.elements :refer [state transition on-entry on-exit script]]))
+    [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
+    [com.fulcrologic.statecharts.chart :refer [statechart]]
+    [com.fulcrologic.statecharts.convenience :refer [handle]]
+    [com.fulcrologic.statecharts.elements :refer [on-entry on-exit script state transition]]))
 
 (def container-statechart
   "Container statechart definition. Initializes and coordinates child report statecharts."
   (statechart {:id ::container-chart :initial :state/initializing}
 
-              (state {:id :state/initializing}
-                     (on-entry {}
-                               (script {:expr cexpr/initialize-params-expr}))
-                     (transition {:target :state/ready}))
+    (state {:id :state/initializing}
+      (on-entry {}
+        (script {:expr cexpr/initialize-params-expr}))
+      (transition {:target :state/ready}))
 
-              (state {:id :state/ready}
-                     ;; Run all children
-                     (handle :event/run cexpr/run-children-expr)
+    (state {:id :state/ready}
+      ;; Run all children
+      (handle :event/run cexpr/run-children-expr)
 
-                     ;; Resume: re-initialize params and resume children
-                     (handle :event/resume cexpr/resume-children-expr)
+      ;; Resume: re-initialize params and resume children
+      (handle :event/resume cexpr/resume-children-expr)
 
-                     ;; Cleanup on exit: send unmount to all children
-                     (on-exit {}
-                              (script {:expr cexpr/unmount-children-expr})))))
+      ;; Cleanup on exit: send unmount to all children
+      (on-exit {}
+        (script {:expr cexpr/unmount-children-expr})))))

@@ -3,15 +3,14 @@
    convention: `(fn [env data event-name event-data] ...)` and return a vector of operations
    or nil."
   (:require
-   [com.fulcrologic.fulcro.algorithms.merge :as merge]
-   [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.rad.statechart.control :as control]
-   [com.fulcrologic.rad.options-util :refer [?!]]
-   [com.fulcrologic.rad.statechart.report :as report]
-   [com.fulcrologic.rad.statechart.session :as sc.session]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-   [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.rad.options-util :refer [?!]]
+    [com.fulcrologic.rad.statechart.control :as control]
+    [com.fulcrologic.rad.statechart.report :as report]
+    [com.fulcrologic.rad.statechart.session :as sc.session]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
 
 ;; ---- Helpers ----
 
@@ -44,33 +43,33 @@
         children        (id-child-pairs ContainerClass)
         ;; Build ops for merging children and initializing parameters
         merge-op        (fops/apply-action
-                         (fn [state-map]
-                           (reduce
-                            (fn [s [id cls]]
-                              (let [k    (comp/class->registry-key cls)
-                                    path (conj container-ident k)]
-                                (merge/merge-component
-                                 s cls
-                                 (or (comp/get-initial-state cls {:com.fulcrologic.rad.statechart.report/id id}) {})
-                                 :replace path)))
-                            state-map
-                            children)))
+                          (fn [state-map]
+                            (reduce
+                              (fn [s [id cls]]
+                                (let [k    (comp/class->registry-key cls)
+                                      path (conj container-ident k)]
+                                  (merge/merge-component
+                                    s cls
+                                    (or (comp/get-initial-state cls {:com.fulcrologic.rad.statechart.report/id id}) {})
+                                    :replace path)))
+                              state-map
+                              children)))
         param-ops       (reduce-kv
-                         (fn [ops control-key {:keys [default-value]}]
-                           (let [v (cond
-                                     (contains? route-params control-key) (get route-params control-key)
-                                     (not (nil? default-value)) (?! default-value app))]
-                             (if-not (nil? v)
-                               (conj ops (fops/apply-action assoc-in
-                                                            [::control/id control-key ::control/value] v))
-                               ops)))
-                         []
-                         controls)]
+                          (fn [ops control-key {:keys [default-value]}]
+                            (let [v (cond
+                                      (contains? route-params control-key) (get route-params control-key)
+                                      (not (nil? default-value)) (?! default-value app))]
+                              (if-not (nil? v)
+                                (conj ops (fops/apply-action assoc-in
+                                            [::control/id control-key ::control/value] v))
+                                ops)))
+                          []
+                          controls)]
     ;; Side effect: start child report statecharts
     (doseq [[id c] children]
-      (report/start-report! app c {:com.fulcrologic.rad.statechart.report/id                    id
+      (report/start-report! app c {:com.fulcrologic.rad.statechart.report/id                     id
                                    :com.fulcrologic.rad.statechart.report/externally-controlled? true
-                                   :route-params                                      route-params}))
+                                   :route-params                                                 route-params}))
     (into [merge-op] param-ops)))
 
 (defn broadcast-to-children!
@@ -98,16 +97,16 @@
     (broadcast-to-children! env data :event/resume {:route-params route-params})
     ;; Return ops: re-initialize parameters
     (reduce-kv
-     (fn [ops control-key {:keys [default-value]}]
-       (let [v (cond
-                 (contains? route-params control-key) (get route-params control-key)
-                 (not (nil? default-value)) (?! default-value app))]
-         (if-not (nil? v)
-           (conj ops (fops/apply-action assoc-in
-                                        [::control/id control-key ::control/value] v))
-           ops)))
-     []
-     controls)))
+      (fn [ops control-key {:keys [default-value]}]
+        (let [v (cond
+                  (contains? route-params control-key) (get route-params control-key)
+                  (not (nil? default-value)) (?! default-value app))]
+          (if-not (nil? v)
+            (conj ops (fops/apply-action assoc-in
+                        [::control/id control-key ::control/value] v))
+            ops)))
+      []
+      controls)))
 
 (defn unmount-children-expr
   "Sends :event/unmount to all child report statecharts for cleanup."

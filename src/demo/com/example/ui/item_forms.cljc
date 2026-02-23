@@ -2,12 +2,11 @@
   "Item form and inventory report. Ported from fulcro-rad-demo with
    statecharts lifecycle (no UISM, no dynamic routing)."
   (:require
-   [com.example.model.category :as category]
-   [com.example.model.item :as item]
-   [com.fulcrologic.fulcro.components :refer [defsc]]
-   [com.fulcrologic.rad.statechart.form :as form]
-   [com.fulcrologic.rad.form-options :as fo]
-   [com.fulcrologic.rad.picker-options :as po]))
+    [com.example.model.item :as item]
+    [com.fulcrologic.fulcro.components :refer [defsc]]
+    [com.fulcrologic.rad.form-options :as fo]
+    [com.fulcrologic.rad.picker-options :as po]
+    [com.fulcrologic.rad.statechart.form :as form]))
 
 (defsc CategoryQuery [_ _]
   {:query [:category/id :category/label]
@@ -25,9 +24,9 @@
                                      po/query-component CategoryQuery
                                      po/options-xform   (fn [_ options]
                                                           (mapv
-                                                           (fn [{:category/keys [id label]}]
-                                                             {:text (str label) :value [:category/id id]})
-                                                           (sort-by :category/label options)))
+                                                            (fn [{:category/keys [id label]}]
+                                                              {:text (str label) :value [:category/id id]})
+                                                            (sort-by :category/label options)))
                                      po/cache-time-ms   30000}}
    fo/route-prefix  "item"
    fo/title         "Edit Item"})

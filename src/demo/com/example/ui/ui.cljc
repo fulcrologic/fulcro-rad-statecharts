@@ -2,21 +2,21 @@
   "Demo Root component with statecharts routing.
    Replaces the original fulcro-rad-demo ui.cljc which used dynamic routing."
   (:require
-   #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
-      :cljs [com.fulcrologic.fulcro.dom :as dom])
-   [com.example.ui.account-forms :refer [AccountForm]]
-   [com.example.ui.invoice-forms :refer [InvoiceForm AccountInvoices]]
-   [com.example.ui.item-forms :refer [ItemForm]]
-   [com.example.ui.inventory-report :refer [InventoryReport]]
-   [com.example.ui.invoice-report :refer [InvoiceReport]]
-   [com.fulcrologic.fulcro.application :as app]
-   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-   [com.fulcrologic.rad.ids :refer [new-uuid]]
-   [com.fulcrologic.rad.statechart.routing :as rroute]
-   [com.fulcrologic.statecharts :as sc]
-   [com.fulcrologic.statecharts.chart :refer [statechart]]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
+    #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
+       :cljs [com.fulcrologic.fulcro.dom :as dom])
+    [com.example.ui.account-forms :refer [AccountForm]]
+    [com.example.ui.invoice-forms :refer [InvoiceForm AccountInvoices]]
+    [com.example.ui.item-forms :refer [ItemForm]]
+    [com.example.ui.inventory-report :refer [InventoryReport]]
+    [com.example.ui.invoice-report :refer [InvoiceReport]]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.rad.ids :refer [new-uuid]]
+    [com.fulcrologic.rad.statechart.routing :as rroute]
+    [com.fulcrologic.statecharts :as sc]
+    [com.fulcrologic.statecharts.chart :refer [statechart]]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
 
 ;; ---------------------------------------------------------------------------
 ;; Landing Page
@@ -27,8 +27,8 @@
    :ident         (fn [] [:component/id ::LandingPage])
    :initial-state {:ui/placeholder true}}
   (dom/div {:data-rad-type "landing-page"}
-           (dom/h2 nil "Welcome to the RAD Statecharts Demo")
-           (dom/p nil "Use the navigation above to browse accounts, inventory, and invoices.")))
+    (dom/h2 nil "Welcome to the RAD Statecharts Demo")
+    (dom/p nil "Use the navigation above to browse accounts, inventory, and invoices.")))
 
 ;; ---------------------------------------------------------------------------
 ;; Routes — displays the current subroute via statecharts routing
@@ -40,7 +40,7 @@
    :initial-state           {}
    :ident                   (fn [] [:component/id ::Routes])}
   (dom/div {:data-rad-type "route-container"}
-           (scr/ui-current-subroute this comp/factory)))
+    (scr/ui-current-subroute this comp/factory)))
 
 (def ui-routes (comp/factory Routes))
 
@@ -53,24 +53,24 @@
    Uses `report-state` and `form-state` helpers for forms/reports,
    and `rstate` for the landing page."
   (statechart {:initial :state/route-root}
-              (scr/routing-regions
-               (scr/routes {:id :state/root :routing/root `Routes}
+    (scr/routing-regions
+      (scr/routes {:id :state/root :routing/root `Routes}
 
-                           (scr/rstate {:route/target `LandingPage})
+        (scr/rstate {:route/target `LandingPage})
 
         ;; Reports
-                           (rroute/report-route-state {:route/target InventoryReport})
-                           (rroute/report-route-state {:route/target InvoiceReport})
-                           (rroute/report-route-state {:route/target AccountInvoices
-                                                       :route/params #{:account/id}})
+        (rroute/report-route-state {:route/target InventoryReport})
+        (rroute/report-route-state {:route/target InvoiceReport})
+        (rroute/report-route-state {:route/target AccountInvoices
+                                    :route/params #{:account/id}})
 
         ;; Forms
-                           (rroute/form-route-state {:route/target AccountForm
-                                                     :route/params #{:account/id}})
-                           (rroute/form-route-state {:route/target ItemForm
-                                                     :route/params #{:item/id}})
-                           (rroute/form-route-state {:route/target InvoiceForm
-                                                     :route/params #{:invoice/id}})))))
+        (rroute/form-route-state {:route/target AccountForm
+                                  :route/params #{:account/id}})
+        (rroute/form-route-state {:route/target ItemForm
+                                  :route/params #{:item/id}})
+        (rroute/form-route-state {:route/target InvoiceForm
+                                  :route/params #{:invoice/id}})))))
 
 ;; ---------------------------------------------------------------------------
 ;; Root component
@@ -82,7 +82,7 @@
   (dom/button {:data-rad-type "nav-button"
                :data-label    label
                :onClick       on-click}
-              label))
+    label))
 
 (defsc Root [this {::app/keys [active-remotes]
                    :ui/keys   [ready? routes]}]
@@ -97,41 +97,41 @@
         route-denied?  (boolean (contains? routing-states :routing-info/open))]
     (if ready?
       (dom/div {:data-rad-type "app-root"}
-               (dom/nav {:data-rad-type "nav-bar"}
-                        (dom/span {:data-rad-type "app-title"} "RAD Demo")
+        (dom/nav {:data-rad-type "nav-bar"}
+          (dom/span {:data-rad-type "app-title"} "RAD Demo")
 
-                        (nav-button "New Account"
-                                    (fn [] (rroute/create! this AccountForm)))
+          (nav-button "New Account"
+            (fn [] (rroute/create! this AccountForm)))
 
-                        (nav-button "Inventory"
-                                    (fn [] (scr/route-to! this InventoryReport)))
-                        (nav-button "New Item"
-                                    (fn [] (rroute/create! this ItemForm)))
+          (nav-button "Inventory"
+            (fn [] (scr/route-to! this InventoryReport)))
+          (nav-button "New Item"
+            (fn [] (rroute/create! this ItemForm)))
 
-                        (nav-button "Invoices"
-                                    (fn [] (scr/route-to! this InvoiceReport)))
-                        (nav-button "New Invoice"
-                                    (fn [] (rroute/create! this InvoiceForm)))
+          (nav-button "Invoices"
+            (fn [] (scr/route-to! this InvoiceReport)))
+          (nav-button "New Invoice"
+            (fn [] (rroute/create! this InvoiceForm)))
 
-                        (nav-button "Acct 101 Invoices"
-                                    (fn [] (scr/route-to! this AccountInvoices {:account/id (new-uuid 101)})))
+          (nav-button "Acct 101 Invoices"
+            (fn [] (scr/route-to! this AccountInvoices {:account/id (new-uuid 101)})))
 
-                        (when busy?
-                          (dom/span {:data-rad-type "busy-indicator"} "Loading...")))
+          (when busy?
+            (dom/span {:data-rad-type "busy-indicator"} "Loading...")))
 
-               (when route-denied?
-                 (dom/div {:data-rad-type "route-denied-modal"}
-                          (dom/p nil "You have unsaved changes.")
-                          (dom/button {:data-rad-type "route-denied-action"
-                                       :data-label    "Cancel"
-                                       :onClick       (fn [] (scr/abandon-route-change! this))}
-                                      "Cancel")
-                          (dom/button {:data-rad-type "route-denied-action"
-                                       :data-label    "Continue"
-                                       :onClick       (fn [] (scr/force-continue-routing! this))}
-                                      "Continue and lose changes")))
+        (when route-denied?
+          (dom/div {:data-rad-type "route-denied-modal"}
+            (dom/p nil "You have unsaved changes.")
+            (dom/button {:data-rad-type "route-denied-action"
+                         :data-label    "Cancel"
+                         :onClick       (fn [] (scr/abandon-route-change! this))}
+              "Cancel")
+            (dom/button {:data-rad-type "route-denied-action"
+                         :data-label    "Continue"
+                         :onClick       (fn [] (scr/force-continue-routing! this))}
+              "Continue and lose changes")))
 
-               (dom/div {:data-rad-type "main-content"}
-                        (ui-routes routes)))
+        (dom/div {:data-rad-type "main-content"}
+          (ui-routes routes)))
 
       (dom/div {:data-rad-type "loading"} "Loading..."))))

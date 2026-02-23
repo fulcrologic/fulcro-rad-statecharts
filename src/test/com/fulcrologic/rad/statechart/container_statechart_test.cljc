@@ -3,18 +3,17 @@
    Uses a real Fulcro app with :event-loop? :immediate to verify that
    statechart + Fulcro state integration works correctly."
   (:require
-   [com.fulcrologic.fulcro.application :as app]
-   [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.rad.statechart.application :as rad-app]
-   [com.fulcrologic.rad.attributes :refer [defattr]]
-   [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.statechart.container :as container]
-   [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
-   [com.fulcrologic.rad.statechart.report :as report]
-   [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.statechart.session :as sc.session]
-   [fulcro-spec.core :refer [assertions specification component =>]]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.rad.attributes :refer [defattr]]
+    [com.fulcrologic.rad.attributes-options :as ao]
+    [com.fulcrologic.rad.report-options :as ro]
+    [com.fulcrologic.rad.statechart.application :as rad-app]
+    [com.fulcrologic.rad.statechart.container :as container]
+    [com.fulcrologic.rad.statechart.container-expressions :as cexpr]
+    [com.fulcrologic.rad.statechart.report :as report]
+    [com.fulcrologic.rad.statechart.session :as sc.session]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ===== Test Model =====
 
@@ -30,37 +29,37 @@
 ;; Two child reports for the container — using the function form to avoid CLJ macro issues
 (def ReportA
   (report/report ::ReportA
-                 {ro/columns          [item-name item-price]
-                  ro/source-attribute :item/report-a-items
-                  ro/row-pk           item-id
-                  ro/run-on-mount?    false
-                  ro/route            "report-a"
-                  ro/title            "Report A"}))
+    {ro/columns          [item-name item-price]
+     ro/source-attribute :item/report-a-items
+     ro/row-pk           item-id
+     ro/run-on-mount?    false
+     ro/route            "report-a"
+     ro/title            "Report A"}))
 
 (def ReportB
   (report/report ::ReportB
-                 {ro/columns          [item-name item-price]
-                  ro/source-attribute :item/report-b-items
-                  ro/row-pk           item-id
-                  ro/run-on-mount?    false
-                  ro/route            "report-b"
-                  ro/title            "Report B"}))
+    {ro/columns          [item-name item-price]
+     ro/source-attribute :item/report-b-items
+     ro/row-pk           item-id
+     ro/run-on-mount?    false
+     ro/route            "report-b"
+     ro/title            "Report B"}))
 
 ;; Container component — built programmatically (not via macro)
 (def TestContainer
   (comp/sc ::TestContainer
-           {:query         (fn [_] [:ui/parameters
-                                    {:ui/controls (comp/get-query com.fulcrologic.rad.statechart.control/Control)}
-                                    {::ReportA (comp/get-query ReportA)}
-                                    {::ReportB (comp/get-query ReportB)}])
-            :ident         (fn [_ _] [::container/id ::TestContainer])
-            :initial-state (fn [_] {:ui/parameters {}
-                                    :ui/controls   []
-                                    ::ReportA      (comp/get-initial-state ReportA {::report/id ::ReportA})
-                                    ::ReportB      (comp/get-initial-state ReportB {::report/id ::ReportB})})
-            ::container/children {::ReportA ReportA
-                                  ::ReportB ReportB}}
-           (fn [this] nil)))
+    {:query               (fn [_] [:ui/parameters
+                                   {:ui/controls (comp/get-query com.fulcrologic.rad.statechart.control/Control)}
+                                   {::ReportA (comp/get-query ReportA)}
+                                   {::ReportB (comp/get-query ReportB)}])
+     :ident               (fn [_ _] [::container/id ::TestContainer])
+     :initial-state       (fn [_] {:ui/parameters {}
+                                   :ui/controls   []
+                                   ::ReportA      (comp/get-initial-state ReportA {::report/id ::ReportA})
+                                   ::ReportB      (comp/get-initial-state ReportB {::report/id ::ReportB})})
+     ::container/children {::ReportA ReportA
+                           ::ReportB ReportB}}
+    (fn [this] nil)))
 
 ;; ===== Test Helpers =====
 
@@ -99,47 +98,47 @@
 ;; ===== Tests =====
 
 (specification "Container statechart — Fulcro headless start"
-               (let [app (test-app)]
-                 (container/start-container! app TestContainer {})
-                 (assertions
-                  "Container enters :state/ready after start"
-                  (container-in? app :state/ready) => true
+  (let [app (test-app)]
+    (container/start-container! app TestContainer {})
+    (assertions
+      "Container enters :state/ready after start"
+      (container-in? app :state/ready) => true
 
-                  "Child report A is started (has a running session)"
-                  (some? (seq (scf/current-configuration app (child-report-sid ReportA ::ReportA)))) => true
+      "Child report A is started (has a running session)"
+      (some? (seq (scf/current-configuration app (child-report-sid ReportA ::ReportA)))) => true
 
-                  "Child report B is started (has a running session)"
-                  (some? (seq (scf/current-configuration app (child-report-sid ReportB ::ReportB)))) => true
+      "Child report B is started (has a running session)"
+      (some? (seq (scf/current-configuration app (child-report-sid ReportB ::ReportB)))) => true
 
-                  "Child report A enters :state/ready (run-on-mount? false)"
-                  (child-report-in? app ReportA ::ReportA :state/ready) => true
+      "Child report A enters :state/ready (run-on-mount? false)"
+      (child-report-in? app ReportA ::ReportA :state/ready) => true
 
-                  "Child report B enters :state/ready (run-on-mount? false)"
-                  (child-report-in? app ReportB ::ReportB :state/ready) => true)))
+      "Child report B enters :state/ready (run-on-mount? false)"
+      (child-report-in? app ReportB ::ReportB :state/ready) => true)))
 
 (specification "Container statechart — Fulcro headless run triggers children"
-               (let [app (test-app)]
-                 (container/start-container! app TestContainer {})
-                 ;; Send :event/run to the container, which broadcasts to children
-                 (scf/send! app (container-sid) :event/run)
-                 (assertions
-                  "Container stays in :state/ready after run"
-                  (container-in? app :state/ready) => true
+  (let [app (test-app)]
+    (container/start-container! app TestContainer {})
+    ;; Send :event/run to the container, which broadcasts to children
+    (scf/send! app (container-sid) :event/run)
+    (assertions
+      "Container stays in :state/ready after run"
+      (container-in? app :state/ready) => true
 
-                  "Child report A transitions to :state/loading on run"
-                  (child-report-in? app ReportA ::ReportA :state/loading) => true
+      "Child report A transitions to :state/loading on run"
+      (child-report-in? app ReportA ::ReportA :state/loading) => true
 
-                  "Child report B transitions to :state/loading on run"
-                  (child-report-in? app ReportB ::ReportB :state/loading) => true)))
+      "Child report B transitions to :state/loading on run"
+      (child-report-in? app ReportB ::ReportB :state/loading) => true)))
 
 (specification "Container statechart — Fulcro headless resume"
-               (let [app (test-app)]
-                 (container/start-container! app TestContainer {})
-                 ;; Resume should broadcast :event/resume to children
-                 (scf/send! app (container-sid) :event/resume {:route-params {}})
-                 (assertions
-                  "Container stays in :state/ready after resume"
-                  (container-in? app :state/ready) => true)))
+  (let [app (test-app)]
+    (container/start-container! app TestContainer {})
+    ;; Resume should broadcast :event/resume to children
+    (scf/send! app (container-sid) :event/resume {:route-params {}})
+    (assertions
+      "Container stays in :state/ready after resume"
+      (container-in? app :state/ready) => true)))
 
 ;; NOTE: The container sends :event/unmount to children on exit from :state/ready,
 ;; but the standard report statechart does NOT handle :event/unmount — it simply

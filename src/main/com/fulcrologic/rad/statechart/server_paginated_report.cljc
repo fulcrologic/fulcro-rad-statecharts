@@ -4,26 +4,22 @@
 
    Replaces `com.fulcrologic.rad.state-machines.server-paginated-report`."
   (:require
-   [com.fulcrologic.fulcro.algorithms.merge :as merge]
-   [com.fulcrologic.fulcro.components :as comp]
-   [com.fulcrologic.fulcro.raw.components :as rc]
-   [com.fulcrologic.rad.attributes :as attr]
-   [com.fulcrologic.rad.attributes-options :as ao]
-   [com.fulcrologic.rad.statechart.control :as control]
-   [com.fulcrologic.rad.options-util :as opts :refer [?!]]
-   [com.fulcrologic.rad.statechart.report :as report]
-   [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
-   [com.fulcrologic.rad.report-options :as ro]
-   [com.fulcrologic.rad.statechart.session :as sc.session]
-   [com.fulcrologic.rad.type-support.date-time :as dt]
-   [com.fulcrologic.statecharts :as-alias sc]
-   [com.fulcrologic.statecharts.chart :refer [statechart]]
-   [com.fulcrologic.statecharts.convenience :refer [on handle]]
-   [com.fulcrologic.statecharts.data-model.operations :as ops]
-   [com.fulcrologic.statecharts.elements :refer [state transition on-entry script data-model]]
-   [com.fulcrologic.statecharts.integration.fulcro :as scf]
-   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-   [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.rad.attributes :as attr]
+    [com.fulcrologic.rad.options-util :refer [?!]]
+    [com.fulcrologic.rad.statechart.report :as report]
+    [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
+    [com.fulcrologic.rad.statechart.session :as sc.session]
+    [com.fulcrologic.rad.type-support.date-time :as dt]
+    [com.fulcrologic.statecharts :as-alias sc]
+    [com.fulcrologic.statecharts.chart :refer [statechart]]
+    [com.fulcrologic.statecharts.convenience :refer [handle on]]
+    [com.fulcrologic.statecharts.data-model.operations :as ops]
+    [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition]]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
 
 ;; ---- Options ----
 
@@ -66,62 +62,62 @@
         load-options   (?! load-options env)
         PageQuery      (rc/nc [:total
                                {:results (comp/get-query BodyItem)}]
-                              {:componentName (keyword (str (comp/component-name Report) "-pagequery"))})
+                         {:componentName (keyword (str (comp/component-name Report) "-pagequery"))})
         current-params (assoc (rexpr/current-control-parameters data)
-                              :indexed-access/options (cond-> {:limit  page-size
-                                                               :offset (* (max 0 (dec current-page)) page-size)}
-                                                        (and (not total-results) direct-page-access?) (assoc :include-total? true)
-                                                        (keyword? sort-by-val) (assoc :sort-column sort-by-val)
-                                                        (false? ascending?) (assoc :reverse? true)
-                                                        (inst? point-in-time) (assoc :point-in-time point-in-time)))
+                         :indexed-access/options (cond-> {:limit  page-size
+                                                          :offset (* (max 0 (dec current-page)) page-size)}
+                                                   (and (not total-results) direct-page-access?) (assoc :include-total? true)
+                                                   (keyword? sort-by-val) (assoc :sort-column sort-by-val)
+                                                   (false? ascending?) (assoc :reverse? true)
+                                                   (inst? point-in-time) (assoc :point-in-time point-in-time)))
         page-path      (rexpr/resolve-alias-path data :loaded-page)]
     [(fops/assoc-alias :raw-rows [] :busy? true)
      (fops/load source-attribute PageQuery
-                (merge
-                 {:params          current-params
-                  ::sc/ok-event    :event/page-loaded
-                  ::sc/error-event :event/failed
-                  :marker          report-ident
-                  :target          page-path}
-                 load-options))]))
+       (merge
+         {:params          current-params
+          ::sc/ok-event    :event/page-loaded
+          ::sc/error-event :event/failed
+          :marker          report-ident
+          :target          page-path}
+         load-options))]))
 
 (defn process-server-page-expr
   "Expression: Process a loaded page — merge results, update page cache."
   [_env data _event-name _event-data]
-  (let [Report       (rexpr/report-class data)
-        state-map    (:fulcro/state-map data)
-        report-ident (rexpr/actor-ident data :actor/report)
+  (let [Report          (rexpr/report-class data)
+        state-map       (:fulcro/state-map data)
+        report-ident    (rexpr/actor-ident data :actor/report)
         {::report/keys [BodyItem page-size report-loaded]} (comp/component-options Report)
-        page-size    (or (?! page-size nil) 20)
-        aliases      (scf/resolve-aliases data)
-        loaded-page  (:loaded-page aliases)
+        page-size       (or (?! page-size nil) 20)
+        aliases         (scf/resolve-aliases data)
+        loaded-page     (:loaded-page aliases)
         {:keys [results total]} loaded-page
-        current-page (or (:current-page aliases) 1)
-        page-count   (when (number? total)
-                       (if (zero? total) 0
-                           (cond-> (int (/ total page-size))
-                             (pos? (mod total page-size)) inc)))
-        raw-path     (rexpr/resolve-alias-path data :raw-rows)
+        current-page    (or (:current-page aliases) 1)
+        page-count      (when (number? total)
+                          (if (zero? total) 0
+                                            (cond-> (int (/ total page-size))
+                                              (pos? (mod total page-size)) inc)))
+        raw-path        (rexpr/resolve-alias-path data :raw-rows)
         page-cache-path (conj (rexpr/resolve-alias-path data :page-cache) current-page)]
     (into
-     [(fops/apply-action
-       (fn [sm]
-         (let [;; Append results to raw-rows (normalized merge)
-               sm (reduce
-                   (fn [s item] (merge/merge-component s BodyItem item :append raw-path))
-                   sm
-                   results)
-               ;; Preprocess
-               sm (rexpr/preprocess-raw-result sm data)
-               ;; Move raw-rows to page cache
-               rows (get-in sm raw-path)
-               sm   (assoc-in sm page-cache-path rows)
-               ;; Set current-rows to this page's data
-               sm   (assoc-in sm (rexpr/resolve-alias-path data :current-rows) rows)]
-           sm)))]
-     (cond-> [(fops/assoc-alias :busy? false)]
-       (number? page-count) (conj (fops/assoc-alias :page-count page-count))
-       (number? total) (conj (fops/assoc-alias :total-results total))))))
+      [(fops/apply-action
+         (fn [sm]
+           (let [;; Append results to raw-rows (normalized merge)
+                 sm   (reduce
+                        (fn [s item] (merge/merge-component s BodyItem item :append raw-path))
+                        sm
+                        results)
+                 ;; Preprocess
+                 sm   (rexpr/preprocess-raw-result sm data)
+                 ;; Move raw-rows to page cache
+                 rows (get-in sm raw-path)
+                 sm   (assoc-in sm page-cache-path rows)
+                 ;; Set current-rows to this page's data
+                 sm   (assoc-in sm (rexpr/resolve-alias-path data :current-rows) rows)]
+             sm)))]
+      (cond-> [(fops/assoc-alias :busy? false)]
+        (number? page-count) (conj (fops/assoc-alias :page-count page-count))
+        (number? total) (conj (fops/assoc-alias :total-results total))))))
 
 (defn page-cached?
   "Condition: Is the requested page already in the cache?"
@@ -135,14 +131,14 @@
 (defn serve-cached-page-expr
   "Expression: Serve a page from the client cache."
   [_env data _event-name event-data]
-  (let [page      (:page event-data)
-        state-map (:fulcro/state-map data)
+  (let [page       (:page event-data)
+        state-map  (:fulcro/state-map data)
         cache-path (conj (rexpr/resolve-alias-path data :page-cache) page)
-        rows      (get-in state-map cache-path)]
+        rows       (get-in state-map cache-path)]
     [(fops/assoc-alias :current-page page :selected-row -1)
      (fops/apply-action
-      (fn [sm]
-        (assoc-in sm (rexpr/resolve-alias-path data :current-rows) rows)))]))
+       (fn [sm]
+         (assoc-in sm (rexpr/resolve-alias-path data :current-rows) rows)))]))
 
 (defn set-target-page-expr
   "Expression: Set the target page for loading."
@@ -162,10 +158,10 @@
     (if qk
       [(fops/assoc-alias :sort-by qk :ascending? ascending? :current-page 1)
        (fops/apply-action
-        (fn [sm]
-          (-> sm
-              (assoc-in (rexpr/resolve-alias-path data :page-cache) {})
-              (assoc-in (rexpr/resolve-alias-path data :total-results) nil))))
+         (fn [sm]
+           (-> sm
+             (assoc-in (rexpr/resolve-alias-path data :page-cache) {})
+             (assoc-in (rexpr/resolve-alias-path data :total-results) nil))))
        (ops/assign :point-in-time (dt/now))]
       [])))
 
@@ -174,10 +170,10 @@
   [_env data _event-name _event-data]
   [(fops/assoc-alias :current-page 1)
    (fops/apply-action
-    (fn [sm]
-      (-> sm
-          (assoc-in (rexpr/resolve-alias-path data :page-cache) {})
-          (assoc-in (rexpr/resolve-alias-path data :total-results) nil))))
+     (fn [sm]
+       (-> sm
+         (assoc-in (rexpr/resolve-alias-path data :page-cache) {})
+         (assoc-in (rexpr/resolve-alias-path data :total-results) nil))))
    (ops/assign :point-in-time (dt/now))])
 
 (defn resume-server-paginated-expr
@@ -197,65 +193,65 @@
    with client-side page caching for back-navigation."
   (statechart {:id ::server-paginated-report-chart :initial :state/initializing}
 
-              (data-model {:expr (fn [_ _]
-                                   {:point-in-time nil})})
+    (data-model {:expr (fn [_ _]
+                         {:point-in-time nil})})
 
-              (state {:id :state/initializing}
-                     (on-entry {}
-                               (script {:expr server-paginated-init-expr}))
-                     (transition {:cond rexpr/should-run-on-mount? :target :state/loading-page})
-                     (transition {:target :state/ready}))
+    (state {:id :state/initializing}
+      (on-entry {}
+        (script {:expr server-paginated-init-expr}))
+      (transition {:cond rexpr/should-run-on-mount? :target :state/loading-page})
+      (transition {:target :state/ready}))
 
-              (state {:id :state/loading-page}
-                     (on-entry {}
-                               (script {:expr load-server-page-expr}))
-                     (on :event/page-loaded :state/processing-page)
-                     (on :event/failed :state/ready))
+    (state {:id :state/loading-page}
+      (on-entry {}
+        (script {:expr load-server-page-expr}))
+      (on :event/page-loaded :state/processing-page)
+      (on :event/failed :state/ready))
 
-              (state {:id :state/processing-page}
-                     (on-entry {}
-                               (script {:expr process-server-page-expr}))
-                     (transition {:target :state/ready}))
+    (state {:id :state/processing-page}
+      (on-entry {}
+        (script {:expr process-server-page-expr}))
+      (transition {:target :state/ready}))
 
-              (state {:id :state/ready}
+    (state {:id :state/ready}
       ;; Page navigation: check cache first, else load
-                     (transition {:event :event/goto-page :cond page-cached? :target :state/ready}
-                                 (script {:expr serve-cached-page-expr}))
-                     (transition {:event :event/goto-page :target :state/loading-page}
-                                 (script {:expr set-target-page-expr}))
+      (transition {:event :event/goto-page :cond page-cached? :target :state/ready}
+        (script {:expr serve-cached-page-expr}))
+      (transition {:event :event/goto-page :target :state/loading-page}
+        (script {:expr set-target-page-expr}))
 
       ;; Next/prior page helpers
-                     (transition {:event :event/next-page :target :state/ready}
-                                 (script {:expr (fn [_env data _event-name _event-data]
-                                                  (let [aliases  (scf/resolve-aliases data)
-                                                        page     (or (:current-page aliases) 1)]
-                                                    [(fops/assoc-alias :current-page (inc (max 1 page)) :selected-row -1)]))}))
-                     (transition {:event :event/prior-page :target :state/ready}
-                                 (script {:expr (fn [_env data _event-name _event-data]
-                                                  (let [aliases  (scf/resolve-aliases data)
-                                                        page     (or (:current-page aliases) 1)]
-                                                    [(fops/assoc-alias :current-page (dec (max 2 page)) :selected-row -1)]))}))
+      (transition {:event :event/next-page :target :state/ready}
+        (script {:expr (fn [_env data _event-name _event-data]
+                         (let [aliases (scf/resolve-aliases data)
+                               page    (or (:current-page aliases) 1)]
+                           [(fops/assoc-alias :current-page (inc (max 1 page)) :selected-row -1)]))}))
+      (transition {:event :event/prior-page :target :state/ready}
+        (script {:expr (fn [_env data _event-name _event-data]
+                         (let [aliases (scf/resolve-aliases data)
+                               page    (or (:current-page aliases) 1)]
+                           [(fops/assoc-alias :current-page (dec (max 2 page)) :selected-row -1)]))}))
 
       ;; Sort triggers full reload (server sorts)
-                     (transition {:event :event/sort :target :state/loading-page}
-                                 (script {:expr update-sort-and-refresh-expr}))
+      (transition {:event :event/sort :target :state/loading-page}
+        (script {:expr update-sort-and-refresh-expr}))
 
       ;; Filter triggers full reload (server filters)
-                     (transition {:event :event/filter :target :state/loading-page}
-                                 (script {:expr refresh-expr}))
+      (transition {:event :event/filter :target :state/loading-page}
+        (script {:expr refresh-expr}))
 
       ;; Row selection
-                     (handle :event/select-row rexpr/select-row-expr)
+      (handle :event/select-row rexpr/select-row-expr)
 
       ;; Parameter management
-                     (handle :event/set-ui-parameters rexpr/set-params-expr)
+      (handle :event/set-ui-parameters rexpr/set-params-expr)
 
       ;; Reload
-                     (on :event/run :state/loading-page)
+      (on :event/run :state/loading-page)
 
       ;; Resume
-                     (transition {:event :event/resume :target :state/loading-page}
-                                 (script {:expr resume-server-paginated-expr})))))
+      (transition {:event :event/resume :target :state/loading-page}
+        (script {:expr resume-server-paginated-expr})))))
 
 ;; ---- Public API ----
 
@@ -273,25 +269,25 @@
        (scf/register-statechart! app ::server-paginated-report-chart server-paginated-report-statechart))
      (if (not running?)
        (scf/start! app
-                   {:machine    machine-key
-                    :session-id session-id
-                    :data       {:fulcro/actors  {:actor/report (scf/actor report-class report-ident)}
-                                 :fulcro/aliases {:parameters    [:actor/report :ui/parameters]
-                                                  :sort-params   [:actor/report :ui/parameters ::report/sort]
-                                                  :sort-by       [:actor/report :ui/parameters ::report/sort :sort-by]
-                                                  :ascending?    [:actor/report :ui/parameters ::report/sort :ascending?]
-                                                  :raw-rows      [:actor/report :ui/loaded-data]
-                                                  :current-rows  [:actor/report :ui/current-rows]
-                                                  :current-page  [:actor/report :ui/parameters ::report/current-page]
-                                                  :selected-row  [:actor/report :ui/parameters ::report/selected-row]
-                                                  :page-count    [:actor/report :ui/page-count]
-                                                  :point-in-time [:actor/report :ui/point-in-time]
-                                                  :total-results [:actor/report :ui/total-results]
-                                                  :loaded-page   [:actor/report :ui/cache :loaded-page]
-                                                  :page-cache    [:actor/report :ui/cache :page-cache]
-                                                  :busy?         [:actor/report :ui/busy?]}
-                                 :params         params
-                                 :route-params   params}})
+         {:machine    machine-key
+          :session-id session-id
+          :data       {:fulcro/actors  {:actor/report (scf/actor report-class report-ident)}
+                       :fulcro/aliases {:parameters    [:actor/report :ui/parameters]
+                                        :sort-params   [:actor/report :ui/parameters ::report/sort]
+                                        :sort-by       [:actor/report :ui/parameters ::report/sort :sort-by]
+                                        :ascending?    [:actor/report :ui/parameters ::report/sort :ascending?]
+                                        :raw-rows      [:actor/report :ui/loaded-data]
+                                        :current-rows  [:actor/report :ui/current-rows]
+                                        :current-page  [:actor/report :ui/parameters ::report/current-page]
+                                        :selected-row  [:actor/report :ui/parameters ::report/selected-row]
+                                        :page-count    [:actor/report :ui/page-count]
+                                        :point-in-time [:actor/report :ui/point-in-time]
+                                        :total-results [:actor/report :ui/total-results]
+                                        :loaded-page   [:actor/report :ui/cache :loaded-page]
+                                        :page-cache    [:actor/report :ui/cache :page-cache]
+                                        :busy?         [:actor/report :ui/busy?]}
+                       :params         params
+                       :route-params   params}})
        (scf/send! app session-id :event/resume (assoc options :params params))))))
 
 (defn raw-loaded-item-count
