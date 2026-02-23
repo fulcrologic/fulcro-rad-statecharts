@@ -12,15 +12,9 @@
    - `can-change-route?` — replaced by `busy?` guard on `routes`
    - `update-route-params!` — params flow through statechart events"
   (:require
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.statecharts.data-model.operations :as ops]
-    [com.fulcrologic.statecharts.elements :refer [entry-fn exit-fn]]
-    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-    [taoensso.timbre :as log]))
+    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
 
 (defn route-to!
   "Route to a target. Accepts both old RAD patterns and new statecharts patterns.
@@ -70,63 +64,28 @@
   (scr/active-leaf-routes app-ish))
 
 (defn report-route-state
-  "Creates a routing state for a RAD report. On entry, starts the report via
-   `report/start-report!`. Route parameters are merged from statechart session data
-   and event data.
+  "DEPRECATED: Use `report/report-route-state` instead."
+  [props]
+  (report/report-route-state props))
 
-   Options are the same as `scr/rstate`, plus:
-
-   * `:route/target` — (required) The report component class or registry key.
-   * `:route/params` — (optional) Set of keywords for route parameters.
-   * `:report/param-keys` — (optional) Collection of keywords to select from
-     merged data/event-data as `:route-params` for the report."
-  [{:route/keys  [target]
-    :report/keys [param-keys] :as props}]
-  (scr/rstate props
-    (entry-fn [{:fulcro/keys [app]} data _event-name event-data]
-      (log/debug "Starting report via routing")
-      (report/start-report! app (comp/registry-key->class target)
-        {:route-params (cond-> (merge data event-data)
-                         (seq param-keys) (select-keys param-keys))})
-      nil)))
+;; form-route-state, edit!, create! have been moved to com.fulcrologic.rad.statechart.form
+;; Delegating wrappers are provided here for backward compatibility.
 
 (defn form-route-state
-  "Creates a routing state for a RAD form. On entry, starts the form's statechart via
-   `form/start-form!`. On exit, abandons the form via `form/abandon-form!`.
-
-   The routing event data should include `:id` and optionally `:params`. If `:id` is a tempid,
-   the form starts in create mode; otherwise it starts in edit mode.
-
-   Options are the same as `scr/rstate`:
-
-   * `:route/target` — (required) The form component class or registry key.
-   * `:route/params` — (optional) Set of keywords for route parameters.
-
-   See `scr/rstate` for full option details."
+  "DEPRECATED: Use `form/form-route-state` instead."
   [props]
-  (scr/rstate props
-    (entry-fn [{:fulcro/keys [app]} _data _event-name event-data]
-      (log/debug "Starting form via routing" event-data)
-      (let [{:keys [id params]} event-data
-            form-class (comp/registry-key->class (:route/target props))]
-        (form/start-form! app id form-class params))
-      nil)
-    (exit-fn [{:fulcro/keys [app]} {:route/keys [idents]} & _]
-      (when-let [form-ident (get idents (rc/class->registry-key (:route/target props)))]
-        (form/abandon-form! app form-ident)
-        [(ops/delete [:route/idents form-ident])]))))
+  (form/form-route-state props))
 
 (defn edit!
-  "Route to a form and start an edit on the given `id`."
+  "DEPRECATED: Use `form/edit!` instead."
   ([app-ish Form id]
-   (edit! app-ish Form id {}))
+   (form/edit! app-ish Form id))
   ([app-ish Form id params]
-   (scr/route-to! app-ish Form {:id     id
-                                :params params})))
+   (form/edit! app-ish Form id params)))
 
 (defn create!
-  "Route to a form and start creating a new entity."
+  "DEPRECATED: Use `form/create!` instead."
   ([app-ish Form]
-   (edit! app-ish Form (tempid/tempid) {}))
+   (form/create! app-ish Form))
   ([app-ish Form params]
-   (edit! app-ish Form (tempid/tempid) params)))
+   (form/create! app-ish Form params)))

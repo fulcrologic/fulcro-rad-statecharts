@@ -3,7 +3,7 @@
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
-    [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
+    [com.fulcrologic.rad.statechart.report :as report]
     [com.fulcrologic.rad.statechart.server-paginated-report :as spr]
     [com.fulcrologic.statecharts.testing :as t]
     [fulcro-spec.core :refer [=> assertions component specification]]))
@@ -18,7 +18,7 @@
     :or   {run-on-mount? true page-cached? false}
     :as   overrides}]
   (let [base-mocks {spr/server-paginated-init-expr   nil
-                    rexpr/should-run-on-mount?       run-on-mount?
+                    report/should-run-on-mount?       run-on-mount?
                     spr/load-server-page-expr        nil
                     spr/process-server-page-expr     nil
                     spr/page-cached?                 page-cached?
@@ -27,8 +27,8 @@
                     spr/update-sort-and-refresh-expr nil
                     spr/refresh-expr                 nil
                     spr/resume-server-paginated-expr nil
-                    rexpr/select-row-expr            nil
-                    rexpr/set-params-expr            nil}
+                    report/select-row-expr            nil
+                    report/set-params-expr            nil}
         ;; Anonymous fns in the chart for next-page/prior-page transitions
         ;; need to be handled — they are inline in the chart definition, so
         ;; the testing env will run them unless we mock specific expression vars.
@@ -160,7 +160,7 @@
         (t/in? env :state/ready) => true
 
         "Runs select-row-expr"
-        (t/ran? env rexpr/select-row-expr) => true)))
+        (t/ran? env report/select-row-expr) => true)))
 
   (component "Set UI parameters"
     (let [env (sp-report-test-env {:run-on-mount? false})]
@@ -171,7 +171,7 @@
         (t/in? env :state/ready) => true
 
         "Runs set-params-expr"
-        (t/ran? env rexpr/set-params-expr) => true)))
+        (t/ran? env report/set-params-expr) => true)))
 
   (component "Manual reload"
     (let [env (sp-report-test-env {:run-on-mount? false})]

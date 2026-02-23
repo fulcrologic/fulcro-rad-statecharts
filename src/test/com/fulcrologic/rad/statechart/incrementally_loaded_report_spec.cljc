@@ -4,7 +4,7 @@
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
     [com.fulcrologic.rad.statechart.incrementally-loaded-report :as ilr]
-    [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
+    [com.fulcrologic.rad.statechart.report :as report]
     [com.fulcrologic.statecharts.testing :as t]
     [fulcro-spec.core :refer [=> assertions component specification]]))
 
@@ -19,20 +19,20 @@
     :or   {run-on-mount? true loading-complete? true cache-expired? true}
     :as   overrides}]
   (let [base-mocks {ilr/incremental-init-expr           nil
-                    rexpr/should-run-on-mount?          run-on-mount?
+                    report/should-run-on-mount?          run-on-mount?
                     ilr/start-chunk-load-expr           nil
                     ilr/process-chunk-expr              nil
                     ilr/loading-complete?               loading-complete?
                     ilr/finalize-report-expr            nil
                     ilr/cache-expired?                  cache-expired?
                     ilr/resume-from-cache-expr          nil
-                    rexpr/do-sort-and-clear-busy-expr   nil
-                    rexpr/do-filter-and-clear-busy-expr nil
-                    rexpr/goto-page-expr                nil
-                    rexpr/next-page-expr                nil
-                    rexpr/prior-page-expr               nil
-                    rexpr/select-row-expr               nil
-                    rexpr/set-params-expr               nil}
+                    report/do-sort-and-clear-busy-expr   nil
+                    report/do-filter-and-clear-busy-expr nil
+                    report/goto-page-expr                nil
+                    report/next-page-expr                nil
+                    report/prior-page-expr               nil
+                    report/select-row-expr               nil
+                    report/set-params-expr               nil}
         mocks      (merge base-mocks (dissoc overrides :run-on-mount? :loading-complete? :cache-expired?))]
     (t/new-testing-env {:statechart ilr/incrementally-loaded-report-statechart} mocks)))
 
@@ -139,7 +139,7 @@
         (t/in? env :state/ready) => true
 
         "Runs do-sort-and-clear-busy-expr"
-        (t/ran? env rexpr/do-sort-and-clear-busy-expr) => true)))
+        (t/ran? env report/do-sort-and-clear-busy-expr) => true)))
 
   (component "Filter flow (client-side)"
     (let [env (il-report-test-env {:run-on-mount? false})]
@@ -150,7 +150,7 @@
         (t/in? env :state/ready) => true
 
         "Runs do-filter-and-clear-busy-expr"
-        (t/ran? env rexpr/do-filter-and-clear-busy-expr) => true))))
+        (t/ran? env report/do-filter-and-clear-busy-expr) => true))))
 
 ;; ===== Ready State — Pagination =====
 
@@ -164,7 +164,7 @@
         (t/in? env :state/ready) => true
 
         "Runs goto-page-expr"
-        (t/ran? env rexpr/goto-page-expr) => true)))
+        (t/ran? env report/goto-page-expr) => true)))
 
   (component "Next page"
     (let [env (il-report-test-env {:run-on-mount? false})]
@@ -175,7 +175,7 @@
         (t/in? env :state/ready) => true
 
         "Runs next-page-expr"
-        (t/ran? env rexpr/next-page-expr) => true)))
+        (t/ran? env report/next-page-expr) => true)))
 
   (component "Prior page"
     (let [env (il-report-test-env {:run-on-mount? false})]
@@ -186,7 +186,7 @@
         (t/in? env :state/ready) => true
 
         "Runs prior-page-expr"
-        (t/ran? env rexpr/prior-page-expr) => true))))
+        (t/ran? env report/prior-page-expr) => true))))
 
 ;; ===== Ready State — Other Interactions =====
 
@@ -200,7 +200,7 @@
         (t/in? env :state/ready) => true
 
         "Runs select-row-expr"
-        (t/ran? env rexpr/select-row-expr) => true)))
+        (t/ran? env report/select-row-expr) => true)))
 
   (component "Set UI parameters"
     (let [env (il-report-test-env {:run-on-mount? false})]
@@ -211,7 +211,7 @@
         (t/in? env :state/ready) => true
 
         "Runs set-params-expr"
-        (t/ran? env rexpr/set-params-expr) => true)))
+        (t/ran? env report/set-params-expr) => true)))
 
   (component "Manual reload"
     (let [env (il-report-test-env {:run-on-mount? false})]

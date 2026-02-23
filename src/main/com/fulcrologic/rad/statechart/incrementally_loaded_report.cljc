@@ -16,7 +16,6 @@
     [com.fulcrologic.rad.attributes :as attr]
     [com.fulcrologic.rad.options-util :refer [?!]]
     [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.rad.type-support.date-time :as dt]
     [com.fulcrologic.statecharts :as-alias sc]
@@ -38,20 +37,20 @@
 (defn incremental-init-expr
   "Expression: Initialize the incrementally-loaded report."
   [env data _event-name event-data]
-  (rexpr/initialize-params-expr env data _event-name event-data))
+  (report/initialize-params-expr env data _event-name event-data))
 
 (defn start-chunk-load-expr
   "Expression: Start loading data from the server, beginning at offset 0."
   [env data _event-name _event-data]
-  (let [Report         (rexpr/report-class data)
-        report-ident   (rexpr/actor-ident data :actor/report)
+  (let [Report         (report/report-class data)
+        report-ident   (report/actor-ident data :actor/report)
         {::report/keys [source-attribute load-options]
          ::keys        [chunk-size]} (comp/component-options Report)
         load-options   (?! load-options env)
-        current-params (assoc (rexpr/current-control-parameters data)
+        current-params (assoc (report/current-control-parameters data)
                          :report/offset 0
                          :report/limit (or chunk-size 100))
-        page-path      (rexpr/resolve-alias-path data :loaded-page)]
+        page-path      (report/resolve-alias-path data :loaded-page)]
     [(fops/assoc-alias :raw-rows [] :busy? true)
      (fops/load source-attribute nil
        (merge
@@ -65,19 +64,19 @@
 (defn process-chunk-expr
   "Expression: Process a loaded chunk — append results, load next chunk or signal completion."
   [env data _event-name _event-data]
-  (let [Report         (rexpr/report-class data)
-        report-ident   (rexpr/actor-ident data :actor/report)
+  (let [Report         (report/report-class data)
+        report-ident   (report/actor-ident data :actor/report)
         {::report/keys [BodyItem source-attribute load-options]
          ::keys        [chunk-size]} (comp/component-options Report)
         load-options   (?! load-options env)
         aliases        (scf/resolve-aliases data)
         loaded-page    (:loaded-page aliases)
         {:report/keys [next-offset results]} loaded-page
-        raw-path       (rexpr/resolve-alias-path data :raw-rows)
-        current-params (assoc (rexpr/current-control-parameters data)
+        raw-path       (report/resolve-alias-path data :raw-rows)
+        current-params (assoc (report/current-control-parameters data)
                          :report/offset next-offset
                          :report/limit (or chunk-size 100))
-        page-path      (rexpr/resolve-alias-path data :loaded-page)
+        page-path      (report/resolve-alias-path data :loaded-page)
         more?          (and (number? next-offset) (pos? next-offset))]
     (into
       [(fops/apply-action
@@ -105,17 +104,17 @@
 (defn finalize-report-expr
   "Expression: Finalize the report after all chunks are loaded — preprocess, filter, sort, paginate."
   [_env data _event-name _event-data]
-  (let [Report     (rexpr/report-class data)
+  (let [Report     (report/report-class data)
         {::report/keys [row-pk report-loaded]} (comp/component-options Report)
         table-name (::attr/qualified-key row-pk)
         state-map  (:fulcro/state-map data)]
     [(fops/apply-action
        (fn [sm]
          (-> sm
-           (rexpr/preprocess-raw-result data)
-           (rexpr/filter-rows-state data)
-           (rexpr/sort-rows-state data)
-           (rexpr/populate-page-state data))))
+           (report/preprocess-raw-result data)
+           (report/filter-rows-state data)
+           (report/sort-rows-state data)
+           (report/populate-page-state data))))
      (fops/assoc-alias :busy? false)
      (ops/assign :last-load-time (inst-ms (dt/now)))
      (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))
@@ -123,7 +122,7 @@
 (defn cache-expired?
   "Condition: Is the cached data expired for the incrementally-loaded report?"
   [_env data _event-name _event-data]
-  (let [Report              (rexpr/report-class data)
+  (let [Report              (report/report-class data)
         {::report/keys [load-cache-seconds load-cache-expired? row-pk]} (comp/component-options Report)
         state-map           (:fulcro/state-map data)
         now-ms              (inst-ms (dt/now))
@@ -144,14 +143,14 @@
 (defn resume-from-cache-expr
   "Expression: Resume from cached data — re-filter and paginate."
   [env data _event-name event-data]
-  (let [init-ops (rexpr/initialize-params-expr env data _event-name event-data)]
+  (let [init-ops (report/initialize-params-expr env data _event-name event-data)]
     (into init-ops
       [(fops/apply-action
          (fn [sm]
            (-> sm
-             (rexpr/filter-rows-state data)
-             (rexpr/sort-rows-state data)
-             (rexpr/populate-page-state data))))])))
+             (report/filter-rows-state data)
+             (report/sort-rows-state data)
+             (report/populate-page-state data))))])))
 
 ;; ---- Statechart Definition ----
 
@@ -167,7 +166,7 @@
     (state {:id :state/initializing}
       (on-entry {}
         (script {:expr incremental-init-expr}))
-      (transition {:cond rexpr/should-run-on-mount? :target :state/loading})
+      (transition {:cond report/should-run-on-mount? :target :state/loading})
       (transition {:target :state/ready}))
 
     (state {:id :state/loading}
@@ -194,22 +193,22 @@
     (state {:id :state/ready}
       ;; Sort (client-side)
       (transition {:event :event/sort :target :state/sorting}
-        (script {:expr rexpr/do-sort-and-clear-busy-expr}))
+        (script {:expr report/do-sort-and-clear-busy-expr}))
 
       ;; Filter (client-side)
       (transition {:event :event/filter :target :state/filtering}
-        (script {:expr rexpr/do-filter-and-clear-busy-expr}))
+        (script {:expr report/do-filter-and-clear-busy-expr}))
 
       ;; Pagination (client-side)
-      (handle :event/goto-page rexpr/goto-page-expr)
-      (handle :event/next-page rexpr/next-page-expr)
-      (handle :event/prior-page rexpr/prior-page-expr)
+      (handle :event/goto-page report/goto-page-expr)
+      (handle :event/next-page report/next-page-expr)
+      (handle :event/prior-page report/prior-page-expr)
 
       ;; Row selection
-      (handle :event/select-row rexpr/select-row-expr)
+      (handle :event/select-row report/select-row-expr)
 
       ;; Parameter management
-      (handle :event/set-ui-parameters rexpr/set-params-expr)
+      (handle :event/set-ui-parameters report/set-params-expr)
 
       ;; Reload — full chunk load
       (on :event/run :state/loading)

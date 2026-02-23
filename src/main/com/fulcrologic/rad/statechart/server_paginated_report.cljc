@@ -10,7 +10,6 @@
     [com.fulcrologic.rad.attributes :as attr]
     [com.fulcrologic.rad.options-util :refer [?!]]
     [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.rad.type-support.date-time :as dt]
     [com.fulcrologic.statecharts :as-alias sc]
@@ -36,18 +35,18 @@
 (defn server-paginated-init-expr
   "Expression: Initialize the server-paginated report."
   [env data _event-name event-data]
-  (let [Report     (rexpr/report-class data)
+  (let [Report     (report/report-class data)
         pit-view?  (comp/component-options Report ::point-in-time-view?)
         start-time (when pit-view? (dt/now))
-        init-ops   (rexpr/initialize-params-expr env data _event-name event-data)]
+        init-ops   (report/initialize-params-expr env data _event-name event-data)]
     (cond-> init-ops
       start-time (conj (ops/assign :point-in-time start-time)))))
 
 (defn load-server-page-expr
   "Expression: Load a page of data from the server with indexed-access options."
   [env data _event-name _event-data]
-  (let [Report         (rexpr/report-class data)
-        report-ident   (rexpr/actor-ident data :actor/report)
+  (let [Report         (report/report-class data)
+        report-ident   (report/actor-ident data :actor/report)
         state-map      (:fulcro/state-map data)
         point-in-time  (:point-in-time data)
         aliases        (scf/resolve-aliases data)
@@ -63,14 +62,14 @@
         PageQuery      (rc/nc [:total
                                {:results (comp/get-query BodyItem)}]
                          {:componentName (keyword (str (comp/component-name Report) "-pagequery"))})
-        current-params (assoc (rexpr/current-control-parameters data)
+        current-params (assoc (report/current-control-parameters data)
                          :indexed-access/options (cond-> {:limit  page-size
                                                           :offset (* (max 0 (dec current-page)) page-size)}
                                                    (and (not total-results) direct-page-access?) (assoc :include-total? true)
                                                    (keyword? sort-by-val) (assoc :sort-column sort-by-val)
                                                    (false? ascending?) (assoc :reverse? true)
                                                    (inst? point-in-time) (assoc :point-in-time point-in-time)))
-        page-path      (rexpr/resolve-alias-path data :loaded-page)]
+        page-path      (report/resolve-alias-path data :loaded-page)]
     [(fops/assoc-alias :raw-rows [] :busy? true)
      (fops/load source-attribute PageQuery
        (merge
@@ -84,9 +83,9 @@
 (defn process-server-page-expr
   "Expression: Process a loaded page — merge results, update page cache."
   [_env data _event-name _event-data]
-  (let [Report          (rexpr/report-class data)
+  (let [Report          (report/report-class data)
         state-map       (:fulcro/state-map data)
-        report-ident    (rexpr/actor-ident data :actor/report)
+        report-ident    (report/actor-ident data :actor/report)
         {::report/keys [BodyItem page-size report-loaded]} (comp/component-options Report)
         page-size       (or (?! page-size nil) 20)
         aliases         (scf/resolve-aliases data)
@@ -97,8 +96,8 @@
                           (if (zero? total) 0
                                             (cond-> (int (/ total page-size))
                                               (pos? (mod total page-size)) inc)))
-        raw-path        (rexpr/resolve-alias-path data :raw-rows)
-        page-cache-path (conj (rexpr/resolve-alias-path data :page-cache) current-page)]
+        raw-path        (report/resolve-alias-path data :raw-rows)
+        page-cache-path (conj (report/resolve-alias-path data :page-cache) current-page)]
     (into
       [(fops/apply-action
          (fn [sm]
@@ -108,12 +107,12 @@
                         sm
                         results)
                  ;; Preprocess
-                 sm   (rexpr/preprocess-raw-result sm data)
+                 sm   (report/preprocess-raw-result sm data)
                  ;; Move raw-rows to page cache
                  rows (get-in sm raw-path)
                  sm   (assoc-in sm page-cache-path rows)
                  ;; Set current-rows to this page's data
-                 sm   (assoc-in sm (rexpr/resolve-alias-path data :current-rows) rows)]
+                 sm   (assoc-in sm (report/resolve-alias-path data :current-rows) rows)]
              sm)))]
       (cond-> [(fops/assoc-alias :busy? false)]
         (number? page-count) (conj (fops/assoc-alias :page-count page-count))
@@ -124,7 +123,7 @@
   [_env data _event-name event-data]
   (let [state-map  (:fulcro/state-map data)
         page       (:page event-data)
-        cache-path (conj (rexpr/resolve-alias-path data :page-cache) page)
+        cache-path (conj (report/resolve-alias-path data :page-cache) page)
         rows       (get-in state-map cache-path)]
     (seq rows)))
 
@@ -133,12 +132,12 @@
   [_env data _event-name event-data]
   (let [page       (:page event-data)
         state-map  (:fulcro/state-map data)
-        cache-path (conj (rexpr/resolve-alias-path data :page-cache) page)
+        cache-path (conj (report/resolve-alias-path data :page-cache) page)
         rows       (get-in state-map cache-path)]
     [(fops/assoc-alias :current-page page :selected-row -1)
      (fops/apply-action
        (fn [sm]
-         (assoc-in sm (rexpr/resolve-alias-path data :current-rows) rows)))]))
+         (assoc-in sm (report/resolve-alias-path data :current-rows) rows)))]))
 
 (defn set-target-page-expr
   "Expression: Set the target page for loading."
@@ -152,16 +151,16 @@
   (let [attr       (get event-data ::attr/attribute)
         qk         (when attr (::attr/qualified-key attr))
         state-map  (:fulcro/state-map data)
-        sort-by    (rexpr/read-alias state-map data :sort-by)
-        ascending? (rexpr/read-alias state-map data :ascending?)
+        sort-by    (report/read-alias state-map data :sort-by)
+        ascending? (report/read-alias state-map data :ascending?)
         ascending? (if (and qk (= qk sort-by)) (not ascending?) true)]
     (if qk
       [(fops/assoc-alias :sort-by qk :ascending? ascending? :current-page 1)
        (fops/apply-action
          (fn [sm]
            (-> sm
-             (assoc-in (rexpr/resolve-alias-path data :page-cache) {})
-             (assoc-in (rexpr/resolve-alias-path data :total-results) nil))))
+             (assoc-in (report/resolve-alias-path data :page-cache) {})
+             (assoc-in (report/resolve-alias-path data :total-results) nil))))
        (ops/assign :point-in-time (dt/now))]
       [])))
 
@@ -172,17 +171,17 @@
    (fops/apply-action
      (fn [sm]
        (-> sm
-         (assoc-in (rexpr/resolve-alias-path data :page-cache) {})
-         (assoc-in (rexpr/resolve-alias-path data :total-results) nil))))
+         (assoc-in (report/resolve-alias-path data :page-cache) {})
+         (assoc-in (report/resolve-alias-path data :total-results) nil))))
    (ops/assign :point-in-time (dt/now))])
 
 (defn resume-server-paginated-expr
   "Expression: Resume a server-paginated report."
   [env data _event-name event-data]
-  (let [Report     (rexpr/report-class data)
+  (let [Report     (report/report-class data)
         pit-view?  (comp/component-options Report ::point-in-time-view?)
         start-time (when pit-view? (dt/now))
-        init-ops   (rexpr/initialize-params-expr env data _event-name event-data)]
+        init-ops   (report/initialize-params-expr env data _event-name event-data)]
     (cond-> init-ops
       start-time (conj (ops/assign :point-in-time start-time)))))
 
@@ -199,7 +198,7 @@
     (state {:id :state/initializing}
       (on-entry {}
         (script {:expr server-paginated-init-expr}))
-      (transition {:cond rexpr/should-run-on-mount? :target :state/loading-page})
+      (transition {:cond report/should-run-on-mount? :target :state/loading-page})
       (transition {:target :state/ready}))
 
     (state {:id :state/loading-page}
@@ -241,10 +240,10 @@
         (script {:expr refresh-expr}))
 
       ;; Row selection
-      (handle :event/select-row rexpr/select-row-expr)
+      (handle :event/select-row report/select-row-expr)
 
       ;; Parameter management
-      (handle :event/set-ui-parameters rexpr/set-params-expr)
+      (handle :event/set-ui-parameters report/set-params-expr)
 
       ;; Reload
       (on :event/run :state/loading-page)

@@ -3,8 +3,7 @@
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
-    [com.fulcrologic.rad.statechart.report-chart :as rc]
-    [com.fulcrologic.rad.statechart.report-expressions :as rexpr]
+    [com.fulcrologic.rad.statechart.report :as report]
     [com.fulcrologic.statecharts.testing :as t]
     [fulcro-spec.core :refer [=> assertions component specification]]))
 
@@ -19,23 +18,23 @@
     :as   overrides}]
   (let [;; The anonymous fn in report_chart for sorting/filtering on-entry needs mocking too.
         ;; We'll mock all known expression refs.
-        base-mocks {rexpr/initialize-params-expr        nil
-                    rexpr/should-run-on-mount?          run-on-mount?
-                    rexpr/start-load-expr               nil
-                    rexpr/process-loaded-data-expr      nil
-                    rexpr/goto-page-expr                nil
-                    rexpr/next-page-expr                nil
-                    rexpr/prior-page-expr               nil
-                    rexpr/select-row-expr               nil
-                    rexpr/set-params-expr               nil
-                    rexpr/do-sort-and-clear-busy-expr   nil
-                    rexpr/do-filter-and-clear-busy-expr nil
-                    rexpr/clear-sort-expr               nil
-                    rexpr/cache-expired?                cache-expired?
-                    rexpr/reinitialize-params-expr      nil
-                    rexpr/resume-from-cache-expr        nil}
+        base-mocks {report/initialize-params-expr        nil
+                    report/should-run-on-mount?          run-on-mount?
+                    report/start-load-expr               nil
+                    report/process-loaded-data-expr      nil
+                    report/goto-page-expr                nil
+                    report/next-page-expr                nil
+                    report/prior-page-expr               nil
+                    report/select-row-expr               nil
+                    report/set-params-expr               nil
+                    report/do-sort-and-clear-busy-expr   nil
+                    report/do-filter-and-clear-busy-expr nil
+                    report/clear-sort-expr               nil
+                    report/cache-expired?                cache-expired?
+                    report/reinitialize-params-expr      nil
+                    report/resume-from-cache-expr        nil}
         mocks      (merge base-mocks (dissoc overrides :run-on-mount? :cache-expired?))]
-    (t/new-testing-env {:statechart rc/report-statechart} mocks)))
+    (t/new-testing-env {:statechart report/report-statechart} mocks)))
 
 ;; ===== Initialization =====
 
@@ -45,13 +44,13 @@
       (t/start! env)
       (assertions
         "Runs initialize-params-expr on entry"
-        (t/ran? env rexpr/initialize-params-expr) => true
+        (t/ran? env report/initialize-params-expr) => true
 
         "Transitions to :state/loading when run-on-mount? is true"
         (t/in? env :state/loading) => true
 
         "Runs start-load-expr on entry to loading"
-        (t/ran? env rexpr/start-load-expr) => true)))
+        (t/ran? env report/start-load-expr) => true)))
 
   (component "No auto-load"
     (let [env (report-test-env {:run-on-mount? false})]
@@ -72,7 +71,7 @@
         (t/in? env :state/ready) => true
 
         "Runs process-loaded-data-expr"
-        (t/ran? env rexpr/process-loaded-data-expr) => true)))
+        (t/ran? env report/process-loaded-data-expr) => true)))
 
   (component "Failed load"
     (let [env (report-test-env {:run-on-mount? true})]
@@ -102,7 +101,7 @@
         (t/in? env :state/ready) => true
 
         "Runs goto-page-expr"
-        (t/ran? env rexpr/goto-page-expr) => true)))
+        (t/ran? env report/goto-page-expr) => true)))
 
   (component "Pagination — next-page"
     (let [env (report-test-env {:run-on-mount? false})]
@@ -113,7 +112,7 @@
         (t/in? env :state/ready) => true
 
         "Runs next-page-expr"
-        (t/ran? env rexpr/next-page-expr) => true)))
+        (t/ran? env report/next-page-expr) => true)))
 
   (component "Pagination — prior-page"
     (let [env (report-test-env {:run-on-mount? false})]
@@ -124,7 +123,7 @@
         (t/in? env :state/ready) => true
 
         "Runs prior-page-expr"
-        (t/ran? env rexpr/prior-page-expr) => true)))
+        (t/ran? env report/prior-page-expr) => true)))
 
   (component "Row selection"
     (let [env (report-test-env {:run-on-mount? false})]
@@ -135,7 +134,7 @@
         (t/in? env :state/ready) => true
 
         "Runs select-row-expr"
-        (t/ran? env rexpr/select-row-expr) => true)))
+        (t/ran? env report/select-row-expr) => true)))
 
   (component "Set UI parameters"
     (let [env (report-test-env {:run-on-mount? false})]
@@ -146,7 +145,7 @@
         (t/in? env :state/ready) => true
 
         "Runs set-params-expr"
-        (t/ran? env rexpr/set-params-expr) => true)))
+        (t/ran? env report/set-params-expr) => true)))
 
   (component "Clear sort"
     (let [env (report-test-env {:run-on-mount? false})]
@@ -157,7 +156,7 @@
         (t/in? env :state/ready) => true
 
         "Runs clear-sort-expr"
-        (t/ran? env rexpr/clear-sort-expr) => true))))
+        (t/ran? env report/clear-sort-expr) => true))))
 
 ;; ===== Sort and Filter (Observable Intermediate States) =====
 
@@ -171,7 +170,7 @@
         (t/in? env :state/ready) => true
 
         "Runs do-sort-and-clear-busy-expr"
-        (t/ran? env rexpr/do-sort-and-clear-busy-expr) => true)))
+        (t/ran? env report/do-sort-and-clear-busy-expr) => true)))
 
   (component "Filter flow"
     (let [env (report-test-env {:run-on-mount? false})]
@@ -182,7 +181,7 @@
         (t/in? env :state/ready) => true
 
         "Runs do-filter-and-clear-busy-expr"
-        (t/ran? env rexpr/do-filter-and-clear-busy-expr) => true))))
+        (t/ran? env report/do-filter-and-clear-busy-expr) => true))))
 
 ;; ===== Resume (Cache Handling) =====
 
@@ -196,7 +195,7 @@
         (t/in? env :state/loading) => true
 
         "Runs reinitialize-params-expr"
-        (t/ran? env rexpr/reinitialize-params-expr) => true)))
+        (t/ran? env report/reinitialize-params-expr) => true)))
 
   (component "Resume with valid cache"
     (let [env (report-test-env {:run-on-mount? false :cache-expired? false})]
@@ -207,7 +206,7 @@
         (t/in? env :state/ready) => true
 
         "Runs resume-from-cache-expr"
-        (t/ran? env rexpr/resume-from-cache-expr) => true))))
+        (t/ran? env report/resume-from-cache-expr) => true))))
 
 ;; ===== goto-configuration! =====
 
