@@ -1412,43 +1412,8 @@
           (and (set? read-only-fields) (contains? read-only-fields qualified-key)))
         (view-mode? form-instance)))))
 
-(defn field-visible?
-  "Should the `attr` on the given `form-instance` be visible? This is controlled:
-
-  * On the attribute at `::form/field-visible?`. A boolean or `(fn [form-instance attr] boolean?)`
-  * On the form via the map `::form/fields-visible?`. A map from attr keyword to boolean or `(fn [form-instance attr] boolean?)`
-
-  A field is visible if the form says it is. If the form has *no opinion*, then it is visible if the attribute
-  says it is (as true?). If neither the form nor attribute return a boolean, then the field is visible.
-  "
-  [form-instance {:com.fulcrologic.rad.form/keys [field-visible?]
-                  ::attr/keys                    [qualified-key] :as attr}]
-  [comp/component? ::attr/attribute => boolean?]
-  (let [form-field-visible? (?! (comp/component-options form-instance :com.fulcrologic.rad.form/fields-visible? qualified-key) form-instance attr)
-        field-visible?      (?! field-visible? form-instance attr)]
-    (boolean
-      (or
-        (true? form-field-visible?)
-        (and (nil? form-field-visible?) (true? field-visible?))
-        (and (nil? form-field-visible?) (nil? field-visible?))))))
-
-(defn omit-label?
-  "Should the `attr` on the given `form-instance` refrain from including a field label?
-
-  * On the attribute at `::form/omit-label?`. A boolean or `(fn [form-instance attr] boolean?)`
-  * On the form via the map `::form/omit-label?`. A map from attr keyword to boolean or `(fn [form-instance attr] boolean?)`
-
-  The default is false.
-  "
-  [form-instance {:com.fulcrologic.rad.form/keys [omit-label?]
-                  ::attr/keys                    [qualified-key] :as attr}]
-  [comp/component? ::attr/attribute => boolean?]
-  (let [form-omit?  (?! (comp/component-options form-instance :com.fulcrologic.rad.form/omit-label? qualified-key) form-instance attr)
-        field-omit? (?! omit-label? form-instance attr)]
-    (cond
-      (boolean? form-omit?) form-omit?
-      (boolean? field-omit?) field-omit?
-      :else false)))
+(def field-visible? "See `form.impl/field-visible?`" form-impl/field-visible?)
+(def omit-label? "See `form.impl/omit-label?`" form-impl/omit-label?)
 
 (def pathom2-server-delete-entity-mutation
   {:com.wsscode.pathom.connect/sym    `delete-entity
@@ -1573,28 +1538,8 @@
          (not validator)
          (and validator (= :valid (validator props))))))))
 
-(>defn field-style-config
-  "Get the value of an overridable field-style-config option. If both the form and attribute set these
-then the result will be a deep merge of the two (with form winning)."
-  [{:com.fulcrologic.rad.form/keys [form-instance]} attribute config-key]
-  [:com.fulcrologic.rad.form/form-env ::attr/attribute keyword? => any?]
-  (let [{::attr/keys [qualified-key field-style-config]} attribute
-        form-value      (comp/component-options form-instance :com.fulcrologic.rad.form/field-style-configs qualified-key config-key)
-        attribute-value (get field-style-config config-key)]
-    (if (and (map? form-value) (map? attribute-value))
-      (deep-merge attribute-value form-value)
-      (or form-value attribute-value))))
-
-(>defn field-autocomplete
-  "Returns the proper string (or nil) for a given attribute's autocomplete setting"
-  [{:com.fulcrologic.rad.form/keys [form-instance] :as _env} attribute]
-  [:com.fulcrologic.rad.form/form-env ::attr/attribute => any?]
-  (let [{::attr/keys                    [qualified-key]
-         :com.fulcrologic.rad.form/keys [autocomplete]} attribute
-        override     (comp/component-options form-instance :com.fulcrologic.rad.form/auto-completes qualified-key)
-        autocomplete (if (nil? override) autocomplete override)
-        autocomplete (if (boolean? autocomplete) (if autocomplete "on" "off") autocomplete)]
-    autocomplete))
+(def field-style-config "See `form.impl/field-style-config`" form-impl/field-style-config)
+(def field-autocomplete "See `form.impl/field-autocomplete`" form-impl/field-autocomplete)
 
 (def wrap-env
   "[save-middleware delete-middleware]
