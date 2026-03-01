@@ -908,11 +908,6 @@
   (let [form-ident (actor-ident data)]
     [(fops/apply-action fs/mark-complete* form-ident)]))
 
-(defn mark-complete-on-invalid-expr
-  "Expression that marks all fields complete when save is attempted on an invalid form."
-  [_env data _event-name _event-data]
-  (let [form-ident (actor-ident data)]
-    [(fops/apply-action fs/mark-complete* form-ident)]))
 
 (defn form-valid?
   "Condition predicate: Returns true if the form passes validation."
@@ -1180,7 +1175,7 @@
       (handle :event/delete-row delete-row-expr)
       (transition {:event :event/save :cond form-valid? :target :state/saving}
         (script {:expr prepare-save-expr}))
-      (handle :event/save mark-complete-on-invalid-expr)
+      (handle :event/save mark-all-complete-expr)
       (handle :event/reset undo-all-expr)
       (on :event/cancel :state/leaving
         (script {:expr prepare-leave-expr}))
@@ -1227,10 +1222,10 @@
 
 (def editing-save-transitions
   "Reusable transitions for the save flow. Includes conditional save (validation)
-   with fallback to mark-complete-on-invalid."
+   with fallback to marking all fields complete on invalid."
   [(transition {:event :event/save :cond form-valid? :target :state/saving}
      (script {:expr prepare-save-expr}))
-   (handle :event/save mark-complete-on-invalid-expr)])
+   (handle :event/save mark-all-complete-expr)])
 
 (def editing-cancel-transitions
   "Reusable transitions for cancel, undo, and route guarding."

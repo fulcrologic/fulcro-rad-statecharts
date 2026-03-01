@@ -26,7 +26,6 @@
                     form/attribute-changed-expr        nil
                     form/blur-expr                     nil
                     form/mark-all-complete-expr        nil
-                    form/mark-complete-on-invalid-expr nil
                     form/form-valid?                   valid?
                     form/prepare-save-expr             nil
                     form/on-saved-expr                 nil
@@ -158,8 +157,8 @@
         "Stays in :state/editing when form is invalid"
         (t/in? env :state/editing) => true
 
-        "Runs mark-complete-on-invalid-expr"
-        (t/ran? env form/mark-complete-on-invalid-expr) => true
+        "Runs mark-all-complete-expr (marks fields complete on invalid save)"
+        (t/ran? env form/mark-all-complete-expr) => true
 
         "Does NOT run prepare-save-expr"
         (t/ran? env form/prepare-save-expr) => false)))
