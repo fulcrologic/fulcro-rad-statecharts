@@ -45,8 +45,18 @@
 (def view-action "view")
 (def create-action "create")
 (def edit-action "edit")
+
 (declare valid? invalid? cancel! undo-all! save! render-field rendering-env
   default-state optional-fields mark-fields-complete* form-key->attribute form-chart)
+
+(defn- resolve-form-session-id
+  "Resolve the statechart session ID for a form. Checks the stored mapping first
+   (works for both istate-invoked and start-form! sessions), falls back to
+   ident->session-id for backward compatibility."
+  [app-or-instance form-ident]
+  (let [state-map (raw.app/current-state app-or-instance)]
+    (or (get-in state-map [::form-session-ids form-ident])
+      (sc.session/ident->session-id form-ident))))
 
 (defn view-mode?
   "Returns true if the main form was started in view mode. `form-instance` can be from main form or any subform."
@@ -54,7 +64,7 @@
   (let [master-form (or (::form/master-form (comp/get-computed form-instance))
                       form-instance)
         form-ident  (comp/get-ident master-form)
-        session-id  (sc.session/ident->session-id form-ident)
+        session-id  (resolve-form-session-id master-form form-ident)
         state-map   (raw.app/current-state master-form)
         local-data  (get-in state-map [::sc/local-data session-id])]
     (= view-action (get-in local-data [:options :action]))))
@@ -407,7 +417,7 @@
    You should only use this when you are embedding the form in something, and you are controlling the form directly. Usually,
    you will combine this with `undo-all!` and some kind of UI routing change."
   [app-ish form-ident]
-  (let [session-id (sc.session/ident->session-id form-ident)]
+  (let [session-id (resolve-form-session-id app-ish form-ident)]
     (scf/send! app-ish session-id :event/exit {})))
 
 (defn form-busy?
@@ -654,7 +664,7 @@
     m))
 
 (defn mark-all-complete! [master-form-instance]
-  (let [session-id (sc.session/ident->session-id (comp/get-ident master-form-instance))]
+  (let [session-id (resolve-form-session-id master-form-instance (comp/get-ident master-form-instance))]
     (scf/send! master-form-instance session-id :event/mark-complete)))
 
 (def update-tree*
@@ -699,12 +709,15 @@
 
 (defn store-options
   "Stores startup options from the initial event data into the statechart session data.
-   Also invokes the `:started` trigger if defined on the form."
+   Also invokes the `:started` trigger if defined on the form.
+   Registers the session ID mapping so public API functions can find this chart."
   [env data _event-name event-data]
   (let [FormClass   (actor-class data)
         form-ident  (actor-ident data)
+        session-id  (:_sessionid data)
         {{:keys [started]} sfo/triggers} (some-> FormClass rc/component-options)
-        base-ops    [(ops/assign :options (or (:options data) event-data {}))]
+        base-ops    [(ops/assign :options (or (:options data) event-data {}))
+                     (fops/apply-action assoc-in [::form-session-ids form-ident] session-id)]
         trigger-ops (when (fn? started)
                       (started env data form-ident))]
     (into base-ops (when (seq trigger-ops) trigger-ops))))
@@ -1288,20 +1301,20 @@
          params      (or (?! save-params form-rendering-env) {})]
      (save! form-rendering-env params)))
   ([{this :com.fulcrologic.rad.form/master-form :as _form-rendering-env} addl-save-params]
-   (let [session-id (sc.session/ident->session-id (comp/get-ident this))]
+   (let [session-id (resolve-form-session-id this (comp/get-ident this))]
      (scf/send! this session-id :event/save addl-save-params))))
 
 (defn undo-all!
   "Trigger an undo of all changes on the given form rendering env."
   [{this :com.fulcrologic.rad.form/master-form}]
-  (let [session-id (sc.session/ident->session-id (comp/get-ident this))]
+  (let [session-id (resolve-form-session-id this (comp/get-ident this))]
     (scf/send! this session-id :event/reset {})))
 
 (defn cancel!
   "Trigger a cancel of all changes on the given form rendering env. This is like undo, but attempts to route away from
    the form."
   [{this :com.fulcrologic.rad.form/master-form}]
-  (let [session-id (sc.session/ident->session-id (comp/get-ident this))]
+  (let [session-id (resolve-form-session-id this (comp/get-ident this))]
     (scf/send! this session-id :event/cancel {})))
 
 (defn add-child!
@@ -1336,7 +1349,7 @@
   namespace when passed through to the state machine.
   "
   ([{:com.fulcrologic.rad.form/keys [master-form] :as env}]
-   (let [session-id (sc.session/ident->session-id (comp/get-ident master-form))]
+   (let [session-id (resolve-form-session-id master-form (comp/get-ident master-form))]
      (scf/send! master-form session-id :event/add-row env)))
   ([form-instance parent-relation ChildForm]
    (add-child! form-instance parent-relation ChildForm {}))
@@ -1372,7 +1385,7 @@
    (let [{:com.fulcrologic.rad.form/keys [master-form] :as env} (if (comp/component-instance? this-or-rendering-env)
                                                                   (rendering-env this-or-rendering-env)
                                                                   this-or-rendering-env)
-         session-id (sc.session/ident->session-id (comp/get-ident master-form))]
+         session-id (resolve-form-session-id master-form (comp/get-ident master-form))]
      (scf/send! master-form session-id :event/delete-row env)))
   ([parent-instance relation-key child-ident]
    (let [env (assoc (rendering-env parent-instance)
@@ -1443,7 +1456,7 @@
    and the current value."
   [{:com.fulcrologic.rad.form/keys [form-instance master-form]} k value]
   (let [form-ident (comp/get-ident form-instance)
-        session-id (sc.session/ident->session-id (comp/get-ident master-form))]
+        session-id (resolve-form-session-id master-form (comp/get-ident master-form))]
     (scf/send! master-form session-id :event/blur
       {::attr/qualified-key k
        :form-ident          form-ident
@@ -1464,7 +1477,7 @@
   [{:com.fulcrologic.rad.form/keys [form-instance master-form] :as _env} k value]
   (let [form-ident (comp/get-ident form-instance)
         old-value  (get (comp/props form-instance) k)
-        session-id (sc.session/ident->session-id (comp/get-ident master-form))]
+        session-id (resolve-form-session-id master-form (comp/get-ident master-form))]
     (scf/send! form-instance session-id :event/attribute-changed
       {::attr/qualified-key k
        :form-ident          form-ident
@@ -1708,7 +1721,7 @@
 (defn undo-via-load!
   "Undo all changes to the current form by reloading it from the server."
   [{:com.fulcrologic.rad.form/keys [master-form] :as _rendering-env}]
-  (let [session-id (sc.session/ident->session-id (comp/get-ident master-form))]
+  (let [session-id (resolve-form-session-id master-form (comp/get-ident master-form))]
     (scf/send! master-form session-id :event/reload)))
 
 #?(:clj
@@ -1792,7 +1805,7 @@
   ([renv event] (trigger! renv event {}))
   ([{:com.fulcrologic.rad.form/keys [master-form form-instance] :as renv} event event-data]
    (let [form-ident (comp/get-ident master-form)
-         session-id (sc.session/ident->session-id form-ident)]
+         session-id (resolve-form-session-id master-form form-ident)]
      (scf/send! form-instance session-id event event-data)))
   ([app-ish form-session-id event event-data]
    (scf/send! app-ish form-session-id event event-data)))
