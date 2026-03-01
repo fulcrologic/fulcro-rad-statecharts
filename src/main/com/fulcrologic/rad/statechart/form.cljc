@@ -824,6 +824,34 @@
                state-map
                allowed-keys))))])))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; OPS HELPERS — reusable building blocks for custom charts and expressions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn clear-server-errors-ops
+  "Returns ops to clear server errors on the form."
+  []
+  [(fops/assoc-alias :server-errors [])])
+
+(defn undo-all-ops
+  "Returns ops to revert the form to pristine state and clear errors.
+   `form-ident` is the Fulcro ident of the form entity."
+  [form-ident]
+  [(fops/assoc-alias :server-errors [])
+   (fops/apply-action fs/pristine->entity* form-ident)])
+
+(defn mark-complete-ops
+  "Returns ops to mark all form fields as complete for validation.
+   `form-ident` is the Fulcro ident of the form entity."
+  [form-ident]
+  [(fops/apply-action fs/mark-complete* form-ident)])
+
+(defn mark-pristine-ops
+  "Returns ops to mark the current form state as pristine (after save).
+   `form-ident` is the Fulcro ident of the form entity."
+  [form-ident]
+  [(fops/apply-action fs/entity->pristine* form-ident)])
+
 (defn on-loaded-expr
   "Expression that runs when form data has been loaded successfully.
    Clears errors, handles autocreate, sets up form config, and marks complete."
@@ -833,10 +861,10 @@
         state-map  (:fulcro/state-map data)]
     (log/debug "Loaded. Marking the form complete.")
     (into
-      [(fops/assoc-alias :server-errors [])
-       (fops/apply-action fs/add-form-config* FormClass form-ident {:destructive? true})
-       (fops/apply-action fs/mark-complete* form-ident)]
+      (into (clear-server-errors-ops)
+        [(fops/apply-action fs/add-form-config* FormClass form-ident {:destructive? true})])
       (concat
+        (mark-complete-ops form-ident)
         (build-autocreate-ops FormClass form-ident state-map)
         (build-ui-props-ops FormClass form-ident)))))
 
@@ -898,8 +926,8 @@
                         :else value)
         path          (when (and form-ident qualified-key)
                         (conj form-ident qualified-key))
-        base-ops      [(fops/assoc-alias :server-errors [])
-                       (fops/apply-action fs/mark-complete* form-ident qualified-key)]
+        base-ops      (into (clear-server-errors-ops)
+                        [(fops/apply-action fs/mark-complete* form-ident qualified-key)])
         value-ops     (cond
                         (and path (nil? value))
                         [(fops/apply-action update-in form-ident dissoc qualified-key)]
@@ -936,8 +964,7 @@
 (defn mark-all-complete-expr
   "Expression for marking all form fields as complete for validation."
   [_env data _event-name _event-data]
-  (let [form-ident (actor-ident data)]
-    [(fops/apply-action fs/mark-complete* form-ident)]))
+  (mark-complete-ops (actor-ident data)))
 
 
 (defn form-valid?
@@ -966,11 +993,11 @@
                             {::form/delta     delta
                              ::form/master-pk master-pk
                              ::form/id        (second form-ident)})]
-    [(fops/assoc-alias :server-errors [])
-     (fops/invoke-remote [(list save-mutation params)]
-       {:returning   :actor/form
-        :ok-event    :event/saved
-        :error-event :event/save-failed})]))
+    (into (clear-server-errors-ops)
+      [(fops/invoke-remote [(list save-mutation params)]
+         {:returning   :actor/form
+          :ok-event    :event/saved
+          :error-event :event/save-failed})])))
 
 (defn on-saved-expr
   "Expression that runs after a successful save. Marks form as pristine
@@ -981,7 +1008,7 @@
         options      (:options data)
         {{:keys [saved]} sfo/triggers} (some-> FormClass rc/component-options)
         {:keys [on-saved]} options
-        base-ops     [(fops/apply-action fs/entity->pristine* form-ident)]
+        base-ops     (mark-pristine-ops form-ident)
         saved-ops    (when (fn? saved)
                        (saved env data form-ident))
         on-saved-ops (when (seq on-saved)
@@ -1027,9 +1054,7 @@
 (defn undo-all-expr
   "Expression for undoing all form changes. Clears errors and restores pristine state."
   [_env data _event-name _event-data]
-  (let [form-ident (actor-ident data)]
-    [(fops/assoc-alias :server-errors [])
-     (fops/apply-action fs/pristine->entity* form-ident)]))
+  (undo-all-ops (actor-ident data)))
 
 (defn prepare-leave-expr
   "Expression that prepares data for leaving a form. Stores the abandoned? flag."
@@ -1275,30 +1300,6 @@
       editing-subform-transitions
       editing-save-transitions
       editing-cancel-transitions)))
-
-(defn clear-server-errors-ops
-  "Returns ops to clear server errors on the form."
-  []
-  [(fops/assoc-alias :server-errors [])])
-
-(defn undo-all-ops
-  "Returns ops to revert the form to pristine state and clear errors.
-   `form-ident` is the Fulcro ident of the form entity."
-  [form-ident]
-  [(fops/assoc-alias :server-errors [])
-   (fops/apply-action fs/pristine->entity* form-ident)])
-
-(defn mark-complete-ops
-  "Returns ops to mark all form fields as complete for validation.
-   `form-ident` is the Fulcro ident of the form entity."
-  [form-ident]
-  [(fops/apply-action fs/mark-complete* form-ident)])
-
-(defn mark-pristine-ops
-  "Returns ops to mark the current form state as pristine (after save).
-   `form-ident` is the Fulcro ident of the form entity."
-  [form-ident]
-  [(fops/apply-action fs/entity->pristine* form-ident)])
 
 (defn save!
   "Trigger a save on the given form rendering env. `addl-save-params` is a map of data that can
