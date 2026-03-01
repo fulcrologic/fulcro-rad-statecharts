@@ -899,9 +899,17 @@
     (into base-ops (concat value-ops (or on-change-ops []) derive-ops))))
 
 (defn blur-expr
-  "Expression for handling blur events. Currently a no-op placeholder."
-  [_env _data _event-name _event-data]
-  nil)
+  "Expression for handling blur events. Calls the :on-blur trigger from sfo/triggers if defined.
+   The on-blur trigger receives (fn [env data form-ident qualified-key value] -> ops-vec)."
+  [env data _event-name event-data]
+  (let [{::attr/keys [qualified-key]
+         :keys       [form-ident form-key value]} event-data
+        form-class   (some-> form-key rc/registry-key->class)
+        form-options (some-> form-class rc/component-options)
+        {{:keys [on-blur]} sfo/triggers} form-options
+        on-blur-ops  (when on-blur
+                       (on-blur env data form-ident qualified-key value))]
+    (or on-blur-ops nil)))
 
 (defn mark-all-complete-expr
   "Expression for marking all form fields as complete for validation."
@@ -1439,6 +1447,7 @@
     (scf/send! master-form session-id :event/blur
       {::attr/qualified-key k
        :form-ident          form-ident
+       :form-key            (comp/class->registry-key (comp/react-type form-instance))
        :value               value})))
 
 (defn input-changed!
