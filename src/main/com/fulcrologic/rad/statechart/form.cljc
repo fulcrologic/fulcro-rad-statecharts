@@ -469,10 +469,19 @@
                                                                                      (map ::attr/qualified-key))
                                                                                    attributes)
                                         sfro/busy?                               form-busy?
-                                        sfro/initialize                          :always}
+                                        sfro/initialize                          :always
+                                        sfro/actors                              (let [rk (if (keyword? registry-key)
+                                                                                            registry-key
+                                                                                            (when (map? location) (:registry-key location)))]
+                                                                                   (fn [_env data]
+                                                                                     (let [ident (or (get-in data [:route/idents rk])
+                                                                                                   (when-let [Target (rc/registry-key->class rk)]
+                                                                                                     (when (rc/has-ident? Target)
+                                                                                                       (rc/get-ident Target {}))))]
+                                                                                       {:actor/form {:component rk :ident ident}})))}
                                        pre-merge (assoc :pre-merge pre-merge)
                                        (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                                       (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `form-chart))))
+                                       (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart form-chart))))
         attribute-query-inclusions (set (mapcat :com.fulcrologic.rad.form/query-inclusion attributes))
         inclusions                 (set/union attribute-query-inclusions (set query-inclusion))]
     (when (and #?(:cljs goog.DEBUG :clj true) will-enter)
@@ -1170,53 +1179,52 @@
         (script {:expr start-create-expr}))
       (transition {:target :state/editing}))
 
-    (state {:id :state/loading}
-      (on-entry {}
-        (script {:expr start-load-expr}))
-      (on :event/loaded :state/editing
-        (script {:expr on-loaded-expr}))
-      (on :event/failed :state/load-failed
-        (script {:expr on-load-failed-expr}))
+    (state {:id :state/active :initial :state/loading}
       (on :event/exit :state/exited)
-      (on :event/reload :state/loading
-        (script {:expr start-load-expr})))
 
-    (state {:id :state/load-failed}
-      (on :event/reload :state/loading)
-      (on :event/exit :state/exited))
+      (state {:id :state/loading}
+        (on-entry {}
+          (script {:expr start-load-expr}))
+        (on :event/loaded :state/editing
+          (script {:expr on-loaded-expr}))
+        (on :event/failed :state/load-failed
+          (script {:expr on-load-failed-expr}))
+        (on :event/reload :state/loading
+          (script {:expr start-load-expr})))
 
-    (state {:id :state/editing}
-      (on-entry {}
-        (script {:expr load-picker-options-expr}))
-      (on :event/exit :state/exited)
-      (on :event/reload :state/loading
-        (script {:expr start-load-expr}))
-      (handle :event/mark-complete mark-all-complete-expr)
-      (handle :event/attribute-changed attribute-changed-expr)
-      (handle :event/blur blur-expr)
-      (handle :event/add-row add-row-expr)
-      (handle :event/delete-row delete-row-expr)
-      (transition {:event :event/save :cond form-valid? :target :state/saving}
-        (script {:expr prepare-save-expr}))
-      (handle :event/save mark-all-complete-expr)
-      (handle :event/reset undo-all-expr)
-      (on :event/cancel :state/leaving
-        (script {:expr prepare-leave-expr}))
-      (handle :event/route-denied route-denied-expr)
-      (handle :event/continue-abandoned-route continue-abandoned-route-expr)
-      (handle :event/clear-route-denied clear-route-denied-expr))
+      (state {:id :state/load-failed}
+        (on :event/reload :state/loading))
 
-    (state {:id :state/saving}
-      (on :event/saved :state/editing
-        (script {:expr on-saved-expr}))
-      (on :event/save-failed :state/editing
-        (script {:expr on-save-failed-expr}))
-      (on :event/exit :state/exited))
+      (state {:id :state/editing}
+        (on-entry {}
+          (script {:expr load-picker-options-expr}))
+        (on :event/reload :state/loading
+          (script {:expr start-load-expr}))
+        (handle :event/mark-complete mark-all-complete-expr)
+        (handle :event/attribute-changed attribute-changed-expr)
+        (handle :event/blur blur-expr)
+        (handle :event/add-row add-row-expr)
+        (handle :event/delete-row delete-row-expr)
+        (transition {:event :event/save :cond form-valid? :target :state/saving}
+          (script {:expr prepare-save-expr}))
+        (handle :event/save mark-all-complete-expr)
+        (handle :event/reset undo-all-expr)
+        (on :event/cancel :state/leaving
+          (script {:expr prepare-leave-expr}))
+        (handle :event/route-denied route-denied-expr)
+        (handle :event/continue-abandoned-route continue-abandoned-route-expr)
+        (handle :event/clear-route-denied clear-route-denied-expr))
 
-    (state {:id :state/leaving}
-      (on-entry {}
-        (script {:expr leave-form-expr}))
-      (transition {:target :state/exited}))
+      (state {:id :state/saving}
+        (on :event/saved :state/editing
+          (script {:expr on-saved-expr}))
+        (on :event/save-failed :state/editing
+          (script {:expr on-save-failed-expr})))
+
+      (state {:id :state/leaving}
+        (on-entry {}
+          (script {:expr leave-form-expr}))
+        (transition {:target :state/exited})))
 
     (final {:id :state/exited})))
 
@@ -1811,30 +1819,31 @@
    (scf/send! app-ish form-session-id event event-data)))
 
 (defn form-route-state
-  "Creates a routing state for a RAD form. On entry, starts the form's statechart via
-   `start-form!`. On exit, abandons the form via `abandon-form!`.
+  "Creates a routing state for a RAD form. Uses `istate` to invoke the form's
+   co-located statechart as a child, providing full lifecycle management via the
+   statecharts invoke mechanism (parent-child communication, automatic lifecycle,
+   route-guarding through child chart).
 
    The routing event data should include `:id` and optionally `:params`. If `:id` is a tempid,
    the form starts in create mode; otherwise it starts in edit mode.
 
-   Options are the same as `scr/rstate`:
+   Options are the same as `scr/istate`:
 
    * `:route/target` - (required) The form component class or registry key.
    * `:route/params` - (optional) Set of keywords for route parameters.
 
-   See `scr/rstate` for full option details."
+   See `scr/istate` for full option details."
   [props]
-  (scr/rstate props
-    (entry-fn [{:fulcro/keys [app]} _data _event-name event-data]
-      (log/debug "Starting form via routing" event-data)
-      (let [{:keys [id params]} event-data
-            form-class (comp/registry-key->class (:route/target props))]
-        (start-form! app id form-class params))
-      nil)
+  (scr/istate
+    (assoc props
+      :invoke-params
+      {:fulcro/aliases {:confirmation-message [:actor/form :ui/confirmation-message]
+                        :route-denied?        [:actor/form :ui/route-denied?]
+                        :server-errors        [:actor/form :com.fulcrologic.rad.form/errors]}})
     (exit-fn [{:fulcro/keys [app]} {:route/keys [idents]} & _]
       (when-let [form-ident (get idents (rc/class->registry-key (:route/target props)))]
-        (abandon-form! app form-ident)
-        [(ops/delete [:route/idents form-ident])]))))
+        [(fops/apply-action update ::form-session-ids dissoc form-ident)
+         (ops/delete [:route/idents form-ident])]))))
 
 (defn edit!
   "Route to a form and start an edit on the given `id`."
