@@ -51,7 +51,7 @@
 (defn view-mode?
   "Returns true if the main form was started in view mode. `form-instance` can be from main form or any subform."
   [form-instance]
-  (let [master-form (or (:com.fulcrologic.rad.form/master-form (comp/get-computed form-instance))
+  (let [master-form (or (::form/master-form (comp/get-computed form-instance))
                       form-instance)
         form-ident  (comp/get-ident master-form)
         session-id  (sc.session/ident->session-id form-ident)
@@ -61,7 +61,7 @@
 
 (def standard-action-buttons
   "The standard ::form/action-buttons button layout. Requires you include stardard-controls in your ::control/controls key."
-  [:com.fulcrologic.rad.form/done :com.fulcrologic.rad.form/undo :com.fulcrologic.rad.form/save])
+  form-impl/standard-action-buttons)
 
 (def standard-controls
   "The default value of ::control/controls for forms. Includes a :com.fulcrologic.rad.form/done, :com.fulcrologic.rad.form/undo, and :com.fulcrologic.rad.form/save button."
@@ -712,8 +712,9 @@
 (defn create?
   "Condition predicate: Returns true if this form session is for creating a new entity."
   [_env data & _]
-  ;; TASK: Needs to check if id is tempid as well
-  (boolean (:com.fulcrologic.rad.form/create? data)))
+  (boolean
+    (or (:com.fulcrologic.rad.form/create? data)
+      (tempid/tempid? (second (actor-ident data))))))
 
 (defn start-create-expr
   "Expression for creating a new form entity. Generates default state,
@@ -1011,9 +1012,10 @@
   (let [FormClass    (actor-class data)
         form-ident   (actor-ident data)
         state-map    (:fulcro/state-map data)
-        cancel-route (?! (some-> FormClass rc/component-options fo/cancel-route)
-                       (:fulcro/app env)
-                       (fns/ui->props state-map FormClass form-ident))
+        cancel-route (or (?! (some-> FormClass rc/component-options fo/cancel-route)
+                           (:fulcro/app env)
+                           (fns/ui->props state-map FormClass form-ident))
+                       :back)
 
         {:keys [on-cancel embedded?]} (:options data)
         app          (:fulcro/app env)
@@ -1041,7 +1043,7 @@
   [env data _event-name event-data]
   (let [{:keys [form]} event-data
         Form         (some-> form rc/registry-key->class)
-        user-confirm (some-> Form rc/component-options (get :com.fulcrologic.rad.form/confirm))]
+        user-confirm (some-> Form rc/component-options (get fo/confirm))]
     (if (= :async user-confirm)
       [(ops/assign :desired-route event-data)
        (fops/assoc-alias :route-denied? true)]
