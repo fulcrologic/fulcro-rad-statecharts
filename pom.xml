@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro-rad-statecharts</artifactId>
@@ -64,21 +65,8 @@
             <id>clojars</id>
             <url>https://repo.clojars.org/</url>
         </repository>
-        <repository>
-            <id>cognitect-dev-tools</id>
-            <url>https://dev-tools.cognitect.com/maven/releases/</url>
-        </repository>
-        <repository>
-            <id>my.datomic.com</id>
-            <url>https://my.datomic.com/repo</url>
-        </repository>
     </repositories>
     <dependencies>
-        <dependency>
-            <groupId>com.fulcrologic</groupId>
-            <artifactId>fulcro-rad</artifactId>
-            <version>RELEASE</version>
-        </dependency>
         <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>clojure</artifactId>
@@ -88,6 +76,11 @@
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>1.21.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fulcrologic</groupId>
+            <artifactId>fulcro-rad</artifactId>
+            <version>1.6.22</version>
         </dependency>
         <dependency>
             <groupId>com.fulcrologic</groupId>
@@ -140,14 +133,14 @@
             <version>0.4.9</version>
         </dependency>
         <dependency>
+            <groupId>com.fulcrologic</groupId>
+            <artifactId>statecharts</artifactId>
+            <version>1.4.0-RC3</version>
+        </dependency>
+        <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>core.async</artifactId>
             <version>1.8.741</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fulcrologic</groupId>
-            <artifactId>statecharts</artifactId>
-            <version>1.4.0-RC2-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>
