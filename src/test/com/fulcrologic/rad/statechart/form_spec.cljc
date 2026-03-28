@@ -7,6 +7,8 @@
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.statechart.form :as form]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
     [fulcro-spec.core :refer [assertions component specification]]))
 
 (def default-street "111 Main")
@@ -125,3 +127,45 @@
       ;; Booleans??? What if we just want to leave false == nil?
       fields => #{:test/note :test/children :test/marketing? :child/b :child/node :subchild/x})))
 
+(specification "Create-save route replacement helpers"
+  (component "Detects a create save that should replace the tempid route"
+    (let [tempid-id    (tempid/tempid)
+          persisted-id (random-uuid)]
+      (with-redefs [scf/mutation-result (constantly {'com.fulcrologic.rad.form/save-form {:test/id persisted-id}})]
+        (let [update-info (#'form/created-form-route-update
+                             {:fulcro/actors                    {:actor/form {:component TestForm
+                                                                              :ident     [:test/id tempid-id]}}
+                              :com.fulcrologic.rad.form/create? true
+                              :original-ident                   [:test/id tempid-id]
+                              :options                          {}
+                              :_sessionid                       :test/session
+                              :fulcro/state-map                 {}})]
+          (assertions
+            "Returns the original tempid ident"
+            (:original-ident update-info) => [:test/id tempid-id]
+            "Uses the persisted ID from the save mutation result"
+            (:current-ident update-info) => [:test/id persisted-id]
+            "Targets the routed form state"
+            (:route-target update-info) => (comp/class->registry-key TestForm))))))
+
+  (component "Rewrites routing state and session lookup in place"
+    (let [tempid-id         (tempid/tempid)
+          persisted-id      (random-uuid)
+          route-target      (comp/class->registry-key TestForm)
+          old-ident         [:test/id tempid-id]
+          new-ident         [:test/id persisted-id]
+          session-id        :test/session
+          routing-local-path (scf/local-data-path scr/session-id)
+          state-map         (-> {::form/form-session-ids {old-ident session-id}}
+                              (assoc-in (conj routing-local-path :routing/parameters route-target :id) tempid-id)
+                              (assoc-in (conj routing-local-path :route/idents route-target) old-ident))
+          updated-state     (#'form/rewrite-created-form-route* state-map route-target old-ident new-ident session-id)]
+      (assertions
+        "Replaces the routed ID in the routing session"
+        (get-in updated-state (conj routing-local-path :routing/parameters route-target :id)) => persisted-id
+        "Updates the routing session's active ident for the form"
+        (get-in updated-state (conj routing-local-path :route/idents route-target)) => new-ident
+        "Removes the tempid-based form session lookup"
+        (contains? (get updated-state ::form/form-session-ids) old-ident) => false
+        "Adds the persisted ident to the form session lookup"
+        (get-in updated-state [::form/form-session-ids new-ident]) => session-id))))

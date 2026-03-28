@@ -3,15 +3,22 @@
    Uses a real Fulcro app with :event-loop? :immediate to verify that
    statechart + Fulcro state integration works correctly."
   (:require
+    [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.rad.attributes :refer [defattr]]
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.statechart.application :as rad-app]
     [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.rad.statechart.session :as sc.session]
+    [com.fulcrologic.rad.test-helpers :as test-helpers]
+    [com.fulcrologic.statecharts.chart :refer [statechart]]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
+    [com.fulcrologic.statecharts.integration.fulcro.routing.simulated-history :as sim]
+    [com.fulcrologic.statecharts.integration.fulcro.routing.url-history :as ruh]
     [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ===== Test Model =====
@@ -33,6 +40,32 @@
                       :person/age  0}
    fo/route-prefix   "person"
    fo/title          "Edit Person"})
+
+(defsc Landing [_ _]
+  {:query         [:landing/id]
+   :ident         (fn [] [:component/id ::Landing])
+   :initial-state {:landing/id :landing}}
+  nil)
+
+(defsc RouteRoot [this props]
+  {:query                   []
+   :ident                   (fn [] [:component/id ::RouteRoot])
+   :initial-state           {}
+   :preserve-dynamic-query? true}
+  nil)
+
+(defsc AppRoot [this {:ui/keys [routes]}]
+  {:query         [{:ui/routes (comp/get-query RouteRoot)}]
+   :initial-state {:ui/routes {}}}
+  nil)
+
+(def routed-form-chart
+  (statechart {:initial :state/route-root}
+    (scr/routing-regions
+      (scr/routes {:id :state/root :routing/root `RouteRoot}
+        (scr/rstate {:route/target `Landing})
+        (form/form-route-state {:route/target PersonForm
+                                :route/params #{:id}})))))
 
 ;; ===== Test Helpers =====
 
@@ -149,3 +182,30 @@
       (assertions
         "Form terminates on exit event"
         (form-terminated? app :person/id tid) => true))))
+
+(specification "Form statechart — successful create save replaces the tempid URL in place"
+  (let [{:keys [app provider]} (test-helpers/create-test-app-with-url-sync routed-form-chart {:root AppRoot})
+        tid                   (tempid/tempid)
+        persisted-id          (random-uuid)
+        mutation-symbol       'com.fulcrologic.rad.form/save-form]
+    (scr/route-to! app PersonForm {:id tid})
+    (test-helpers/settle! app)
+    (let [history-before (sim/history-stack provider)
+          sid            (session-id-for :person/id tid)]
+      (with-redefs [scf/mutation-result (constantly {mutation-symbol {:person/id persisted-id}})]
+        (scf/send! app sid :event/saved)
+        (test-helpers/settle! app))
+      (let [history-after (sim/history-stack provider)
+            current-url   (ruh/current-href provider)]
+        (assertions
+          "The save keeps the same history depth (replace, not push)"
+          (count history-after) => (count history-before)
+
+          "The current URL changes to the persisted ID"
+          (str/includes? current-url (str persisted-id)) => true
+
+          "The current URL no longer points at the tempid entry"
+          current-url => (not= (last history-before))
+
+          "The updated URL is stored in the current history slot"
+          current-url => (last history-after))))))
