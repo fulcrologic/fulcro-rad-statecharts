@@ -854,11 +854,15 @@
 
 (defn on-loaded-expr
   "Expression that runs when form data has been loaded successfully.
-   Clears errors, handles autocreate, sets up form config, and marks complete."
-  [_env data _event-name _event-data]
+   Clears errors, handles autocreate, sets up form config, marks complete, and
+   invokes the `:after-load` trigger if defined."
+  [env data _event-name _event-data]
   (let [FormClass  (actor-class data)
         form-ident (actor-ident data)
-        state-map  (:fulcro/state-map data)]
+        state-map  (:fulcro/state-map data)
+        {{:keys [after-load]} sfo/triggers} (some-> FormClass rc/component-options)
+        after-load-ops (when (fn? after-load)
+                         (after-load env data form-ident))]
     (log/debug "Loaded. Marking the form complete.")
     (into
       (into (clear-server-errors-ops)
@@ -866,7 +870,8 @@
       (concat
         (mark-complete-ops form-ident)
         (build-autocreate-ops FormClass form-ident state-map)
-        (build-ui-props-ops FormClass form-ident)))))
+        (build-ui-props-ops FormClass form-ident)
+        (when (seq after-load-ops) after-load-ops)))))
 
 (defn load-picker-options-expr
   "Side-effect expression that loads picker options for all ref fields that have
@@ -1001,17 +1006,20 @@
 
 (defn on-saved-expr
   "Expression that runs after a successful save. Marks form as pristine
-   and invokes any saved triggers or on-saved transactions."
+   and invokes any saved triggers or on-saved transactions.
+   Side effects (transactions, routing) are returned as ops, not executed directly."
   [env data _event-name _event-data]
   (let [form-ident   (actor-ident data)
         FormClass    (actor-class data)
         options      (:options data)
         {{:keys [saved]} sfo/triggers} (some-> FormClass rc/component-options)
-        {:keys [on-saved]} options
+        {:keys [on-saved embedded?]} options
+        was-create?  (boolean (:com.fulcrologic.rad.form/create? data))
+        app          (:fulcro/app env)
         base-ops     (mark-pristine-ops form-ident)
         saved-ops    (when (fn? saved)
                        (saved env data form-ident))
-        on-saved-ops (when (seq on-saved)
+        on-saved-ops (when (and app (seq on-saved))
                        (let [[id-key id] form-ident
                              {:keys [children] :as ast} (eql/query->ast on-saved)
                              new-ast (assoc ast :children
@@ -1020,16 +1028,16 @@
                                                           (assoc-in node [:params id-key] id)
                                                           node))
                                                   children))
-                             txn     (eql/ast->query new-ast)
-                             app     (:fulcro/app env)]
-                         (when app
-                           (log/debug "Running on-saved tx:" txn)
-                           (rc/transact! app txn))
-                         nil))]
-    (into base-ops (concat (or saved-ops []) (or on-saved-ops [])))))
+                             txn     (eql/ast->query new-ast)]
+                         (log/debug "Running on-saved tx:" txn)
+                         [(fops/apply-action (fn [s] (rc/transact! app txn) s))]))
+        url-update-ops (when (and app was-create? (not embedded?))
+                         [(fops/apply-action (fn [s] (scr/route-to! app FormClass {:id (second form-ident)}) s))])]
+    (into base-ops (concat (or saved-ops []) (or on-saved-ops []) (or url-update-ops [])))))
 
 (defn on-save-failed-expr
-  "Expression that handles save failure. Extracts errors from mutation result and sets them."
+  "Expression that handles save failure. Extracts errors from mutation result and sets them.
+   Side effects (transactions) are returned as ops, not executed directly."
   [env data _event-name _event-data]
   (let [FormClass     (actor-class data)
         form-ident    (actor-ident data)
@@ -1041,15 +1049,14 @@
         result        (scf/mutation-result data)
         errors        (some-> result (get save-mutation) :com.fulcrologic.rad.form/errors)
         {:keys [on-save-failed]} options
+        app           (:fulcro/app env)
         base-ops      (when (seq errors)
                         [(fops/assoc-alias :server-errors errors)])
         trigger-ops   (when (fn? save-failed)
                         (save-failed env data form-ident))
-        _             (when (seq on-save-failed)
-                        (let [app (:fulcro/app env)]
-                          (when app
-                            (rc/transact! app on-save-failed))))]
-    (into (or base-ops []) (or trigger-ops []))))
+        txn-ops       (when (and app (seq on-save-failed))
+                        [(fops/apply-action (fn [s] (rc/transact! app on-save-failed) s))])]
+    (into (or base-ops []) (concat (or trigger-ops []) (or txn-ops [])))))
 
 (defn undo-all-expr
   "Expression for undoing all form changes. Clears errors and restores pristine state."
@@ -1062,7 +1069,8 @@
   [(ops/assign :abandoned? true)])
 
 (defn leave-form-expr
-  "Expression that executes form cleanup when leaving."
+  "Expression that executes form cleanup when leaving.
+   Side effects (transactions, routing) are returned as ops, not executed directly."
   [env data _event-name _event-data]
   (let [FormClass    (actor-class data)
         form-ident   (actor-ident data)
@@ -1075,23 +1083,27 @@
         {:keys [on-cancel embedded?]} (:options data)
         app          (:fulcro/app env)
         base-ops     [(fops/apply-action fs/pristine->entity* form-ident)]
-        _            (when (and app (seq on-cancel))
-                       (rc/transact! app on-cancel))
-        _            (when (and app (not embedded?) cancel-route)
+        cancel-ops   (when (and app (seq on-cancel))
+                       [(fops/apply-action (fn [s] (rc/transact! app on-cancel) s))])
+        route-ops    (when (and app (not embedded?) cancel-route)
                        (cond
                          (map? cancel-route)
                          (let [{:keys [target params]} cancel-route]
                            (when-let [cls (rc/registry-key->class target)]
-                             (scr/route-to! app cls params)))
+                             [(fops/apply-action (fn [s] (scr/route-to! app cls params) s))]))
 
-                         (= :back cancel-route) (scr/route-back! app)
+                         (= :back cancel-route)
+                         [(fops/apply-action (fn [s] (scr/route-back! app) s))]
+
                          (= :none cancel-route) nil
+
                          (or (string? cancel-route)
                            (comp/component-class? cancel-route)
                            (symbol? cancel-route)
-                           (keyword? cancel-route)) (when-let [cls (rc/registry-key->class cancel-route)]
-                                                      (scr/route-to! app cls {}))))]
-    base-ops))
+                           (keyword? cancel-route))
+                         (when-let [cls (rc/registry-key->class cancel-route)]
+                           [(fops/apply-action (fn [s] (scr/route-to! app cls {}) s))])))]
+    (into base-ops (concat (or cancel-ops []) (or route-ops [])))))
 
 (defn route-denied-expr
   "Expression for handling route-denied events."
@@ -1108,15 +1120,16 @@
           nil)))))
 
 (defn continue-abandoned-route-expr
-  "Expression for continuing a previously denied route change."
+  "Expression for continuing a previously denied route change.
+   Side effects (routing) are returned as ops, not executed directly."
   [env data _event-name _event-data]
   (let [form-ident (actor-ident data)
-        {:keys [form relative-root route timeouts-and-params]} (:desired-route data)
-        app        (:fulcro/app env)]
-    (when app
-      (scr/force-continue-routing! app))
-    [(fops/assoc-alias :route-denied? false)
-     (fops/apply-action fs/pristine->entity* form-ident)]))
+        app        (:fulcro/app env)
+        route-ops  (when app
+                     [(fops/apply-action (fn [s] (scr/force-continue-routing! app) s))])]
+    (into [(fops/assoc-alias :route-denied? false)
+           (fops/apply-action fs/pristine->entity* form-ident)]
+      (or route-ops []))))
 
 (defn clear-route-denied-expr
   "Expression for clearing the route-denied flag."
