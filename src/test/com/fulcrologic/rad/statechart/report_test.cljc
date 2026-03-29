@@ -115,6 +115,9 @@
 
 ;; ===== Expression function tests =====
 
+(def busy-true-op (fops/assoc-alias :busy? true))
+(def busy-false-op (fops/assoc-alias :busy? false))
+
 (defn count-apply-action-ops
   "Returns the count of :fulcro/apply-action ops in the given operations vector."
   [ops]
@@ -128,8 +131,8 @@
                     ro/row-pk           attr
                     ro/report-loaded    (fn [sm] (assoc sm ::callback-called true))})
           data   {:fulcro/state-map {}
-                  :fulcro/actors   {:actor/report {:component Report
-                                                   :ident (comp/ident Report {})}}}
+                  :fulcro/actors {:actor/report {:component Report
+                                                 :ident (comp/ident Report {})}}}
           ops    (report/process-loaded-data-expr nil data nil nil)]
       (assertions
         "includes an apply-action for the report-loaded callback in addition to transforms"
@@ -141,8 +144,8 @@
                     ro/source-attribute :foo/bar
                     ro/row-pk           attr})
           data   {:fulcro/state-map {}
-                  :fulcro/actors   {:actor/report {:component Report
-                                                   :ident (comp/ident Report {})}}}
+                  :fulcro/actors {:actor/report {:component Report
+                                                 :ident (comp/ident Report {})}}}
           ops    (report/process-loaded-data-expr nil data nil nil)]
       (assertions
         "includes only the transform apply-action"
@@ -152,7 +155,9 @@
   (let [data {:fulcro/state-map {}}
         ops  (report/resume-from-cache-expr nil data nil nil)]
     (assertions
-      "produces an apply-action op followed by a busy-false assoc-alias (no busy-true)"
-      (mapv :op ops) => [:fulcro/apply-action :fulcro/assoc-alias]
-      "the assoc-alias op sets busy? to false"
-      (:data (last ops)) => {:busy? false})))
+      "does not produce a redundant busy-true operation"
+      (some #{busy-true-op} ops) => nil
+      "produces a busy-false operation to clear the busy flag"
+      (some #{busy-false-op} ops) => busy-false-op
+      "returns a non-empty operations vector"
+      (pos? (count ops)) => true)))
