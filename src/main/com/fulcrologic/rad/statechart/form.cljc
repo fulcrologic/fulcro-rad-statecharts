@@ -852,12 +852,29 @@
   [form-ident]
   [(fops/apply-action fs/entity->pristine* form-ident)])
 
+(defn- derive-fields-ops
+  "Build operations for applying derive-fields triggers."
+  [data event-data]
+  (let [{:keys [form-key form-ident]} event-data
+        form-class        (some-> form-key rc/registry-key->class)
+        master-form-class (actor-class data)
+        master-form-ident (actor-ident data)
+        {{master-derive :derive-fields} sfo/triggers} (some-> master-form-class rc/component-options)
+        {{:keys [derive-fields]} sfo/triggers} (some-> form-class rc/component-options)]
+    (cond-> []
+      derive-fields
+      (conj (fops/apply-action update-tree* derive-fields form-class form-ident))
+
+      (and (not= master-form-class form-class) master-derive)
+      (conj (fops/apply-action update-tree* master-derive master-form-class master-form-ident)))))
+
 (defn on-loaded-expr
   "Expression that runs when form data has been loaded successfully.
-   Clears errors, handles autocreate, sets up form config, and marks complete."
+   Clears errors, handles autocreate, sets up form config, marks complete, and derives fields."
   [_env data _event-name _event-data]
   (let [FormClass  (actor-class data)
         form-ident (actor-ident data)
+        form-key   (rc/class->registry-key FormClass)
         state-map  (:fulcro/state-map data)]
     (log/debug "Loaded. Marking the form complete.")
     (into
@@ -866,7 +883,8 @@
       (concat
         (mark-complete-ops form-ident)
         (build-autocreate-ops FormClass form-ident state-map)
-        (build-ui-props-ops FormClass form-ident)))))
+        (build-ui-props-ops FormClass form-ident)
+        (derive-fields-ops data {:form-key form-key :form-ident form-ident})))))
 
 (defn load-picker-options-expr
   "Side-effect expression that loads picker options for all ref fields that have
@@ -891,22 +909,6 @@
   "Expression that sets server errors when form load fails."
   [_env _data _event-name _event-data]
   [(fops/assoc-alias :server-errors [{:message "Load failed."}])])
-
-(defn- derive-fields-ops
-  "Build operations for applying derive-fields triggers."
-  [data event-data]
-  (let [{:keys [form-key form-ident]} event-data
-        form-class        (some-> form-key rc/registry-key->class)
-        master-form-class (actor-class data)
-        master-form-ident (actor-ident data)
-        {{master-derive :derive-fields} sfo/triggers} (some-> master-form-class rc/component-options)
-        {{:keys [derive-fields]} sfo/triggers} (some-> form-class rc/component-options)]
-    (cond-> []
-      derive-fields
-      (conj (fops/apply-action update-tree* derive-fields form-class form-ident))
-
-      (and (not= master-form-class form-class) master-derive)
-      (conj (fops/apply-action update-tree* master-derive master-form-class master-form-ident)))))
 
 (defn attribute-changed-expr
   "Expression for handling field value changes."

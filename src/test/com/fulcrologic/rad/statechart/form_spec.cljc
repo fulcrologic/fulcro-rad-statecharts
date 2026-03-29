@@ -3,10 +3,12 @@
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.rad.attributes :refer [defattr]]
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.statechart.form :as form]
+    [com.fulcrologic.rad.statechart.form-options :as sfo]
     [fulcro-spec.core :refer [assertions component specification]]))
 
 (def default-street "111 Main")
@@ -124,4 +126,84 @@
       "Finds all of the fields (recursively) that are used in forms but are not required by the data model."
       ;; Booleans??? What if we just want to leave false == nil?
       fields => #{:test/note :test/children :test/marketing? :child/b :child/node :subchild/x})))
+
+;; --- Issue 1: derive-fields on form load ---
+
+(defn test-derive-fields [props]
+  (assoc props :derived/field "computed"))
+
+(defattr df-id :df/id :uuid {ao/identity? true})
+(defattr df-name :df/name :string {})
+
+(form/defsc-form DeriveFieldsForm [this props]
+  {fo/attributes [df-name]
+   fo/id         df-id
+   sfo/triggers  {:derive-fields test-derive-fields}})
+
+(defn- has-derive-fields-op?
+  "Returns true if `ops` contains an apply-action op that passes `f` to update-tree*."
+  [ops f]
+  (boolean
+    (some (fn [{:keys [op] :as m}]
+            (and (= op :fulcro/apply-action)
+                 (= (:f m) form/update-tree*)
+                 (some #{f} (:args m))))
+      ops)))
+
+(specification "on-loaded-expr with derive-fields trigger"
+  (let [form-ident [:df/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        form-key   (rc/class->registry-key DeriveFieldsForm)
+        data       {:fulcro/state-map {form-ident {:df/id   (second form-ident)
+                                                   :df/name "test"}}
+                    :fulcro/actors    {:actor/form {:component form-key
+                                                   :ident     form-ident}}}
+        ops        (form/on-loaded-expr {} data nil nil)]
+    (assertions
+      "produces a non-empty ops vector"
+      (pos? (count ops)) => true
+      "includes an apply-action op that passes the configured derive-fields fn to update-tree*"
+      (has-derive-fields-op? ops test-derive-fields) => true)))
+
+(specification "on-loaded-expr without derive-fields trigger"
+  (let [form-ident [:address/id #uuid "cccccccc-cccc-cccc-cccc-cccccccccccc"]
+        form-key   (rc/class->registry-key AddressForm)
+        data       {:fulcro/state-map {form-ident {:address/id     (second form-ident)
+                                                   :address/street "test"}}
+                    :fulcro/actors    {:actor/form {:component form-key
+                                                   :ident     form-ident}}}
+        ops        (form/on-loaded-expr {} data nil nil)]
+    (assertions
+      "produces ops successfully"
+      (pos? (count ops)) => true
+      "omits derive-fields ops when no trigger is configured"
+      (has-derive-fields-op? ops test-derive-fields) => false)))
+
+(defn test-master-derive-fields [props]
+  (assoc props :derived/master "master-computed"))
+
+(defattr mdf-id :mdf/id :uuid {ao/identity? true})
+(defattr mdf-name :mdf/name :string {})
+(defattr mdf-children :mdf/children :ref {ao/target :df/id ao/cardinality :many})
+
+(form/defsc-form MasterDeriveFieldsForm [this props]
+  {fo/attributes [mdf-name mdf-children]
+   fo/id         mdf-id
+   fo/subforms   {:mdf/children {fo/ui DeriveFieldsForm}}
+   sfo/triggers  {:derive-fields test-master-derive-fields}})
+
+(specification "derive-fields-ops propagates master-form derive-fields when editing a subform"
+  (let [derive-fields-ops @(resolve 'com.fulcrologic.rad.statechart.form/derive-fields-ops)
+        master-key   (rc/class->registry-key MasterDeriveFieldsForm)
+        master-ident [:mdf/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        sub-key      (rc/class->registry-key DeriveFieldsForm)
+        sub-ident    [:df/id #uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"]
+        data         {:fulcro/actors {:actor/form {:component master-key
+                                                   :ident     master-ident}}}
+        event-data   {:form-key sub-key :form-ident sub-ident}
+        ops          (derive-fields-ops data event-data)]
+    (assertions
+      "fires the subform's own derive-fields"
+      (has-derive-fields-op? ops test-derive-fields) => true
+      "fires the master form's derive-fields"
+      (has-derive-fields-op? ops test-master-derive-fields) => true)))
 
