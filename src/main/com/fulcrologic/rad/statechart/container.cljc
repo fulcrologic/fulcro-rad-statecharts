@@ -66,6 +66,20 @@
   [env data event & [event-data]]
   (broadcast-to-children! (:fulcro/app env) (container-class data) event event-data))
 
+(defn container-busy?
+  "Returns true if any child report of `container` is currently in a loading state.
+   Used by the routing system (via `sfro/busy?`) to guard against navigating away
+   from a container while child reports are still loading.
+
+   `container` can be a container component class or instance."
+  [app container]
+  (boolean
+    (some (fn [[id child-class]]
+            (let [sid    (child-report-session-id child-class id)
+                  config (scf/current-configuration app sid)]
+              (contains? config :state/loading)))
+      (id-child-pairs container))))
+
 ;; ===== Expression Functions =====
 
 (defn initialize-params-expr
@@ -235,6 +249,7 @@
                                                                 :ui/controls   (mapv #(select-keys % #{::control/id}) (control/control-map->controls ~controls))}
                                                            (map (fn [[id# c#]] [id# (comp/get-initial-state c# {::report/id id#})]) ~children)))
                                        :ident (list 'fn [] [::id fqkw])
+                                       sfro/busy? (list 'fn '[app _] (list `container-busy? 'app (list `comp/registry-key->class fqkw)))
                                        sfro/initialize :once)
                                (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
                                (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `container-statechart)))
