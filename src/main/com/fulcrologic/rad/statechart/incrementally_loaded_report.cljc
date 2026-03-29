@@ -108,16 +108,17 @@
         {::report/keys [row-pk report-loaded]} (comp/component-options Report)
         table-name (::attr/qualified-key row-pk)
         state-map  (:fulcro/state-map data)]
-    [(fops/apply-action
-       (fn [sm]
-         (-> sm
-           (report/preprocess-raw-result data)
-           (report/filter-rows-state data)
-           (report/sort-rows-state data)
-           (report/populate-page-state data))))
-     (fops/assoc-alias :busy? false)
-     (ops/assign :last-load-time (inst-ms (dt/now)))
-     (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))
+    (cond-> [(fops/apply-action
+               (fn [sm]
+                 (-> sm
+                   (report/preprocess-raw-result data)
+                   (report/filter-rows-state data)
+                   (report/sort-rows-state data)
+                   (report/populate-page-state data))))]
+      report-loaded (conj (fops/apply-action report-loaded))
+      true (into [(fops/assoc-alias :busy? false)
+                  (ops/assign :last-load-time (inst-ms (dt/now)))
+                  (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))))
 
 (defn cache-expired?
   "Condition: Is the cached data expired for the incrementally-loaded report?"

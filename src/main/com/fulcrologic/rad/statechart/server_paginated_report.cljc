@@ -115,6 +115,7 @@
                  sm   (assoc-in sm (report/resolve-alias-path data :current-rows) rows)]
              sm)))]
       (cond-> [(fops/assoc-alias :busy? false)]
+        report-loaded (conj (fops/apply-action report-loaded))
         (number? page-count) (conj (fops/assoc-alias :page-count page-count))
         (number? total) (conj (fops/assoc-alias :total-results total))))))
 

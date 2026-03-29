@@ -5,6 +5,7 @@
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.report-options :as ro]
     [com.fulcrologic.rad.statechart.report :as report]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
     [fulcro-spec.core :refer [=> assertions component specification]]))
 
 (def seen (atom nil))
@@ -111,3 +112,57 @@
         "Includes user add-ins"
         (:user-add-on is) => 44
         (:seen is) => [D {:x 1}]))))
+
+;; ===== Expression function tests =====
+
+(defn apply-action-ops
+  "Returns the :fulcro/apply-action ops from the given operations vector."
+  [ops]
+  (filterv #(= :fulcro/apply-action (:op %)) ops))
+
+(specification "process-loaded-data-expr"
+  (component "when ro/report-loaded is provided"
+    (let [Report (report/report ::LoadedReport
+                   {ro/columns          [attr]
+                    ro/source-attribute :foo/bar
+                    ro/row-pk           attr
+                    ro/report-loaded    (fn [sm] (assoc sm ::callback-called true))})
+          data   {:fulcro/state-map {}
+                  :fulcro/actors {:actor/report {:component Report
+                                                 :ident (comp/ident Report {})}}}
+          ops         (report/process-loaded-data-expr nil data nil nil)
+          action-ops  (apply-action-ops ops)
+          callback-op (second action-ops)
+          result-sm   ((:f callback-op) {:some :state})]
+      (assertions
+        "includes two apply-action ops (transforms + report-loaded callback)"
+        (count action-ops) => 2
+        "invokes the report-loaded callback as the second apply-action"
+        (::callback-called result-sm) => true)))
+
+  (component "when ro/report-loaded is not provided"
+    (let [Report (report/report ::NoLoadedReport
+                   {ro/columns          [attr]
+                    ro/source-attribute :foo/bar
+                    ro/row-pk           attr})
+          data   {:fulcro/state-map {}
+                  :fulcro/actors {:actor/report {:component Report
+                                                 :ident (comp/ident Report {})}}}
+          ops         (report/process-loaded-data-expr nil data nil nil)
+          action-ops  (apply-action-ops ops)]
+      (assertions
+        "includes only the data-transform apply-action (no report-loaded callback)"
+        (count action-ops) => 1
+        "has no op whose :f triggers a callback marker"
+        (some #(::callback-called ((:f %) {})) action-ops) => nil))))
+
+(specification "resume-from-cache-expr"
+  (let [data {:fulcro/state-map {}}
+        ops  (report/resume-from-cache-expr nil data nil nil)]
+    (assertions
+      "produces ops for filter/sort/paginate then busy=false"
+      (mapv :op ops) => [:fulcro/apply-action :fulcro/assoc-alias]
+      "includes an assoc-alias op that sets busy? to false"
+      (some #(and (= :fulcro/assoc-alias (:op %))
+                  (= false (get-in % [:data :busy?])))
+        ops) =fn=> some?)))
