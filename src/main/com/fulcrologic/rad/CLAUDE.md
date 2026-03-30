@@ -192,8 +192,17 @@ Map-based dispatch keys removed from source code:
 - **UISM fully removed**: Old `report-machine` and all UISM handlers deleted from `report.cljc`
 - **Server-paginated aliases**: Adds `:page-cache`, `:loaded-page`, `:total-results`, `:point-in-time` aliases beyond
   the standard set
-- **Incrementally-loaded data model**: Uses `ops/assign` for `:last-load-time` and `:raw-items-in-table` (session-local
-  cache tracking)
+- **Incrementally-loaded data model**: `last-load-time` and `raw-items-in-table` stored as Fulcro aliases (not
+  session-local) so they survive chart restarts when routed via `istate`
+- **`report-route-state` uses `istate`**: Like `form-route-state`, invokes the report's statechart as a child of the
+  routing chart. Uses `:child-session-id` to force the deterministic session ID (reports are singletons), so all
+  public API functions (`run-report!`, `sort-rows!`, etc.) work unchanged without a session-id mapping.
+- **Auto-heal on re-invocation**: `has-valid-cache?` condition in `:state/initializing` detects existing data in
+  Fulcro state and resumes from cache instead of reloading. Fulcro state (rows, sort/filter params) persists across
+  chart restarts because aliases point to component state, not session-local data.
+- **`sfro/actors` on reports**: Both `defsc-report` macro and `report` function set `sfro/actors` to provide
+  `:actor/report` actor, matching the form pattern (`sfro/actors` → `:actor/form`)
+- **`:report/param-keys` removed**: Replaced by `:route/params` on `istate` (standard route param extraction)
 
 ### Critical Bug Fix: `fops/apply-action` with `(constantly snapshot)` (Feb 2026)
 
