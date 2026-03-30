@@ -118,8 +118,8 @@
                    (report/populate-page-state data))))]
       report-loaded (conj (fops/apply-action (fn [sm] (report-loaded sm))))
       true (into [(fops/assoc-alias :busy? false)
-                  (ops/assign :last-load-time (inst-ms (dt/now)))
-                  (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))))
+                  (fops/assoc-alias :last-load-time (inst-ms (dt/now)))
+                  (fops/assoc-alias :raw-items-in-table (count (keys (get state-map table-name))))]))))
 
 (defn cache-expired?
   "Condition: Is the cached data expired for the incrementally-loaded report?"
@@ -128,8 +128,8 @@
         {:com.fulcrologic.rad.report/keys [load-cache-seconds load-cache-expired? row-pk]} (comp/component-options Report)
         state-map           (:fulcro/state-map data)
         now-ms              (inst-ms (dt/now))
-        last-load-time      (:last-load-time data)
-        last-table-count    (:raw-items-in-table data)
+        last-load-time      (report/read-alias state-map data :last-load-time)
+        last-table-count    (report/read-alias state-map data :raw-items-in-table)
         cache-expiration-ms (* 1000 (or load-cache-seconds 0))
         table-name          (::attr/qualified-key row-pk)
         current-table-count (count (keys (get state-map table-name)))
@@ -141,6 +141,14 @@
     (if (boolean? user-cache-expired?)
       user-cache-expired?
       cache-looks-stale?)))
+
+(defn has-valid-cache?
+  "Condition: Returns true if valid cached data exists in Fulcro state."
+  [env data event-name event-data]
+  (let [state-map (:fulcro/state-map data)
+        raw-rows  (report/read-alias state-map data :raw-rows)]
+    (and (seq raw-rows)
+         (not (cache-expired? env data event-name event-data)))))
 
 (defn resume-from-cache-expr
   "Expression: Resume from cached data — re-filter and paginate."
@@ -161,13 +169,13 @@
    then filtered/sorted/paginated on the client."
   (statechart {:id ::incrementally-loaded-report-chart :initial :state/initializing}
 
-    (data-model {:expr (fn [_ _]
-                         {:last-load-time     nil
-                          :raw-items-in-table 0})})
+    (data-model {:expr (fn [_ _] {})})
 
     (state {:id :state/initializing}
       (on-entry {}
         (script {:expr incremental-init-expr}))
+      (transition {:cond has-valid-cache? :target :state/ready}
+        (script {:expr resume-from-cache-expr}))
       (transition {:cond report/should-run-on-mount? :target :state/loading})
       (transition {:target :state/ready}))
 
@@ -258,11 +266,13 @@
                                         :ascending?   [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :ascending?]
                                         :raw-rows     [:actor/report :ui/loaded-data]
                                         :current-rows [:actor/report :ui/current-rows]
-                                        :current-page [:actor/report :ui/parameters :com.fulcrologic.rad.report/current-page]
-                                        :selected-row [:actor/report :ui/parameters :com.fulcrologic.rad.report/selected-row]
-                                        :page-count   [:actor/report :ui/page-count]
-                                        :loaded-page  [:actor/report :ui/incremental-page]
-                                        :busy?        [:actor/report :ui/busy?]}
+                                        :current-page       [:actor/report :ui/parameters :com.fulcrologic.rad.report/current-page]
+                                        :selected-row       [:actor/report :ui/parameters :com.fulcrologic.rad.report/selected-row]
+                                        :page-count         [:actor/report :ui/page-count]
+                                        :loaded-page        [:actor/report :ui/incremental-page]
+                                        :busy?              [:actor/report :ui/busy?]
+                                        :last-load-time     [:actor/report :ui/cache :last-load-time]
+                                        :raw-items-in-table [:actor/report :ui/cache :raw-items-in-table]}
                        :params         params
                        :route-params   params}})
        (scf/send! app session-id :event/resume (assoc options :params params))))))

@@ -33,8 +33,7 @@
     [com.fulcrologic.statecharts :as-alias sc]
     [com.fulcrologic.statecharts.chart :refer [statechart]]
     [com.fulcrologic.statecharts.convenience :refer [handle on]]
-    [com.fulcrologic.statecharts.data-model.operations :as ops]
-    [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition entry-fn]]
+    [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition]]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
     [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
@@ -383,8 +382,8 @@
     (cond-> [(fops/apply-action apply-transforms)]
       report-loaded (conj (fops/apply-action (fn [sm] (report-loaded sm))))
       true (into [(fops/assoc-alias :busy? false)
-                  (ops/assign :last-load-time (inst-ms (dt/now)))
-                  (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))))
+                  (fops/assoc-alias :last-load-time (inst-ms (dt/now)))
+                  (fops/assoc-alias :raw-items-in-table (count (keys (get state-map table-name))))]))))
 
 (defn goto-page-expr
   "Expression: Navigate to a specific page number."
@@ -485,8 +484,8 @@
         load-cache-expired? (comp/component-options Report ro/load-cache-expired?)
         row-pk              (comp/component-options Report ro/row-pk)
         now-ms              (inst-ms (dt/now))
-        last-load-time      (:last-load-time data)
-        last-table-count    (:raw-items-in-table data)
+        last-load-time      (read-alias state-map data :last-load-time)
+        last-table-count    (read-alias state-map data :raw-items-in-table)
         cache-exp-ms        (* 1000 (or load-cache-seconds 0))
         table-name          (::attr/qualified-key row-pk)
         current-table-count (count (keys (get state-map table-name)))
@@ -503,6 +502,16 @@
   "Expression: Re-initialize parameters (used on resume when cache is expired)."
   [env data event-name event-data]
   (initialize-params-expr env data event-name event-data))
+
+(defn has-valid-cache?
+  "Condition: Returns true if valid cached data exists in Fulcro state.
+   Used during chart initialization to detect existing report data from a
+   previous invocation and skip reloading."
+  [env data event-name event-data]
+  (let [state-map (:fulcro/state-map data)
+        raw-rows  (read-alias state-map data :raw-rows)]
+    (and (seq raw-rows)
+         (not (cache-expired? env data event-name event-data)))))
 
 (defn resume-from-cache-expr
   "Expression: Resume a report from cache — re-filter and re-paginate without reloading."
@@ -525,13 +534,13 @@
    sorting, pagination, row selection, and cache-aware resume."
   (statechart {:id :com.fulcrologic.rad.statechart.report/report-chart :initial :state/initializing}
 
-    (data-model {:expr (fn [_env _data _event-name _event-data]
-                         {:last-load-time     nil
-                          :raw-items-in-table nil})})
+    (data-model {:expr (fn [_env _data _event-name _event-data] {})})
 
     (state {:id :state/initializing}
       (on-entry {}
         (script {:expr initialize-params-expr}))
+      (transition {:cond has-valid-cache? :target :state/ready}
+        (script {:expr resume-from-cache-expr}))
       (transition {:cond should-run-on-mount? :target :state/loading})
       (transition {:target :state/ready}))
 
@@ -661,8 +670,10 @@
                                         :current-rows  [:actor/report :ui/current-rows]
                                         :current-page  [:actor/report :ui/parameters :com.fulcrologic.rad.report/current-page]
                                         :selected-row  [:actor/report :ui/parameters :com.fulcrologic.rad.report/selected-row]
-                                        :page-count    [:actor/report :ui/page-count]
-                                        :busy?         [:actor/report :ui/busy?]}
+                                        :page-count          [:actor/report :ui/page-count]
+                                        :busy?               [:actor/report :ui/busy?]
+                                        :last-load-time      [:actor/report :ui/cache :last-load-time]
+                                        :raw-items-in-table  [:actor/report :ui/cache :raw-items-in-table]}
                        :params         params
                        :route-params   params}})
        (scf/send! app session-id :event/resume (assoc options :params params))))))
@@ -731,11 +742,17 @@
                               options
                               (cond-> {:com.fulcrologic.rad.report/BodyItem ItemClass
                                        sfro/initialize                      :once
+                                       sfro/actors                          (fn [_env data]
+                                                                              (let [ident (or (get-in data [:route/idents fqkw])
+                                                                                           (when-let [T (rc/registry-key->class fqkw)]
+                                                                                             (when (rc/has-ident? T)
+                                                                                               (rc/get-ident T {}))))]
+                                                                                {:actor/report {:component fqkw :ident ident}}))
                                        :query                               query
                                        :initial-state                       (list 'fn ['params]
                                                                               `(let [user-ui-props# (?! ~initialize-ui-props ~sym ~'params)]
                                                                                  (cond-> {:ui/parameters   {}
-                                                                                          :ui/cache        {}
+                                                                                          :ui/cache        {:last-load-time nil :raw-items-in-table nil}
                                                                                           :ui/controls     (mapv #(select-keys % #{:com.fulcrologic.rad.control/id})
                                                                                                              (remove :local? (control/control-map->controls ~controls)))
                                                                                           :ui/busy?        false
@@ -976,7 +993,7 @@
                                       :initial-state                       (fn [params]
                                                                              (let [user-initial-state (?! initialize-ui-props (get-class) params)]
                                                                                (cond-> {:ui/parameters   {}
-                                                                                        :ui/cache        {}
+                                                                                        :ui/cache        {:last-load-time nil :raw-items-in-table nil}
                                                                                         :ui/controls     (mapv #(select-keys % #{:com.fulcrologic.rad.control/id})
                                                                                                            (remove :local? (control/control-map->controls controls)))
                                                                                         :ui/busy?        false
@@ -986,7 +1003,13 @@
                                                                                  (contains? params :com.fulcrologic.rad.report/id) (assoc :com.fulcrologic.rad.report/id (:com.fulcrologic.rad.report/id params))
                                                                                  (seq user-initial-state) (merge user-initial-state))))
                                       :ident                               (fn [this props] [:com.fulcrologic.rad.report/id (or (:com.fulcrologic.rad.report/id props) registry-key)])
-                                      sfro/initialize                      :once}
+                                      sfro/initialize                      :once
+                                      sfro/actors                          (fn [_env data]
+                                                                             (let [ident (or (get-in data [:route/idents registry-key])
+                                                                                          (when-let [T (rc/registry-key->class registry-key)]
+                                                                                            (when (rc/has-ident? T)
+                                                                                              (rc/get-ident T {}))))]
+                                                                               {:actor/report {:component registry-key :ident ident}}))}
                                (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
                                (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart report-statechart))))
          cls               (comp/sc registry-key options render)]
@@ -1047,22 +1070,38 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn report-route-state
-  "Creates a routing state for a RAD report. On entry, starts the report via
-   `start-report!`. Route parameters are merged from statechart session data
-   and event data.
+  "Creates a routing state for a RAD report. Uses `istate` to invoke the report's
+   co-located statechart as a child, providing full lifecycle management via the
+   statecharts invoke mechanism.
 
-   Options are the same as `scr/rstate`, plus:
+   The report statechart auto-heals on re-invocation: if valid cached data exists
+   in Fulcro state from a previous invocation, the chart resumes from cache instead
+   of reloading.
+
+   Options are the same as `scr/istate`:
 
    * `:route/target` — (required) The report component class or registry key.
    * `:route/params` — (optional) Set of keywords for route parameters.
-   * `:report/param-keys` — (optional) Collection of keywords to select from
-     merged data/event-data as `:route-params` for the report."
-  [{:route/keys  [target]
-    :report/keys [param-keys] :as props}]
-  (scr/rstate props
-    (entry-fn [{:fulcro/keys [app]} data _event-name event-data]
-      (log/debug "Starting report via routing")
-      (start-report! app (comp/registry-key->class target)
-        {:route-params (cond-> (merge data event-data)
-                         (seq param-keys) (select-keys param-keys))})
-      nil)))
+
+   See `scr/istate` for full option details."
+  [{:route/keys [target] :as props}]
+  (let [target-key (if (keyword? target) target (rc/class->registry-key target))
+        session-id (sc.session/ident->session-id [::id target-key])]
+    (scr/istate
+      (assoc props
+        :child-session-id session-id
+        :invoke-params
+        {:fulcro/aliases {:parameters         [:actor/report :ui/parameters]
+                          :sort-params        [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort]
+                          :sort-by            [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :sort-by]
+                          :ascending?         [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :ascending?]
+                          :filtered-rows      [:actor/report :ui/cache :filtered-rows]
+                          :sorted-rows        [:actor/report :ui/cache :sorted-rows]
+                          :raw-rows           [:actor/report :ui/loaded-data]
+                          :current-rows       [:actor/report :ui/current-rows]
+                          :current-page       [:actor/report :ui/parameters :com.fulcrologic.rad.report/current-page]
+                          :selected-row       [:actor/report :ui/parameters :com.fulcrologic.rad.report/selected-row]
+                          :page-count         [:actor/report :ui/page-count]
+                          :busy?              [:actor/report :ui/busy?]
+                          :last-load-time     [:actor/report :ui/cache :last-load-time]
+                          :raw-items-in-table [:actor/report :ui/cache :raw-items-in-table]}}))))
