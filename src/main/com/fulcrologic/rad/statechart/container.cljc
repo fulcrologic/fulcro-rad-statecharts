@@ -66,6 +66,12 @@
   [env data event & [event-data]]
   (broadcast-to-children! (:fulcro/app env) (container-class data) event event-data))
 
+(def ^:private loading-states
+  "Set of statechart states that indicate a report is loading.
+   Standard and incrementally-loaded reports use :state/loading;
+   server-paginated reports use :state/loading-page."
+  #{:state/loading :state/loading-page})
+
 (defn container-busy?
   "Returns true if any child report of `container` is currently in a loading state.
    Used by the routing system (via `sfro/busy?`) to guard against navigating away
@@ -77,7 +83,7 @@
     (some (fn [[id child-class]]
             (let [sid    (child-report-session-id child-class id)
                   config (scf/current-configuration app sid)]
-              (contains? config :state/loading)))
+              (some loading-states config)))
       (id-child-pairs container))))
 
 ;; ===== Expression Functions =====
