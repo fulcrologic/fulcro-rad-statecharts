@@ -9,6 +9,7 @@
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.rad.statechart.form-options :as sfo]
+    [com.fulcrologic.statecharts.data-model.operations :as ops]
     [fulcro-spec.core :refer [assertions component specification]]))
 
 (def default-street "111 Main")
@@ -155,4 +156,102 @@
       (vector? ops) => true
       "includes an apply-action op with update-tree* (derive-fields)"
       (boolean has-update-tree?) => true)))
+
+;; --- Issue 3: :after-load trigger ---
+
+(defattr al-id :al/id :uuid {ao/identity? true})
+(defattr al-name :al/name :string {})
+
+(defn test-after-load
+  "Test trigger that returns an assign op and captures the env it received."
+  [env data form-ident]
+  [(ops/assign :after-load-ran true)
+   (ops/assign :trigger-env env)])
+
+(form/defsc-form AfterLoadForm [this props]
+  {fo/attributes [al-name]
+   fo/id         al-id
+   sfo/triggers  {:after-load test-after-load}})
+
+(defn nil-after-load
+  "Test trigger that returns nil."
+  [_env _data _form-ident]
+  nil)
+
+(form/defsc-form NilTriggerForm [this props]
+  {fo/attributes [al-name]
+   fo/id         al-id
+   sfo/triggers  {:after-load nil-after-load}})
+
+(defn empty-after-load
+  "Test trigger that returns an empty vector."
+  [_env _data _form-ident]
+  [])
+
+(form/defsc-form EmptyTriggerForm [this props]
+  {fo/attributes [al-name]
+   fo/id         al-id
+   sfo/triggers  {:after-load empty-after-load}})
+
+(defattr al2-id :al2/id :uuid {ao/identity? true})
+(defattr al2-name :al2/name :string {})
+
+(form/defsc-form NoAfterLoadForm [this props]
+  {fo/attributes [al2-name]
+   fo/id         al2-id})
+
+(defn make-form-data
+  "Builds the `data` map that `on-loaded-expr` expects for a given form class and ident."
+  [form-class form-ident props]
+  {:fulcro/state-map {form-ident props}
+   :fulcro/actors    {:actor/form {:component (rc/class->registry-key form-class)
+                                   :ident     form-ident}}})
+
+(specification "on-loaded-expr :after-load trigger"
+  (component "with trigger"
+    (let [test-env   {:my-env-key "test-value"}
+          form-ident [:al/id #uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"]
+          data       (make-form-data AfterLoadForm form-ident
+                       {:al/id (second form-ident) :al/name "test"})
+          ops        (form/on-loaded-expr test-env data nil nil)
+          assign-ops (filterv #(= (:op %) :assign) ops)
+          after-load-assign (first (filter #(contains? (:data %) :after-load-ran) assign-ops))
+          env-assign (first (filter #(contains? (:data %) :trigger-env) assign-ops))]
+      (assertions
+        "includes the after-load assign op with correct value"
+        (:data after-load-assign) => {:after-load-ran true}
+        "passes the env argument through to the trigger"
+        (:data env-assign) => {:trigger-env test-env}
+        "includes base ops from the standard on-loaded logic"
+        (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true)))
+
+  (component "without trigger"
+    (let [form-ident [:al2/id #uuid "cccccccc-cccc-cccc-cccc-cccccccccccc"]
+          data       (make-form-data NoAfterLoadForm form-ident
+                       {:al2/id (second form-ident) :al2/name "test"})
+          ops        (form/on-loaded-expr {} data nil nil)
+          assign-ops (filterv #(= (:op %) :assign) ops)]
+      (assertions
+        "returns base ops from the standard on-loaded logic"
+        (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true
+        "does not include after-load-specific assign ops"
+        (first (filter #(contains? (:data %) :after-load-ran) assign-ops)) => nil)))
+
+  (component "trigger returns nil"
+    (let [form-ident [:al/id #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"]
+          data       (make-form-data NilTriggerForm form-ident
+                       {:al/id (second form-ident) :al/name "nil-test"})
+          ops        (form/on-loaded-expr {} data nil nil)]
+      (assertions
+        "still includes the base on-loaded ops"
+        (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true)))
+
+  (component "trigger returns empty vector"
+    (let [form-ident [:al/id #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"]
+          data       (make-form-data EmptyTriggerForm form-ident
+                       {:al/id (second form-ident) :al/name "empty-test"})
+          ops        (form/on-loaded-expr {} data nil nil)]
+      (assertions
+        "still includes the base on-loaded ops"
+        (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true))))
 

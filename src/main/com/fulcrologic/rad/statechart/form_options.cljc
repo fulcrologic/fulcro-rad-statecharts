@@ -38,6 +38,11 @@
 
   * `:save-failed` - A `(fn [env data form-ident])`. Called after a failed save. Returns a
     vector of ops.
+
+  * `:after-load` - A `(fn [env data form-ident])`. Called after form data has been loaded
+    and processed (form config added, fields marked complete, autocreate done, derive-fields
+    run). Returns a vector of ops. Not called on create — only on edit/load of existing
+    entities.
   "
   :com.fulcrologic.rad.statechart.form-options/triggers)
 

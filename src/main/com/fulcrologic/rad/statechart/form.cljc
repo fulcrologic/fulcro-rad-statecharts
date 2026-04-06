@@ -853,12 +853,16 @@
 
 (defn on-loaded-expr
   "Expression that runs when form data has been loaded successfully.
-   Clears errors, handles autocreate, sets up form config, marks complete, and derives fields."
-  [_env data _event-name _event-data]
+   Clears errors, handles autocreate, sets up form config, marks complete,
+   derives fields, and invokes the `:after-load` trigger if defined."
+  [env data _event-name _event-data]
   (let [FormClass  (actor-class data)
         form-ident (actor-ident data)
         form-key   (rc/class->registry-key FormClass)
-        state-map  (:fulcro/state-map data)]
+        state-map  (:fulcro/state-map data)
+        {{:keys [after-load]} sfo/triggers} (some-> FormClass rc/component-options)
+        after-load-ops (when (fn? after-load)
+                         (after-load env data form-ident))]
     (log/debug "Loaded. Marking the form complete.")
     (into
       (into (clear-server-errors-ops)
@@ -867,7 +871,8 @@
         (mark-complete-ops form-ident)
         (build-autocreate-ops FormClass form-ident state-map)
         (build-ui-props-ops FormClass form-ident)
-        (derive-fields-ops data {:form-key form-key :form-ident form-ident})))))
+        (derive-fields-ops data {:form-key form-key :form-ident form-ident})
+        (or after-load-ops [])))))
 
 (defn load-picker-options-expr
   "Side-effect expression that loads picker options for all ref fields that have
