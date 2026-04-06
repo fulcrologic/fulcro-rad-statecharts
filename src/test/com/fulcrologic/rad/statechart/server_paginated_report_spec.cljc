@@ -14,27 +14,28 @@
   "Creates a testing env for the server-paginated report chart with optional mock overrides.
    `run-on-mount?` controls `should-run-on-mount?` predicate.
    `page-cached?` controls the `page-cached?` predicate."
-  [{:keys [run-on-mount? page-cached?]
-    :or   {run-on-mount? true page-cached? false}
+  [{:keys [run-on-mount? page-cached? next-page-cached? prior-page-cached?]
+    :or   {run-on-mount? true page-cached? false next-page-cached? false prior-page-cached? false}
     :as   overrides}]
   (let [base-mocks {spr/server-paginated-init-expr   nil
                     report/should-run-on-mount?       run-on-mount?
                     spr/load-server-page-expr        nil
                     spr/process-server-page-expr     nil
                     spr/page-cached?                 page-cached?
+                    spr/next-page-cached?            next-page-cached?
+                    spr/prior-page-cached?           prior-page-cached?
                     spr/serve-cached-page-expr       nil
                     spr/set-target-page-expr         nil
+                    spr/serve-next-page-expr         nil
+                    spr/set-next-page-expr           nil
+                    spr/serve-prior-page-expr        nil
+                    spr/set-prior-page-expr          nil
                     spr/update-sort-and-refresh-expr nil
                     spr/refresh-expr                 nil
                     spr/resume-server-paginated-expr nil
                     report/select-row-expr            nil
                     report/set-params-expr            nil}
-        ;; Anonymous fns in the chart for next-page/prior-page transitions
-        ;; need to be handled — they are inline in the chart definition, so
-        ;; the testing env will run them unless we mock specific expression vars.
-        ;; Since they are anonymous, they'll execute with nil data and return ops.
-        ;; For Tier 1, this is acceptable — we only test state transitions.
-        mocks      (merge base-mocks (dissoc overrides :run-on-mount? :page-cached?))]
+        mocks      (merge base-mocks (dissoc overrides :run-on-mount? :page-cached? :next-page-cached? :prior-page-cached?))]
     (t/new-testing-env {:statechart spr/server-paginated-report-statechart} mocks)))
 
 ;; ===== Initialization =====
@@ -107,21 +108,49 @@
         "Runs set-target-page-expr"
         (t/ran? env spr/set-target-page-expr) => true)))
 
-  (component "next-page"
-    (let [env (sp-report-test-env {:run-on-mount? false})]
+  (component "next-page with cached page"
+    (let [env (sp-report-test-env {:run-on-mount? false :next-page-cached? true})]
       (t/start! env)
       (t/run-events! env :event/next-page)
       (assertions
-        "Stays in :state/ready (self-transition)"
-        (t/in? env :state/ready) => true)))
+        "Stays in :state/ready when next page is cached"
+        (t/in? env :state/ready) => true
 
-  (component "prior-page"
-    (let [env (sp-report-test-env {:run-on-mount? false})]
+        "Runs serve-next-page-expr for cached pages"
+        (t/ran? env spr/serve-next-page-expr) => true)))
+
+  (component "next-page with uncached page"
+    (let [env (sp-report-test-env {:run-on-mount? false :next-page-cached? false})]
+      (t/start! env)
+      (t/run-events! env :event/next-page)
+      (assertions
+        "Transitions to :state/loading-page for uncached next page"
+        (t/in? env :state/loading-page) => true
+
+        "Runs set-next-page-expr"
+        (t/ran? env spr/set-next-page-expr) => true)))
+
+  (component "prior-page with cached page"
+    (let [env (sp-report-test-env {:run-on-mount? false :prior-page-cached? true})]
       (t/start! env)
       (t/run-events! env :event/prior-page)
       (assertions
-        "Stays in :state/ready (self-transition)"
-        (t/in? env :state/ready) => true))))
+        "Stays in :state/ready when prior page is cached"
+        (t/in? env :state/ready) => true
+
+        "Runs serve-prior-page-expr for cached pages"
+        (t/ran? env spr/serve-prior-page-expr) => true)))
+
+  (component "prior-page with uncached page"
+    (let [env (sp-report-test-env {:run-on-mount? false :prior-page-cached? false})]
+      (t/start! env)
+      (t/run-events! env :event/prior-page)
+      (assertions
+        "Transitions to :state/loading-page for uncached prior page"
+        (t/in? env :state/loading-page) => true
+
+        "Runs set-prior-page-expr"
+        (t/ran? env spr/set-prior-page-expr) => true))))
 
 ;; ===== Ready State — Sort and Filter =====
 

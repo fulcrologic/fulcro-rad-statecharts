@@ -129,39 +129,70 @@
       ;; Booleans??? What if we just want to leave false == nil?
       fields => #{:test/note :test/children :test/marketing? :child/b :child/node :subchild/x})))
 
+;; --- Issue 1: derive-fields on form load ---
+
+(defn test-derive-fields [props]
+  (assoc props :derived/field "computed"))
+
+(defattr df-id :df/id :uuid {ao/identity? true})
+(defattr df-name :df/name :string {})
+
+(form/defsc-form DeriveFieldsForm [this props]
+  {fo/attributes [df-name]
+   fo/id         df-id
+   sfo/triggers  {:derive-fields test-derive-fields}})
+
+(specification "on-loaded-expr includes derive-fields ops"
+  (let [form-ident [:df/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        form-key   (rc/class->registry-key DeriveFieldsForm)
+        data       {:fulcro/state-map {form-ident {:df/id   (second form-ident)
+                                                   :df/name "test"}}
+                    :fulcro/actors    {:actor/form {:component form-key
+                                                   :ident     form-ident}}}
+        ops        (form/on-loaded-expr {} data nil nil)
+        apply-ops  (filterv #(= (:op %) :fulcro/apply-action) ops)
+        has-update-tree? (some #(= (:f %) form/update-tree*) apply-ops)]
+    (assertions
+      "returns a non-empty ops vector"
+      (vector? ops) => true
+      "includes an apply-action op with update-tree* (derive-fields)"
+      (boolean has-update-tree?) => true)))
+
 ;; --- Issue 3: :after-load trigger ---
-
-(def after-load-result (atom nil))
-
-(defn test-after-load [env data form-ident]
-  (reset! after-load-result {:called? true :form-ident form-ident})
-  [(ops/assign :after-load-ran true)])
 
 (defattr al-id :al/id :uuid {ao/identity? true})
 (defattr al-name :al/name :string {})
+
+(defn test-after-load
+  "Test trigger that returns an assign op and captures the env it received."
+  [env data form-ident]
+  [(ops/assign :after-load-ran true)
+   (ops/assign :trigger-env env)])
 
 (form/defsc-form AfterLoadForm [this props]
   {fo/attributes [al-name]
    fo/id         al-id
    sfo/triggers  {:after-load test-after-load}})
 
-(specification "on-loaded-expr invokes :after-load trigger"
-  (let [form-ident [:al/id #uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"]
-        form-key   (rc/class->registry-key AfterLoadForm)
-        data       {:fulcro/state-map {form-ident {:al/id   (second form-ident)
-                                                   :al/name "test"}}
-                    :fulcro/actors    {:actor/form {:component form-key
-                                                   :ident     form-ident}}}
-        _          (reset! after-load-result nil)
-        ops        (form/on-loaded-expr {} data nil nil)
-        assign-ops (filterv #(= (:op %) :assign) ops)]
-    (assertions
-      "calls the :after-load trigger"
-      (:called? @after-load-result) => true
-      "passes the form ident to the trigger"
-      (:form-ident @after-load-result) => form-ident
-      "merges ops returned by :after-load into the result"
-      (boolean (some #(and (= (:op %) :assign) (contains? (:data %) :after-load-ran)) ops)) => true)))
+(defn nil-after-load
+  "Test trigger that returns nil."
+  [_env _data _form-ident]
+  nil)
+
+(form/defsc-form NilTriggerForm [this props]
+  {fo/attributes [al-name]
+   fo/id         al-id
+   sfo/triggers  {:after-load nil-after-load}})
+
+(defn empty-after-load
+  "Test trigger that returns an empty vector."
+  [_env _data _form-ident]
+  [])
+
+(form/defsc-form EmptyTriggerForm [this props]
+  {fo/attributes [al-name]
+   fo/id         al-id
+   sfo/triggers  {:after-load empty-after-load}})
 
 (defattr al2-id :al2/id :uuid {ao/identity? true})
 (defattr al2-name :al2/name :string {})
@@ -170,19 +201,60 @@
   {fo/attributes [al2-name]
    fo/id         al2-id})
 
-(specification "on-loaded-expr works without :after-load trigger"
-  (let [form-ident [:al2/id #uuid "cccccccc-cccc-cccc-cccc-cccccccccccc"]
-        form-key   (rc/class->registry-key NoAfterLoadForm)
-        data       {:fulcro/state-map {form-ident {:al2/id   (second form-ident)
-                                                   :al2/name "test"}}
-                    :fulcro/actors    {:actor/form {:component form-key
-                                                   :ident     form-ident}}}
-        ops        (form/on-loaded-expr {} data nil nil)]
-    (assertions
-      "returns ops without errors when no :after-load trigger"
-      (vector? ops) => true
-      "does not include assign ops from after-load"
-      (boolean (some #(and (= (:op %) :assign) (contains? (:data %) :after-load-ran)) ops)) => false)))
+(defn make-form-data
+  "Builds the `data` map that `on-loaded-expr` expects for a given form class and ident."
+  [form-class form-ident props]
+  {:fulcro/state-map {form-ident props}
+   :fulcro/actors    {:actor/form {:component (rc/class->registry-key form-class)
+                                   :ident     form-ident}}})
+
+(specification "on-loaded-expr :after-load trigger"
+  (component "with trigger"
+    (let [test-env   {:my-env-key "test-value"}
+          form-ident [:al/id #uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"]
+          data       (make-form-data AfterLoadForm form-ident
+                       {:al/id (second form-ident) :al/name "test"})
+          ops        (form/on-loaded-expr test-env data nil nil)
+          assign-ops (filterv #(= (:op %) :assign) ops)
+          after-load-assign (first (filter #(contains? (:data %) :after-load-ran) assign-ops))
+          env-assign (first (filter #(contains? (:data %) :trigger-env) assign-ops))]
+      (assertions
+        "includes the after-load assign op with correct value"
+        (:data after-load-assign) => {:after-load-ran true}
+        "passes the env argument through to the trigger"
+        (:data env-assign) => {:trigger-env test-env}
+        "includes base ops from the standard on-loaded logic"
+        (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true)))
+
+  (component "without trigger"
+    (let [form-ident [:al2/id #uuid "cccccccc-cccc-cccc-cccc-cccccccccccc"]
+          data       (make-form-data NoAfterLoadForm form-ident
+                       {:al2/id (second form-ident) :al2/name "test"})
+          ops        (form/on-loaded-expr {} data nil nil)
+          assign-ops (filterv #(= (:op %) :assign) ops)]
+      (assertions
+        "returns base ops from the standard on-loaded logic"
+        (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true
+        "does not include after-load-specific assign ops"
+        (first (filter #(contains? (:data %) :after-load-ran) assign-ops)) => nil)))
+
+  (component "trigger returns nil"
+    (let [form-ident [:al/id #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"]
+          data       (make-form-data NilTriggerForm form-ident
+                       {:al/id (second form-ident) :al/name "nil-test"})
+          ops        (form/on-loaded-expr {} data nil nil)]
+      (assertions
+        "still includes the base on-loaded ops"
+        (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true)))
+
+  (component "trigger returns empty vector"
+    (let [form-ident [:al/id #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"]
+          data       (make-form-data EmptyTriggerForm form-ident
+                       {:al/id (second form-ident) :al/name "empty-test"})
+          ops        (form/on-loaded-expr {} data nil nil)]
+      (assertions
+        "still includes the base on-loaded ops"
+        (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true))))
 
 ;; --- Issues 12 & 13: Side effects as ops + URL update after create save ---
 
@@ -274,24 +346,92 @@
         "includes trigger ops in result"
         (boolean (some #(and (= (:op %) :assign) (contains? (:data %) :saved-trigger-ran)) ops)) => true))))
 
-(specification "on-saved-expr — URL update after create (issue 12)"
-  (component "when form was created and is not embedded"
-    (let [real-id    #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"
-          form-ident [:saved/id real-id]
+;; --- Issue 12: created-form-route-update and rewrite-created-form-route* ---
+
+(specification "created-form-route-update (issue 12)"
+  (component "returns nil for edit (non-create) saves"
+    (let [form-ident [:saved/id #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"]
           form-key   (rc/class->registry-key SavedFormNoTrigger)
-          data       {:fulcro/state-map                   {}
-                      :fulcro/actors                      {:actor/form {:component form-key
-                                                                        :ident     form-ident}}
-                      :com.fulcrologic.rad.form/create?    true
-                      :options                             {}}
-          mock-app   {:mock true}
-          env        {:fulcro/app mock-app}
-          ops        (form/on-saved-expr env data nil nil)]
+          data       {:fulcro/state-map {}
+                      :fulcro/actors    {:actor/form {:component form-key
+                                                      :ident     form-ident}}
+                      :options          {}}]
       (assertions
-        "includes a mark-pristine op"
+        "returns nil when create? is not set"
+        (form/created-form-route-update data) => nil)))
+
+  (component "returns nil for embedded forms"
+    (let [tempid     (tempid/tempid)
+          form-ident [:saved/id tempid]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                {}
+                      :fulcro/actors                   {:actor/form {:component form-key
+                                                                     :ident     form-ident}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   form-ident
+                      :options                          {:embedded? true}}]
+      (assertions
+        "returns nil when form is embedded"
+        (form/created-form-route-update data) => nil)))
+
+  (component "returns nil when original-ident still has tempid (no remap yet)"
+    (let [tempid     (tempid/tempid)
+          form-ident [:saved/id tempid]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                {}
+                      :fulcro/actors                   {:actor/form {:component form-key
+                                                                     :ident     form-ident}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   form-ident
+                      :options                          {}}]
+      (assertions
+        "returns nil when ident still has a tempid (original == current)"
+        (form/created-form-route-update data) => nil)))
+
+  (component "returns route update when tempid has been remapped"
+    (let [tempid     (tempid/tempid)
+          real-id    #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                {}
+                      :fulcro/actors                   {:actor/form {:component form-key
+                                                                     :ident     [:saved/id real-id]}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   [:saved/id tempid]
+                      :options                          {}}
+          result     (form/created-form-route-update data)]
+      (assertions
+        "returns a non-nil map"
+        (map? result) => true
+        "current-ident uses the real id"
+        (:current-ident result) => [:saved/id real-id]
+        "original-ident preserves the tempid ident"
+        (:original-ident result) => [:saved/id tempid]
+        "route-target is the form's registry key"
+        (:route-target result) => form-key))))
+
+(specification "on-saved-expr includes route rewrite ops for create saves (issue 12)"
+  (component "when tempid has been remapped"
+    (let [tempid     (tempid/tempid)
+          real-id    #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                {}
+                      :fulcro/actors                   {:actor/form {:component form-key
+                                                                     :ident     [:saved/id real-id]}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   [:saved/id tempid]
+                      :options                          {}}
+          ops        (form/on-saved-expr {} data nil nil)
+          assign-ops (filterv #(= (:op %) :assign) ops)]
+      (assertions
+        "includes mark-pristine op"
         (has-mark-pristine-op? ops) => true
-        "includes a routing/URL-update op beyond mark-pristine"
-        (boolean (seq (non-pristine-apply-action-ops ops))) => true)))
+        "includes route-rewrite apply-action op"
+        (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                          (= (:f %) form/rewrite-created-form-route*)) ops)) => true
+        "clears the create? flag"
+        (boolean (some #(= (:data %) {:com.fulcrologic.rad.form/create? false}) assign-ops)) => true
+        "updates original-ident to the real ident"
+        (boolean (some #(= (:data %) {:original-ident [:saved/id real-id]}) assign-ops)) => true)))
 
   (component "when form was edited (not a create)"
     (let [form-ident [:saved/id #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"]
@@ -304,23 +444,27 @@
       (assertions
         "includes a mark-pristine op"
         (has-mark-pristine-op? ops) => true
-        "does not include any routing op (no URL update needed)"
-        (empty? (non-pristine-apply-action-ops ops)) => true)))
+        "does not include any route-rewrite op"
+        (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                          (= (:f %) form/rewrite-created-form-route*)) ops)) => false)))
 
   (component "when form is embedded"
-    (let [form-ident [:saved/id #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"]
+    (let [tempid     (tempid/tempid)
+          real-id    #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"
           form-key   (rc/class->registry-key SavedFormNoTrigger)
           data       {:fulcro/state-map                   {}
                       :fulcro/actors                      {:actor/form {:component form-key
-                                                                        :ident     form-ident}}
+                                                                        :ident     [:saved/id real-id]}}
                       :com.fulcrologic.rad.form/create?    true
+                      :original-ident                      [:saved/id tempid]
                       :options                             {:embedded? true}}
           ops        (form/on-saved-expr {} data nil nil)]
       (assertions
         "includes a mark-pristine op"
         (has-mark-pristine-op? ops) => true
-        "does not include any routing op (embedded forms don't route)"
-        (empty? (non-pristine-apply-action-ops ops)) => true))))
+        "does not include any route-rewrite op (embedded forms don't route)"
+        (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                          (= (:f %) form/rewrite-created-form-route*)) ops)) => false))))
 
 (specification "on-save-failed-expr — side effects as ops (issue 13)"
   (component "with on-save-failed transaction"

@@ -42,10 +42,6 @@
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
-(def view-action "view")
-(def create-action "create")
-(def edit-action "edit")
-
 (declare valid? invalid? cancel! undo-all! save! render-field rendering-env
   default-state optional-fields mark-fields-complete* form-key->attribute form-chart)
 
@@ -57,17 +53,6 @@
   (let [state-map (raw.app/current-state app-or-instance)]
     (or (get-in state-map [::form-session-ids form-ident])
       (sc.session/ident->session-id form-ident))))
-
-(defn view-mode?
-  "Returns true if the main form was started in view mode. `form-instance` can be from main form or any subform."
-  [form-instance]
-  (let [master-form (or (::form/master-form (comp/get-computed form-instance))
-                      form-instance)
-        form-ident  (comp/get-ident master-form)
-        session-id  (resolve-form-session-id master-form form-ident)
-        state-map   (raw.app/current-state master-form)
-        local-data  (get-in state-map [::sc/local-data session-id])]
-    (= view-action (get-in local-data [:options :action]))))
 
 (def standard-action-buttons
   "The standard ::form/action-buttons button layout. Requires you include stardard-controls in your ::control/controls key."
@@ -94,7 +79,6 @@
                                                       read-only-form? (?! (comp/component-options this :com.fulcrologic.rad.form/read-only?) this)
                                                       dirty?          (if read-only-form? false (or (:ui/new? props) (fs/dirty? props)))]
                                                   (not dirty?)))
-                                   :visible?  (fn [this] (not (view-mode? this)))
                                    :label     (fn [_] (tr "Undo"))
                                    :action    (fn [this] (undo-all! {:com.fulcrologic.rad.form/master-form this}))}
    :com.fulcrologic.rad.form/save {:type      :button
@@ -105,7 +89,6 @@
                                                       remote-busy?    (seq (:com.fulcrologic.fulcro.application/active-remotes props))
                                                       dirty?          (if read-only-form? false (or (:ui/new? props) (fs/dirty? props)))]
                                                   (or (not dirty?) remote-busy?)))
-                                   :visible?  (fn [this] (not (view-mode? this)))
                                    :label     (fn [_] (tr "Save"))
                                    :class     (fn [this]
                                                 (let [props        (comp/props this)
@@ -712,6 +695,56 @@
   [form-options ref-key-or-attribute]
   (some-> (expr-subform-options form-options ref-key-or-attribute) fo/ui))
 
+(defn created-form-route-update
+  "Returns the routing update details needed after the first successful save of a new entity.
+   The save merge remaps the form actor from a tempid ident to the persisted ident; we use the
+   original startup ident to decide when the current route should be replaced instead of pushed."
+  [data]
+  (let [FormClass      (actor-class data)
+        form-options   (some-> FormClass rc/component-options)
+        form-ident     (actor-ident data)
+        original-ident (or (:original-ident data) form-ident)
+        id-key         (some-> form-options fo/id ::attr/qualified-key)
+        save-mutation  (or (get form-options fo/save-mutation) `form/save-form)
+        mutation-result (scf/mutation-result data)
+        persisted-id   (or (get-in mutation-result [save-mutation id-key])
+                         (get mutation-result id-key)
+                         (second form-ident))
+        current-ident  [id-key persisted-id]
+        route-target   (some-> FormClass rc/class->registry-key)]
+    (when (and route-target
+             id-key
+             (not (get-in data [:options :embedded?]))
+             (:com.fulcrologic.rad.form/create? data)
+             (tempid/tempid? (second original-ident))
+             (not= original-ident current-ident)
+             (some? persisted-id)
+             (not (tempid/tempid? persisted-id)))
+      {:current-ident  current-ident
+       :original-ident original-ident
+       :route-target   route-target
+       :session-id     (or (get-in (:fulcro/state-map data) [::form-session-ids original-ident])
+                         (:_sessionid data))})))
+
+(defn rewrite-created-form-route*
+  "Pure state-map rewrite used after the first successful create save. Updates the active route
+   to the persisted ID and migrates the form session lookup from the tempid ident to the real ident."
+  [state-map route-target old-form-ident new-form-ident session-id]
+  (let [routing-local-path (scf/local-data-path scr/session-id)
+        session-id         (or (get-in state-map [::form-session-ids old-form-ident])
+                             session-id)]
+    (cond-> (-> state-map
+              (assoc-in (conj routing-local-path :routing/parameters route-target :id)
+                (second new-form-ident))
+              (assoc-in (conj routing-local-path :route/idents route-target)
+                new-form-ident))
+      session-id
+      (update ::form-session-ids
+        (fn [session-ids]
+          (-> (or session-ids {})
+            (dissoc old-form-ident)
+            (assoc new-form-ident session-id)))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; EXPRESSION FUNCTIONS (from form_expressions.cljc)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -726,6 +759,7 @@
         session-id  (:_sessionid data)
         {{:keys [started]} sfo/triggers} (some-> FormClass rc/component-options)
         base-ops    [(ops/assign :options (or (:options data) event-data {}))
+                     (ops/assign :original-ident form-ident)
                      (fops/apply-action assoc-in [::form-session-ids form-ident] session-id)]
         trigger-ops (when (fn? started)
                       (started env data form-ident))]
@@ -852,13 +886,30 @@
   [form-ident]
   [(fops/apply-action fs/entity->pristine* form-ident)])
 
+(defn- derive-fields-ops
+  "Build operations for applying derive-fields triggers."
+  [data event-data]
+  (let [{:keys [form-key form-ident]} event-data
+        form-class        (some-> form-key rc/registry-key->class)
+        master-form-class (actor-class data)
+        master-form-ident (actor-ident data)
+        {{master-derive :derive-fields} sfo/triggers} (some-> master-form-class rc/component-options)
+        {{:keys [derive-fields]} sfo/triggers} (some-> form-class rc/component-options)]
+    (cond-> []
+      derive-fields
+      (conj (fops/apply-action update-tree* derive-fields form-class form-ident))
+
+      (and (not= master-form-class form-class) master-derive)
+      (conj (fops/apply-action update-tree* master-derive master-form-class master-form-ident)))))
+
 (defn on-loaded-expr
   "Expression that runs when form data has been loaded successfully.
-   Clears errors, handles autocreate, sets up form config, marks complete, and
-   invokes the `:after-load` trigger if defined."
+   Clears errors, handles autocreate, sets up form config, marks complete,
+   derives fields, and invokes the `:after-load` trigger if defined."
   [env data _event-name _event-data]
   (let [FormClass  (actor-class data)
         form-ident (actor-ident data)
+        form-key   (rc/class->registry-key FormClass)
         state-map  (:fulcro/state-map data)
         {{:keys [after-load]} sfo/triggers} (some-> FormClass rc/component-options)
         after-load-ops (when (fn? after-load)
@@ -871,7 +922,8 @@
         (mark-complete-ops form-ident)
         (build-autocreate-ops FormClass form-ident state-map)
         (build-ui-props-ops FormClass form-ident)
-        (when (seq after-load-ops) after-load-ops)))))
+        (derive-fields-ops data {:form-key form-key :form-ident form-ident})
+        (or after-load-ops [])))))
 
 (defn load-picker-options-expr
   "Side-effect expression that loads picker options for all ref fields that have
@@ -896,22 +948,6 @@
   "Expression that sets server errors when form load fails."
   [_env _data _event-name _event-data]
   [(fops/assoc-alias :server-errors [{:message "Load failed."}])])
-
-(defn- derive-fields-ops
-  "Build operations for applying derive-fields triggers."
-  [data event-data]
-  (let [{:keys [form-key form-ident]} event-data
-        form-class        (some-> form-key rc/registry-key->class)
-        master-form-class (actor-class data)
-        master-form-ident (actor-ident data)
-        {{master-derive :derive-fields} sfo/triggers} (some-> master-form-class rc/component-options)
-        {{:keys [derive-fields]} sfo/triggers} (some-> form-class rc/component-options)]
-    (cond-> []
-      derive-fields
-      (conj (fops/apply-action update-tree* derive-fields form-class form-ident))
-
-      (and (not= master-form-class form-class) master-derive)
-      (conj (fops/apply-action update-tree* master-derive master-form-class master-form-ident)))))
 
 (defn attribute-changed-expr
   "Expression for handling field value changes."
@@ -1007,33 +1043,41 @@
 (defn on-saved-expr
   "Expression that runs after a successful save. Marks form as pristine
    and invokes any saved triggers or on-saved transactions.
-   Side effects (transactions, routing) are returned as ops, not executed directly."
+   Side effects (transactions) are returned as ops, not executed directly."
   [env data _event-name _event-data]
-  (let [form-ident   (actor-ident data)
+  (let [route-update (created-form-route-update data)
+        form-ident   (or (:current-ident route-update) (actor-ident data))
         FormClass    (actor-class data)
         options      (:options data)
         {{:keys [saved]} sfo/triggers} (some-> FormClass rc/component-options)
-        {:keys [on-saved embedded?]} options
-        was-create?  (boolean (:com.fulcrologic.rad.form/create? data))
+        {:keys [on-saved]} options
         app          (:fulcro/app env)
         base-ops     (mark-pristine-ops form-ident)
+        route-ops    (when route-update
+                       (let [{:keys [route-target original-ident current-ident session-id]} route-update]
+                         [(ops/assign :com.fulcrologic.rad.form/create? false)
+                          (ops/assign :original-ident current-ident)
+                          (ops/assign [:fulcro/actors :actor/form :ident] current-ident)
+                          (fops/apply-action rewrite-created-form-route*
+                            route-target
+                            original-ident
+                            current-ident
+                            session-id)]))
         saved-ops    (when (fn? saved)
                        (saved env data form-ident))
         on-saved-ops (when (and app (seq on-saved))
                        (let [[id-key id] form-ident
                              {:keys [children] :as ast} (eql/query->ast on-saved)
                              new-ast (assoc ast :children
-                                                (mapv (fn [{:keys [type] :as node}]
-                                                        (if (= type :call)
-                                                          (assoc-in node [:params id-key] id)
-                                                          node))
-                                                  children))
+                                               (mapv (fn [{:keys [type] :as node}]
+                                                       (if (= type :call)
+                                                         (assoc-in node [:params id-key] id)
+                                                         node))
+                                                 children))
                              txn     (eql/ast->query new-ast)]
                          (log/debug "Running on-saved tx:" txn)
-                         [(fops/apply-action (fn [s] (rc/transact! app txn) s))]))
-        url-update-ops (when (and app was-create? (not embedded?))
-                         [(fops/apply-action (fn [s] (scr/route-to! app FormClass {:id (second form-ident)}) s))])]
-    (into base-ops (concat (or saved-ops []) (or on-saved-ops []) (or url-update-ops [])))))
+                         [(fops/apply-action (fn [s] (rc/transact! app txn) s))]))]
+    (into base-ops (concat (or route-ops []) (or saved-ops []) (or on-saved-ops [])))))
 
 (defn on-save-failed-expr
   "Expression that handles save failure. Extracts errors from mutation result and sets them.
@@ -1443,8 +1487,7 @@
         (?! read-only? form-instance attr)
         computed-value
         (let [read-only-fields (?! read-only-fields form-instance)]
-          (and (set? read-only-fields) (contains? read-only-fields qualified-key)))
-        (view-mode? form-instance)))))
+          (and (set? read-only-fields) (contains? read-only-fields qualified-key)))))))
 
 (def field-visible? "See `form.impl/field-visible?`" form-impl/field-visible?)
 (def omit-label? "See `form.impl/omit-label?`" form-impl/omit-label?)
