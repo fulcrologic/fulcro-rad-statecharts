@@ -111,3 +111,14 @@
         "Includes user add-ins"
         (:user-add-on is) => 44
         (:seen is) => [D {:x 1}]))))
+
+;; ===== Expression function tests =====
+
+(specification "resume-from-cache-expr"
+  (let [data {:fulcro/state-map {}}
+        ops  (report/resume-from-cache-expr nil data nil nil)]
+    (assertions
+      "produces an apply-action op followed by a busy-false assoc-alias (no busy-true)"
+      (mapv :op ops) => [:fulcro/apply-action :fulcro/assoc-alias]
+      "the assoc-alias op sets busy? to false"
+      (:data (last ops)) => {:busy? false})))
