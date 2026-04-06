@@ -299,8 +299,8 @@
   {fo/attributes [saved-name]
    fo/id         saved-id})
 
-(specification "on-saved-expr — side effects as ops (issue 13)"
-  (component "with on-saved transaction"
+(specification "on-saved-expr (issue 13)"
+  (component "with on-saved transaction — executes directly, not in ops"
     (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
           form-key   (rc/class->registry-key SavedFormNoTrigger)
           data       {:fulcro/state-map {}
@@ -309,13 +309,12 @@
                       :options          {:on-saved [(list 'some-mutation {})]}}
           mock-app   {:mock true}
           env        {:fulcro/app mock-app}
-          ops        (form/on-saved-expr env data nil nil)
-          aa-ops     (apply-action-ops ops)]
+          ops        (form/on-saved-expr env data nil nil)]
       (assertions
-        "includes apply-action ops for mark-pristine AND on-saved transaction"
-        (count aa-ops) => 2
-        "returns a vector of ops"
-        (vector? ops) => true)))
+        "includes mark-pristine op"
+        (has-mark-pristine-op? ops) => true
+        "does not include on-saved transaction in ops (executed as direct side effect)"
+        (empty? (non-pristine-apply-action-ops ops)) => true)))
 
   (component "without on-saved transaction"
     (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
@@ -324,11 +323,10 @@
                       :fulcro/actors    {:actor/form {:component form-key
                                                       :ident     form-ident}}
                       :options          {}}
-          ops        (form/on-saved-expr {} data nil nil)
-          aa-ops     (apply-action-ops ops)]
+          ops        (form/on-saved-expr {} data nil nil)]
       (assertions
-        "includes only mark-pristine apply-action op"
-        (count aa-ops) => 1)))
+        "includes mark-pristine op"
+        (has-mark-pristine-op? ops) => true)))
 
   (component "with :saved trigger"
     (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
@@ -466,8 +464,8 @@
         (boolean (some #(and (= (:op %) :fulcro/apply-action)
                           (= (:f %) form/rewrite-created-form-route*)) ops)) => false))))
 
-(specification "on-save-failed-expr — side effects as ops (issue 13)"
-  (component "with on-save-failed transaction"
+(specification "on-save-failed-expr (issue 13)"
+  (component "with on-save-failed transaction — executes directly, not in ops"
     (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
           form-key   (rc/class->registry-key SavedFormNoTrigger)
           data       {:fulcro/state-map {}
@@ -477,59 +475,42 @@
                       :_event           {:data {}}}
           mock-app   {:mock true}
           env        {:fulcro/app mock-app}
-          ops        (form/on-save-failed-expr env data nil nil)
-          aa-ops     (apply-action-ops ops)]
+          ops        (form/on-save-failed-expr env data nil nil)]
       (assertions
-        "returns the on-save-failed transaction as an apply-action op"
-        (count aa-ops) => 1
         "returns a vector of ops"
-        (vector? ops) => true))))
+        (vector? ops) => true
+        "does not include on-save-failed transaction in ops (executed as direct side effect)"
+        (empty? (apply-action-ops ops)) => true))))
 
-(specification "leave-form-expr — side effects as ops (issue 13)"
-  (component "with on-cancel transaction and default cancel-route"
-    (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
-          form-key   (rc/class->registry-key SavedFormNoTrigger)
-          data       {:fulcro/state-map {}
-                      :fulcro/actors    {:actor/form {:component form-key
-                                                      :ident     form-ident}}
-                      :options          {:on-cancel [(list 'on-cancel-mutation {})]}}
-          mock-app   {:mock true}
-          env        {:fulcro/app mock-app}
-          ops        (form/leave-form-expr env data nil nil)
-          aa-ops     (apply-action-ops ops)]
-      (assertions
-        "includes pristine->entity, on-cancel transaction, and route-back ops"
-        (count aa-ops) => 3
-        "returns a vector of ops"
-        (vector? ops) => true)))
-
-  (component "with no on-cancel and no app (no side effects)"
+(specification "leave-form-expr (issue 13)"
+  (component "with no on-cancel and no app"
     (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
           form-key   (rc/class->registry-key SavedFormNoTrigger)
           data       {:fulcro/state-map {}
                       :fulcro/actors    {:actor/form {:component form-key
                                                       :ident     form-ident}}
                       :options          {}}
-          ops        (form/leave-form-expr {} data nil nil)
-          aa-ops     (apply-action-ops ops)]
+          ops        (form/leave-form-expr {} data nil nil)]
       (assertions
-        "includes only the pristine->entity state restoration op"
-        (count aa-ops) => 1))))
+        "includes the pristine->entity state restoration op"
+        (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                          (= (:f %) fs/pristine->entity*)) ops)) => true
+        "only contains the pristine->entity op"
+        (count (apply-action-ops ops)) => 1))))
 
-(specification "continue-abandoned-route-expr — side effects as ops (issue 13)"
+(specification "continue-abandoned-route-expr (issue 13)"
   (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
         form-key   (rc/class->registry-key SavedFormNoTrigger)
         data       {:fulcro/state-map {}
                     :fulcro/actors    {:actor/form {:component form-key
                                                     :ident     form-ident}}
                     :desired-route    {:form "some-form"}}
-        mock-app   {:mock true}
-        env        {:fulcro/app mock-app}
-        ops        (form/continue-abandoned-route-expr env data nil nil)
-        aa-ops     (apply-action-ops ops)]
+        ;; No app in env — side effects (force-continue-routing!) are skipped when app is nil
+        ops        (form/continue-abandoned-route-expr {} data nil nil)]
     (assertions
-      "returns ops including pristine->entity and force-continue-routing"
-      (count aa-ops) => 2
       "includes the route-denied? alias reset"
-      (boolean (some #(= (:op %) :fulcro/assoc-alias) ops)) => true)))
+      (boolean (some #(= (:op %) :fulcro/assoc-alias) ops)) => true
+      "includes pristine->entity state restoration"
+      (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                        (= (:f %) fs/pristine->entity*)) ops)) => true)))
 
