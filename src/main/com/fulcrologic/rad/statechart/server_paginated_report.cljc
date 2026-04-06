@@ -115,7 +115,9 @@
                  ;; Set current-rows to this page's data
                  sm   (assoc-in sm (report/resolve-alias-path data :current-rows) rows)]
              sm)))]
-      (cond-> [(fops/assoc-alias :busy? false)]
+      (cond-> []
+        report-loaded (conj (fops/apply-action (fn [sm] (report-loaded sm))))
+        true (into [(fops/assoc-alias :busy? false)])
         (number? page-count) (conj (fops/assoc-alias :page-count page-count))
         (number? total) (conj (fops/assoc-alias :total-results total))))))
 
