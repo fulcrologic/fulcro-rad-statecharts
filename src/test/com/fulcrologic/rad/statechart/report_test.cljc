@@ -115,9 +115,6 @@
 
 ;; ===== Expression function tests =====
 
-(def busy-true-op (fops/assoc-alias :busy? true))
-(def busy-false-op (fops/assoc-alias :busy? false))
-
 (defn count-apply-action-ops
   "Returns the count of :fulcro/apply-action ops in the given operations vector."
   [ops]
@@ -155,9 +152,7 @@
   (let [data {:fulcro/state-map {}}
         ops  (report/resume-from-cache-expr nil data nil nil)]
     (assertions
-      "does not produce a redundant busy-true operation"
-      (some #{busy-true-op} ops) => nil
-      "produces a busy-false operation to clear the busy flag"
-      (some #{busy-false-op} ops) => busy-false-op
-      "returns a non-empty operations vector"
-      (pos? (count ops)) => true)))
+      "produces an apply-action op followed by a busy-false assoc-alias (no busy-true)"
+      (mapv :op ops) => [:fulcro/apply-action :fulcro/assoc-alias]
+      "the assoc-alias op sets busy? to false"
+      (:data (last ops)) => {:busy? false})))

@@ -82,7 +82,7 @@ Example: `[:my_app/thing 42]` -> `"my_app_thing--42"` -> inverse splits to `["my
 Looking at the actual `istate` source (routing.cljc:429-433):
 
 ```clojure
-:fulcuro/actors (fn [env data & _]
+:fulcro/actors (fn [env data & _]
                   (let [Target (rc/registry-key->class target-key)
                         ident  (get-in data [:route/idents target-key] ...)
                         actors (merge {:actor/component (scf/actor Target ident)} ...)]

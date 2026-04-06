@@ -507,14 +507,13 @@
 (defn resume-from-cache-expr
   "Expression: Resume a report from cache — re-filter and re-paginate without reloading."
   [_env data _event-name _event-data]
-  (let [state-map (:fulcro/state-map data)]
-    [(fops/apply-action
-       (fn [sm]
-         (-> sm
-           (filter-rows-state data)
-           (sort-rows-state data)
-           (populate-page-state data))))
-     (fops/assoc-alias :busy? false)]))
+  [(fops/apply-action
+     (fn [sm]
+       (-> sm
+         (filter-rows-state data)
+         (sort-rows-state data)
+         (populate-page-state data))))
+   (fops/assoc-alias :busy? false)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; STATECHART DEFINITION

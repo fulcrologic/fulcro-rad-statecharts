@@ -139,6 +139,39 @@
       "Container stays in :state/ready after resume"
       (container-in? app :state/ready) => true)))
 
+;; ===== container-busy? Tests =====
+
+(specification "container-busy? — no children loading"
+  (let [app (test-app)]
+    (container/start-container! app TestContainer {})
+    (assertions
+      "returns false when all child reports are in :state/ready (not loading)"
+      (container/container-busy? app TestContainer) => false)))
+
+(specification "container-busy? — child report loading"
+  (let [app (test-app)]
+    (container/start-container! app TestContainer {})
+    ;; Trigger a run which puts children into :state/loading
+    (scf/send! app (container-sid) :event/run)
+    (assertions
+      "returns true when at least one child report is in :state/loading"
+      (container/container-busy? app TestContainer) => true)))
+
+(specification "container-busy? — transitions from busy to not busy after children finish loading"
+  (let [app (test-app)]
+    (container/start-container! app TestContainer {})
+    ;; Trigger a run which puts children into :state/loading
+    (scf/send! app (container-sid) :event/run)
+    (assertions
+      "is busy while children are loading"
+      (container/container-busy? app TestContainer) => true)
+    ;; Send :event/loaded to both children to transition them through :state/processing → :state/ready
+    (scf/send! app (child-report-sid ReportA ::ReportA) :event/loaded)
+    (scf/send! app (child-report-sid ReportB ::ReportB) :event/loaded)
+    (assertions
+      "returns false after all children finish loading"
+      (container/container-busy? app TestContainer) => false)))
+
 ;; NOTE: The container sends :event/unmount to children on exit from :state/ready,
 ;; but the standard report statechart does NOT handle :event/unmount — it simply
 ;; ignores the event. This is a known limitation (S3). The broadcast happens but
