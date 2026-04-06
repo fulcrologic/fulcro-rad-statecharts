@@ -3,10 +3,12 @@
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.rad.attributes :refer [defattr]]
     [com.fulcrologic.rad.attributes-options :as ao]
     [com.fulcrologic.rad.form-options :as fo]
     [com.fulcrologic.rad.statechart.form :as form]
+    [com.fulcrologic.rad.statechart.form-options :as sfo]
     [fulcro-spec.core :refer [assertions component specification]]))
 
 (def default-street "111 Main")
@@ -124,4 +126,33 @@
       "Finds all of the fields (recursively) that are used in forms but are not required by the data model."
       ;; Booleans??? What if we just want to leave false == nil?
       fields => #{:test/note :test/children :test/marketing? :child/b :child/node :subchild/x})))
+
+;; --- Issue 1: derive-fields on form load ---
+
+(defn test-derive-fields [props]
+  (assoc props :derived/field "computed"))
+
+(defattr df-id :df/id :uuid {ao/identity? true})
+(defattr df-name :df/name :string {})
+
+(form/defsc-form DeriveFieldsForm [this props]
+  {fo/attributes [df-name]
+   fo/id         df-id
+   sfo/triggers  {:derive-fields test-derive-fields}})
+
+(specification "on-loaded-expr includes derive-fields ops"
+  (let [form-ident [:df/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        form-key   (rc/class->registry-key DeriveFieldsForm)
+        data       {:fulcro/state-map {form-ident {:df/id   (second form-ident)
+                                                   :df/name "test"}}
+                    :fulcro/actors    {:actor/form {:component form-key
+                                                   :ident     form-ident}}}
+        ops        (form/on-loaded-expr {} data nil nil)
+        apply-ops  (filterv #(= (:op %) :fulcro/apply-action) ops)
+        has-update-tree? (some #(= (:f %) form/update-tree*) apply-ops)]
+    (assertions
+      "returns a non-empty ops vector"
+      (vector? ops) => true
+      "includes an apply-action op with update-tree* (derive-fields)"
+      (boolean has-update-tree?) => true)))
 

@@ -380,10 +380,11 @@
                              (filter-rows-state data)
                              (sort-rows-state data)
                              (populate-page-state data)))]
-    [(fops/apply-action apply-transforms)
-     (fops/assoc-alias :busy? false)
-     (ops/assign :last-load-time (inst-ms (dt/now)))
-     (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))
+    (cond-> [(fops/apply-action apply-transforms)]
+      report-loaded (conj (fops/apply-action (fn [sm] (report-loaded sm))))
+      true (into [(fops/assoc-alias :busy? false)
+                  (ops/assign :last-load-time (inst-ms (dt/now)))
+                  (ops/assign :raw-items-in-table (count (keys (get state-map table-name))))]))))
 
 (defn goto-page-expr
   "Expression: Navigate to a specific page number."

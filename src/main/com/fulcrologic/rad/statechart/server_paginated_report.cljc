@@ -115,7 +115,9 @@
                  ;; Set current-rows to this page's data
                  sm   (assoc-in sm (report/resolve-alias-path data :current-rows) rows)]
              sm)))]
-      (cond-> [(fops/assoc-alias :busy? false)]
+      (cond-> []
+        report-loaded (conj (fops/apply-action (fn [sm] (report-loaded sm))))
+        true (into [(fops/assoc-alias :busy? false)])
         (number? page-count) (conj (fops/assoc-alias :page-count page-count))
         (number? total) (conj (fops/assoc-alias :total-results total))))))
 
@@ -144,6 +146,74 @@
   "Expression: Set the target page for loading."
   [_env _data _event-name event-data]
   (let [page (:page event-data)]
+    [(fops/assoc-alias :current-page page :selected-row -1)]))
+
+(defn- next-page-number
+  "Returns the next page number based on current aliases."
+  [data]
+  (let [aliases (scf/resolve-aliases data)
+        page    (or (:current-page aliases) 1)]
+    (inc (max 1 page))))
+
+(defn- prior-page-number
+  "Returns the prior page number based on current aliases."
+  [data]
+  (let [aliases (scf/resolve-aliases data)
+        page    (or (:current-page aliases) 1)]
+    (dec (max 2 page))))
+
+(defn next-page-cached?
+  "Condition: Is the next page already in the cache?"
+  [_env data _event-name _event-data]
+  (let [state-map  (:fulcro/state-map data)
+        page       (next-page-number data)
+        cache-path (conj (report/resolve-alias-path data :page-cache) page)
+        rows       (get-in state-map cache-path)]
+    (seq rows)))
+
+(defn prior-page-cached?
+  "Condition: Is the prior page already in the cache?"
+  [_env data _event-name _event-data]
+  (let [state-map  (:fulcro/state-map data)
+        page       (prior-page-number data)
+        cache-path (conj (report/resolve-alias-path data :page-cache) page)
+        rows       (get-in state-map cache-path)]
+    (seq rows)))
+
+(defn serve-next-page-expr
+  "Expression: Serve the next page from cache."
+  [_env data _event-name _event-data]
+  (let [page       (next-page-number data)
+        state-map  (:fulcro/state-map data)
+        cache-path (conj (report/resolve-alias-path data :page-cache) page)
+        rows       (get-in state-map cache-path)]
+    [(fops/assoc-alias :current-page page :selected-row -1)
+     (fops/apply-action
+       (fn [sm]
+         (assoc-in sm (report/resolve-alias-path data :current-rows) rows)))]))
+
+(defn set-next-page-expr
+  "Expression: Set next page for loading."
+  [_env data _event-name _event-data]
+  (let [page (next-page-number data)]
+    [(fops/assoc-alias :current-page page :selected-row -1)]))
+
+(defn serve-prior-page-expr
+  "Expression: Serve the prior page from cache."
+  [_env data _event-name _event-data]
+  (let [page       (prior-page-number data)
+        state-map  (:fulcro/state-map data)
+        cache-path (conj (report/resolve-alias-path data :page-cache) page)
+        rows       (get-in state-map cache-path)]
+    [(fops/assoc-alias :current-page page :selected-row -1)
+     (fops/apply-action
+       (fn [sm]
+         (assoc-in sm (report/resolve-alias-path data :current-rows) rows)))]))
+
+(defn set-prior-page-expr
+  "Expression: Set prior page for loading."
+  [_env data _event-name _event-data]
+  (let [page (prior-page-number data)]
     [(fops/assoc-alias :current-page page :selected-row -1)]))
 
 (defn update-sort-and-refresh-expr
@@ -220,17 +290,17 @@
       (transition {:event :event/goto-page :target :state/loading-page}
         (script {:expr set-target-page-expr}))
 
-      ;; Next/prior page helpers
-      (transition {:event :event/next-page :target :state/ready}
-        (script {:expr (fn [_env data _event-name _event-data]
-                         (let [aliases (scf/resolve-aliases data)
-                               page    (or (:current-page aliases) 1)]
-                           [(fops/assoc-alias :current-page (inc (max 1 page)) :selected-row -1)]))}))
-      (transition {:event :event/prior-page :target :state/ready}
-        (script {:expr (fn [_env data _event-name _event-data]
-                         (let [aliases (scf/resolve-aliases data)
-                               page    (or (:current-page aliases) 1)]
-                           [(fops/assoc-alias :current-page (dec (max 2 page)) :selected-row -1)]))}))
+      ;; Next page: check cache first, else load
+      (transition {:event :event/next-page :cond next-page-cached? :target :state/ready}
+        (script {:expr serve-next-page-expr}))
+      (transition {:event :event/next-page :target :state/loading-page}
+        (script {:expr set-next-page-expr}))
+
+      ;; Prior page: check cache first, else load
+      (transition {:event :event/prior-page :cond prior-page-cached? :target :state/ready}
+        (script {:expr serve-prior-page-expr}))
+      (transition {:event :event/prior-page :target :state/loading-page}
+        (script {:expr set-prior-page-expr}))
 
       ;; Sort triggers full reload (server sorts)
       (transition {:event :event/sort :target :state/loading-page}
