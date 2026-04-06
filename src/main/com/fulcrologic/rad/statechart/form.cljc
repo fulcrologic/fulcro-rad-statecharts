@@ -42,10 +42,6 @@
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
-(def view-action "view")
-(def create-action "create")
-(def edit-action "edit")
-
 (declare valid? invalid? cancel! undo-all! save! render-field rendering-env
   default-state optional-fields mark-fields-complete* form-key->attribute form-chart)
 
@@ -57,17 +53,6 @@
   (let [state-map (raw.app/current-state app-or-instance)]
     (or (get-in state-map [::form-session-ids form-ident])
       (sc.session/ident->session-id form-ident))))
-
-(defn view-mode?
-  "Returns true if the main form was started in view mode. `form-instance` can be from main form or any subform."
-  [form-instance]
-  (let [master-form (or (::form/master-form (comp/get-computed form-instance))
-                      form-instance)
-        form-ident  (comp/get-ident master-form)
-        session-id  (resolve-form-session-id master-form form-ident)
-        state-map   (raw.app/current-state master-form)
-        local-data  (get-in state-map [::sc/local-data session-id])]
-    (= view-action (get-in local-data [:options :action]))))
 
 (def standard-action-buttons
   "The standard ::form/action-buttons button layout. Requires you include stardard-controls in your ::control/controls key."
@@ -94,7 +79,6 @@
                                                       read-only-form? (?! (comp/component-options this :com.fulcrologic.rad.form/read-only?) this)
                                                       dirty?          (if read-only-form? false (or (:ui/new? props) (fs/dirty? props)))]
                                                   (not dirty?)))
-                                   :visible?  (fn [this] (not (view-mode? this)))
                                    :label     (fn [_] (tr "Undo"))
                                    :action    (fn [this] (undo-all! {:com.fulcrologic.rad.form/master-form this}))}
    :com.fulcrologic.rad.form/save {:type      :button
@@ -105,7 +89,6 @@
                                                       remote-busy?    (seq (:com.fulcrologic.fulcro.application/active-remotes props))
                                                       dirty?          (if read-only-form? false (or (:ui/new? props) (fs/dirty? props)))]
                                                   (or (not dirty?) remote-busy?)))
-                                   :visible?  (fn [this] (not (view-mode? this)))
                                    :label     (fn [_] (tr "Save"))
                                    :class     (fn [this]
                                                 (let [props        (comp/props this)
@@ -852,13 +835,30 @@
   [form-ident]
   [(fops/apply-action fs/entity->pristine* form-ident)])
 
+(defn- derive-fields-ops
+  "Build operations for applying derive-fields triggers."
+  [data event-data]
+  (let [{:keys [form-key form-ident]} event-data
+        form-class        (some-> form-key rc/registry-key->class)
+        master-form-class (actor-class data)
+        master-form-ident (actor-ident data)
+        {{master-derive :derive-fields} sfo/triggers} (some-> master-form-class rc/component-options)
+        {{:keys [derive-fields]} sfo/triggers} (some-> form-class rc/component-options)]
+    (cond-> []
+      derive-fields
+      (conj (fops/apply-action update-tree* derive-fields form-class form-ident))
+
+      (and (not= master-form-class form-class) master-derive)
+      (conj (fops/apply-action update-tree* master-derive master-form-class master-form-ident)))))
+
 (defn on-loaded-expr
   "Expression that runs when form data has been loaded successfully.
-   Clears errors, handles autocreate, sets up form config, marks complete, and
-   invokes the `:after-load` trigger if defined."
+   Clears errors, handles autocreate, sets up form config, marks complete,
+   derives fields, and invokes the `:after-load` trigger if defined."
   [env data _event-name _event-data]
   (let [FormClass  (actor-class data)
         form-ident (actor-ident data)
+        form-key   (rc/class->registry-key FormClass)
         state-map  (:fulcro/state-map data)
         {{:keys [after-load]} sfo/triggers} (some-> FormClass rc/component-options)
         after-load-ops (when (fn? after-load)
@@ -871,6 +871,7 @@
         (mark-complete-ops form-ident)
         (build-autocreate-ops FormClass form-ident state-map)
         (build-ui-props-ops FormClass form-ident)
+        (derive-fields-ops data {:form-key form-key :form-ident form-ident})
         (or after-load-ops [])))))
 
 (defn load-picker-options-expr
@@ -896,22 +897,6 @@
   "Expression that sets server errors when form load fails."
   [_env _data _event-name _event-data]
   [(fops/assoc-alias :server-errors [{:message "Load failed."}])])
-
-(defn- derive-fields-ops
-  "Build operations for applying derive-fields triggers."
-  [data event-data]
-  (let [{:keys [form-key form-ident]} event-data
-        form-class        (some-> form-key rc/registry-key->class)
-        master-form-class (actor-class data)
-        master-form-ident (actor-ident data)
-        {{master-derive :derive-fields} sfo/triggers} (some-> master-form-class rc/component-options)
-        {{:keys [derive-fields]} sfo/triggers} (some-> form-class rc/component-options)]
-    (cond-> []
-      derive-fields
-      (conj (fops/apply-action update-tree* derive-fields form-class form-ident))
-
-      (and (not= master-form-class form-class) master-derive)
-      (conj (fops/apply-action update-tree* master-derive master-form-class master-form-ident)))))
 
 (defn attribute-changed-expr
   "Expression for handling field value changes."
@@ -1435,8 +1420,7 @@
         (?! read-only? form-instance attr)
         computed-value
         (let [read-only-fields (?! read-only-fields form-instance)]
-          (and (set? read-only-fields) (contains? read-only-fields qualified-key)))
-        (view-mode? form-instance)))))
+          (and (set? read-only-fields) (contains? read-only-fields qualified-key)))))))
 
 (def field-visible? "See `form.impl/field-visible?`" form-impl/field-visible?)
 (def omit-label? "See `form.impl/omit-label?`" form-impl/omit-label?)

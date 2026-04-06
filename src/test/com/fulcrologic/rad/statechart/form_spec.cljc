@@ -128,6 +128,35 @@
       ;; Booleans??? What if we just want to leave false == nil?
       fields => #{:test/note :test/children :test/marketing? :child/b :child/node :subchild/x})))
 
+;; --- Issue 1: derive-fields on form load ---
+
+(defn test-derive-fields [props]
+  (assoc props :derived/field "computed"))
+
+(defattr df-id :df/id :uuid {ao/identity? true})
+(defattr df-name :df/name :string {})
+
+(form/defsc-form DeriveFieldsForm [this props]
+  {fo/attributes [df-name]
+   fo/id         df-id
+   sfo/triggers  {:derive-fields test-derive-fields}})
+
+(specification "on-loaded-expr includes derive-fields ops"
+  (let [form-ident [:df/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        form-key   (rc/class->registry-key DeriveFieldsForm)
+        data       {:fulcro/state-map {form-ident {:df/id   (second form-ident)
+                                                   :df/name "test"}}
+                    :fulcro/actors    {:actor/form {:component form-key
+                                                   :ident     form-ident}}}
+        ops        (form/on-loaded-expr {} data nil nil)
+        apply-ops  (filterv #(= (:op %) :fulcro/apply-action) ops)
+        has-update-tree? (some #(= (:f %) form/update-tree*) apply-ops)]
+    (assertions
+      "returns a non-empty ops vector"
+      (vector? ops) => true
+      "includes an apply-action op with update-tree* (derive-fields)"
+      (boolean has-update-tree?) => true)))
+
 ;; --- Issue 3: :after-load trigger ---
 
 (defattr al-id :al/id :uuid {ao/identity? true})
