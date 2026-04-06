@@ -5,7 +5,6 @@
   (:require
     [com.fulcrologic.rad.statechart.container :as container]
     [com.fulcrologic.statecharts.testing :as t]
-    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
     [fulcro-spec.core :refer [=> assertions component specification]]))
 
 ;; ===== Helpers =====

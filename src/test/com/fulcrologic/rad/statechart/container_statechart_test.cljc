@@ -157,12 +157,20 @@
       "returns true when at least one child report is in :state/loading"
       (container/container-busy? app TestContainer) => true)))
 
-(specification "container-busy? — sfro/busy? is set on container component options"
-  (assertions
-    "TestContainer does not have sfro/busy? (programmatic, not macro-generated)"
-    ;; Note: sfro/busy? is wired by the defsc-container macro, not manually.
-    ;; This test documents that container-busy? is available as a public function.
-    (fn? container/container-busy?) => true))
+(specification "container-busy? — transitions from busy to not busy after children finish loading"
+  (let [app (test-app)]
+    (container/start-container! app TestContainer {})
+    ;; Trigger a run which puts children into :state/loading
+    (scf/send! app (container-sid) :event/run)
+    (assertions
+      "is busy while children are loading"
+      (container/container-busy? app TestContainer) => true)
+    ;; Send :event/loaded to both children to transition them through :state/processing → :state/ready
+    (scf/send! app (child-report-sid ReportA ::ReportA) :event/loaded)
+    (scf/send! app (child-report-sid ReportB ::ReportB) :event/loaded)
+    (assertions
+      "returns false after all children finish loading"
+      (container/container-busy? app TestContainer) => false)))
 
 ;; NOTE: The container sends :event/unmount to children on exit from :state/ready,
 ;; but the standard report statechart does NOT handle :event/unmount — it simply
