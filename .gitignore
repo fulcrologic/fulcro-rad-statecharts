@@ -29,3 +29,4 @@ assets
 lsp
 .lsp
 .clj-kondo
+.claude/worktrees
