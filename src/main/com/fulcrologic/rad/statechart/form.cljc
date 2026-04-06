@@ -440,7 +440,7 @@
         attribute-map              (attr/attribute-map attributes)
         pre-merge                  (form-pre-merge options attribute-map)
         base-options               (merge
-                                     {::control/controls standard-controls}
+                                     {:com.fulcrologic.rad.control/controls standard-controls}
                                      options
                                      (cond->
                                        {:ident                                   (fn [_ props] [id-key (get props id-key)])

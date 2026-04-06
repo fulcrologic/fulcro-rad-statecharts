@@ -55,7 +55,7 @@
         ascending?     (:ascending? aliases)
         current-page   (or (:current-page aliases) 1)
         total-results  (:total-results aliases)
-        {::report/keys [source-attribute load-options page-size BodyItem]
+        {:com.fulcrologic.rad.report/keys [source-attribute load-options page-size BodyItem]
          ::keys        [direct-page-access?]
          :or           {direct-page-access? true}} (comp/component-options Report)
         page-size      (or (?! page-size env) 20)
@@ -87,7 +87,7 @@
   (let [Report          (report/report-class data)
         state-map       (:fulcro/state-map data)
         report-ident    (report/actor-ident data :actor/report)
-        {::report/keys [BodyItem page-size report-loaded]} (comp/component-options Report)
+        {:com.fulcrologic.rad.report/keys [BodyItem page-size report-loaded]} (comp/component-options Report)
         page-size       (or (?! page-size nil) 20)
         aliases         (scf/resolve-aliases data)
         loaded-page     (:loaded-page aliases)
@@ -348,13 +348,13 @@
           :session-id session-id
           :data       {:fulcro/actors  {:actor/report (scf/actor report-class report-ident)}
                        :fulcro/aliases {:parameters    [:actor/report :ui/parameters]
-                                        :sort-params   [:actor/report :ui/parameters ::report/sort]
-                                        :sort-by       [:actor/report :ui/parameters ::report/sort :sort-by]
-                                        :ascending?    [:actor/report :ui/parameters ::report/sort :ascending?]
+                                        :sort-params   [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort]
+                                        :sort-by       [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :sort-by]
+                                        :ascending?    [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :ascending?]
                                         :raw-rows      [:actor/report :ui/loaded-data]
                                         :current-rows  [:actor/report :ui/current-rows]
-                                        :current-page  [:actor/report :ui/parameters ::report/current-page]
-                                        :selected-row  [:actor/report :ui/parameters ::report/selected-row]
+                                        :current-page  [:actor/report :ui/parameters :com.fulcrologic.rad.report/current-page]
+                                        :selected-row  [:actor/report :ui/parameters :com.fulcrologic.rad.report/selected-row]
                                         :page-count    [:actor/report :ui/page-count]
                                         :point-in-time [:actor/report :ui/point-in-time]
                                         :total-results [:actor/report :ui/total-results]
