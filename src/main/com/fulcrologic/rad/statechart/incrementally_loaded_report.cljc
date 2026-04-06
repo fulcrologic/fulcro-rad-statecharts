@@ -19,6 +19,7 @@
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.rad.type-support.date-time :as dt]
     [com.fulcrologic.statecharts :as-alias sc]
+    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
     [com.fulcrologic.statecharts.chart :refer [statechart]]
     [com.fulcrologic.statecharts.convenience :refer [handle on]]
     [com.fulcrologic.statecharts.data-model.operations :as ops]
@@ -235,11 +236,16 @@
   ([app report-class options]
    (let [report-ident (comp/ident report-class options)
          session-id   (sc.session/ident->session-id report-ident)
-         machine-key  (or (comp/component-options report-class ::report/machine) ::incrementally-loaded-report-chart)
+         user-chart   (comp/component-options report-class sfro/statechart)
+         machine-key  (or (comp/component-options report-class sfro/statechart-id)
+                        (when (keyword? user-chart) user-chart)
+                        ::incrementally-loaded-report-chart)
          params       (:route-params options)
          running?     (seq (scf/current-configuration app session-id))]
-     (when (= machine-key ::incrementally-loaded-report-chart)
-       (scf/register-statechart! app ::incrementally-loaded-report-chart incrementally-loaded-report-statechart))
+     (let [chart (if (map? user-chart)
+                   user-chart
+                   incrementally-loaded-report-statechart)]
+       (scf/register-statechart! app machine-key chart))
      (if (not running?)
        (scf/start! app
          {:machine    machine-key
