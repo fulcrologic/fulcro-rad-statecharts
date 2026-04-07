@@ -230,8 +230,8 @@
      [sym arglist & args]
      (let [this-sym (first arglist)
            options  (first args)
-           options  (opts/macro-optimize-options &env options #{::field-formatters ::column-headings ::form-links} {})
-           {:com.fulcrologic.rad.control/keys [controls] :as options} options
+           options  (opts/macro-optimize-options &env options #{} {})
+           {::control/keys [controls] :as options} options
            children (get options co/children)
            route    (get options co/route)]
        (when-not (map? children)
