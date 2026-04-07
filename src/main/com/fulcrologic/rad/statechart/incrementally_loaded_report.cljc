@@ -45,7 +45,7 @@
   [env data _event-name _event-data]
   (let [Report         (report/report-class data)
         report-ident   (report/actor-ident data :actor/report)
-        {::report/keys [source-attribute load-options]
+        {:com.fulcrologic.rad.report/keys [source-attribute load-options]
          ::keys        [chunk-size]} (comp/component-options Report)
         load-options   (?! load-options env)
         current-params (assoc (report/current-control-parameters data)
@@ -67,7 +67,7 @@
   [env data _event-name _event-data]
   (let [Report         (report/report-class data)
         report-ident   (report/actor-ident data :actor/report)
-        {::report/keys [BodyItem source-attribute load-options]
+        {:com.fulcrologic.rad.report/keys [BodyItem source-attribute load-options]
          ::keys        [chunk-size]} (comp/component-options Report)
         load-options   (?! load-options env)
         aliases        (scf/resolve-aliases data)
@@ -106,7 +106,7 @@
   "Expression: Finalize the report after all chunks are loaded — preprocess, filter, sort, paginate."
   [_env data _event-name _event-data]
   (let [Report     (report/report-class data)
-        {::report/keys [row-pk report-loaded]} (comp/component-options Report)
+        {:com.fulcrologic.rad.report/keys [row-pk report-loaded]} (comp/component-options Report)
         table-name (::attr/qualified-key row-pk)
         state-map  (:fulcro/state-map data)]
     (cond-> [(fops/apply-action
@@ -125,7 +125,7 @@
   "Condition: Is the cached data expired for the incrementally-loaded report?"
   [_env data _event-name _event-data]
   (let [Report              (report/report-class data)
-        {::report/keys [load-cache-seconds load-cache-expired? row-pk]} (comp/component-options Report)
+        {:com.fulcrologic.rad.report/keys [load-cache-seconds load-cache-expired? row-pk]} (comp/component-options Report)
         state-map           (:fulcro/state-map data)
         now-ms              (inst-ms (dt/now))
         last-load-time      (:last-load-time data)
@@ -253,13 +253,13 @@
           :session-id session-id
           :data       {:fulcro/actors  {:actor/report (scf/actor report-class report-ident)}
                        :fulcro/aliases {:parameters   [:actor/report :ui/parameters]
-                                        :sort-params  [:actor/report :ui/parameters ::report/sort]
-                                        :sort-by      [:actor/report :ui/parameters ::report/sort :sort-by]
-                                        :ascending?   [:actor/report :ui/parameters ::report/sort :ascending?]
+                                        :sort-params  [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort]
+                                        :sort-by      [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :sort-by]
+                                        :ascending?   [:actor/report :ui/parameters :com.fulcrologic.rad.report/sort :ascending?]
                                         :raw-rows     [:actor/report :ui/loaded-data]
                                         :current-rows [:actor/report :ui/current-rows]
-                                        :current-page [:actor/report :ui/parameters ::report/current-page]
-                                        :selected-row [:actor/report :ui/parameters ::report/selected-row]
+                                        :current-page [:actor/report :ui/parameters :com.fulcrologic.rad.report/current-page]
+                                        :selected-row [:actor/report :ui/parameters :com.fulcrologic.rad.report/selected-row]
                                         :page-count   [:actor/report :ui/page-count]
                                         :loaded-page  [:actor/report :ui/incremental-page]
                                         :busy?        [:actor/report :ui/busy?]}

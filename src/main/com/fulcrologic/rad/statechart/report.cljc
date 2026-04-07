@@ -49,7 +49,7 @@
    of the report."
   [report-class-or-registry-key]
   (if (keyword? report-class-or-registry-key)
-    [::id report-class-or-registry-key]
+    [:com.fulcrologic.rad.report/id report-class-or-registry-key]
     (comp/get-ident report-class-or-registry-key {})))
 
 (defn report-session-id
@@ -148,14 +148,14 @@
   (let [state-map    (:fulcro/state-map data)
         Report       (report-class data)
         report-ident (actor-ident data :actor/report)
-        controls     (comp/component-options Report ::control/controls)
+        controls     (comp/component-options Report :com.fulcrologic.rad.control/controls)
         controls     (control/control-map->controls controls)]
     (reduce
       (fn [result {:keys          [local?]
-                   ::control/keys [id]}]
+                   :com.fulcrologic.rad.control/keys [id]}]
         (let [v (if local?
                   (get-in state-map (conj report-ident :ui/parameters id))
-                  (get-in state-map [::control/id id ::control/value]))]
+                  (get-in state-map [:com.fulcrologic.rad.control/id id :com.fulcrologic.rad.control/value]))]
           (if (nil? v)
             result
             (assoc result id v))))
@@ -185,7 +185,7 @@
         params                 (or (:params event-data) (:params data))
         externally-controlled? (or (:com.fulcrologic.rad.report/externally-controlled? event-data)
                                  (:com.fulcrologic.rad.report/externally-controlled? data))
-        controls               (comp/component-options Report ::control/controls)
+        controls               (comp/component-options Report :com.fulcrologic.rad.control/controls)
         init-params            {:com.fulcrologic.rad.report/sort         (initial-sort-params data)
                                 :com.fulcrologic.rad.report/current-page 1}
         ;; First operation: set initial parameters
@@ -198,7 +198,7 @@
                                           (let [event-value        (enc/nnil (get params control-key))
                                                 control-value-path (if local?
                                                                      (conj report-ident :ui/parameters control-key)
-                                                                     [::control/id control-key ::control/value])
+                                                                     [:com.fulcrologic.rad.control/id control-key :com.fulcrologic.rad.control/value])
                                                 state-value        (when-not (false? retain?) (get-in state-map control-value-path))
                                                 explicit-value     event-value
                                                 default-value      (?! default-value app)
@@ -703,7 +703,7 @@
        (validate-report-options! options)
        (let
          [generated-row-sym (symbol (str (name sym) "-Row"))
-          {::control/keys [controls]
+          {:com.fulcrologic.rad.control/keys [controls]
            :com.fulcrologic.rad.report/keys [BodyItem edit-form columns row-pk form-links query-inclusions
                                              row-query-inclusion denormalize? row-actions route initialize-ui-props] :as options} options
           _                 (when edit-form (throw (ana/error &env ":com.fulcrologic.rad.report/edit-form is no longer supported. Use :com.fulcrologic.rad.report/form-links instead.")))
@@ -713,7 +713,7 @@
           nspc              (if (enc/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
           fqkw              (keyword (str nspc) (name sym))
           user-statechart   (sro/statechart options)
-          query             (into [::id
+          query             (into [:com.fulcrologic.rad.report/id
                                    :ui/parameters
                                    :ui/cache
                                    :ui/busy?
@@ -736,15 +736,15 @@
                                                                               `(let [user-ui-props# (?! ~initialize-ui-props ~sym ~'params)]
                                                                                  (cond-> {:ui/parameters   {}
                                                                                           :ui/cache        {}
-                                                                                          :ui/controls     (mapv #(select-keys % #{::control/id})
+                                                                                          :ui/controls     (mapv #(select-keys % #{:com.fulcrologic.rad.control/id})
                                                                                                              (remove :local? (control/control-map->controls ~controls)))
                                                                                           :ui/busy?        false
                                                                                           :ui/current-page 1
                                                                                           :ui/page-count   1
                                                                                           :ui/current-rows []}
-                                                                                   (contains? ~'params ::id) (assoc ::id (::id ~'params))
+                                                                                   (contains? ~'params :com.fulcrologic.rad.report/id) (assoc :com.fulcrologic.rad.report/id (:com.fulcrologic.rad.report/id ~'params))
                                                                                    (seq user-ui-props#) (merge user-ui-props#))))
-                                       :ident                               (list 'fn [] [::id `(or (::id ~props-sym) ~fqkw)])}
+                                       :ident                               (list 'fn [] [:com.fulcrologic.rad.report/id `(or (:com.fulcrologic.rad.report/id ~props-sym) ~fqkw)])}
                                 (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
                                 (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `report-statechart))))
           body              (if (seq (rest args))
@@ -944,14 +944,14 @@
    (assert (attr/attribute? (options :com.fulcrologic.rad.report/row-pk)))
    (assert (keyword? (options :com.fulcrologic.rad.report/source-attribute)))
    (let [generated-row-key (keyword (namespace registry-key) (str (name registry-key) "-Row"))
-         {::control/keys                   [controls]
+         {:com.fulcrologic.rad.control/keys                   [controls]
           :com.fulcrologic.rad.report/keys [BodyItem query-inclusions route initialize-ui-props]} options
          constructor       (comp/react-constructor (:initLocalState options))
          generated-class   (volatile! nil)
          get-class         (fn [] @generated-class)
          ItemClass         (or BodyItem (genrow generated-row-key options))
          user-statechart   (sro/statechart options)
-         query             (into [::id
+         query             (into [:com.fulcrologic.rad.report/id
                                   :ui/parameters
                                   :ui/cache
                                   :ui/busy?
@@ -977,15 +977,15 @@
                                                                              (let [user-initial-state (?! initialize-ui-props (get-class) params)]
                                                                                (cond-> {:ui/parameters   {}
                                                                                         :ui/cache        {}
-                                                                                        :ui/controls     (mapv #(select-keys % #{::control/id})
+                                                                                        :ui/controls     (mapv #(select-keys % #{:com.fulcrologic.rad.control/id})
                                                                                                            (remove :local? (control/control-map->controls controls)))
                                                                                         :ui/busy?        false
                                                                                         :ui/current-page 1
                                                                                         :ui/page-count   1
                                                                                         :ui/current-rows []}
-                                                                                 (contains? params ::id) (assoc ::id (::id params))
+                                                                                 (contains? params :com.fulcrologic.rad.report/id) (assoc :com.fulcrologic.rad.report/id (:com.fulcrologic.rad.report/id params))
                                                                                  (seq user-initial-state) (merge user-initial-state))))
-                                      :ident                               (fn [this props] [::id (or (::id props) registry-key)])
+                                      :ident                               (fn [this props] [:com.fulcrologic.rad.report/id (or (:com.fulcrologic.rad.report/id props) registry-key)])
                                       sfro/initialize                      :once}
                                (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
                                (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart report-statechart))))
