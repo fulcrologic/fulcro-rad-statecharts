@@ -695,6 +695,56 @@
   [form-options ref-key-or-attribute]
   (some-> (expr-subform-options form-options ref-key-or-attribute) fo/ui))
 
+(defn created-form-route-update
+  "Returns the routing update details needed after the first successful save of a new entity.
+   The save merge remaps the form actor from a tempid ident to the persisted ident; we use the
+   original startup ident to decide when the current route should be replaced instead of pushed."
+  [data]
+  (let [FormClass      (actor-class data)
+        form-options   (some-> FormClass rc/component-options)
+        form-ident     (actor-ident data)
+        original-ident (or (:original-ident data) form-ident)
+        id-key         (some-> form-options fo/id ::attr/qualified-key)
+        save-mutation  (or (get form-options fo/save-mutation) `form/save-form)
+        mutation-result (scf/mutation-result data)
+        persisted-id   (or (get-in mutation-result [save-mutation id-key])
+                         (get mutation-result id-key)
+                         (second form-ident))
+        current-ident  [id-key persisted-id]
+        route-target   (some-> FormClass rc/class->registry-key)]
+    (when (and route-target
+             id-key
+             (not (get-in data [:options :embedded?]))
+             (:com.fulcrologic.rad.form/create? data)
+             (tempid/tempid? (second original-ident))
+             (not= original-ident current-ident)
+             (some? persisted-id)
+             (not (tempid/tempid? persisted-id)))
+      {:current-ident  current-ident
+       :original-ident original-ident
+       :route-target   route-target
+       :session-id     (or (get-in (:fulcro/state-map data) [::form-session-ids original-ident])
+                         (:_sessionid data))})))
+
+(defn rewrite-created-form-route*
+  "Pure state-map rewrite used after the first successful create save. Updates the active route
+   to the persisted ID and migrates the form session lookup from the tempid ident to the real ident."
+  [state-map route-target old-form-ident new-form-ident session-id]
+  (let [routing-local-path (scf/local-data-path scr/session-id)
+        session-id         (or (get-in state-map [::form-session-ids old-form-ident])
+                             session-id)]
+    (cond-> (-> state-map
+              (assoc-in (conj routing-local-path :routing/parameters route-target :id)
+                (second new-form-ident))
+              (assoc-in (conj routing-local-path :route/idents route-target)
+                new-form-ident))
+      session-id
+      (update ::form-session-ids
+        (fn [session-ids]
+          (-> (or session-ids {})
+            (dissoc old-form-ident)
+            (assoc new-form-ident session-id)))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; EXPRESSION FUNCTIONS (from form_expressions.cljc)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -709,6 +759,7 @@
         session-id  (:_sessionid data)
         {{:keys [started]} sfo/triggers} (some-> FormClass rc/component-options)
         base-ops    [(ops/assign :options (or (:options data) event-data {}))
+                     (ops/assign :original-ident form-ident)
                      (fops/apply-action assoc-in [::form-session-ids form-ident] session-id)]
         trigger-ops (when (fn? started)
                       (started env data form-ident))]
@@ -990,33 +1041,43 @@
           :error-event :event/save-failed})])))
 
 (defn on-saved-expr
-  "Expression that runs after a successful save. Marks form as pristine
-   and invokes any saved triggers or on-saved transactions."
+  "Expression that runs after a successful save. Marks form as pristine,
+   rewrites the URL for create saves, invokes any saved triggers, and
+   executes on-saved transactions."
   [env data _event-name _event-data]
-  (let [form-ident   (actor-ident data)
+  (let [route-update (created-form-route-update data)
+        form-ident   (or (:current-ident route-update) (actor-ident data))
         FormClass    (actor-class data)
         options      (:options data)
         {{:keys [saved]} sfo/triggers} (some-> FormClass rc/component-options)
         {:keys [on-saved]} options
+        app          (:fulcro/app env)
         base-ops     (mark-pristine-ops form-ident)
+        route-ops    (when route-update
+                       (let [{:keys [route-target original-ident current-ident session-id]} route-update]
+                         [(ops/assign :com.fulcrologic.rad.form/create? false)
+                          (ops/assign :original-ident current-ident)
+                          (ops/assign [:fulcro/actors :actor/form :ident] current-ident)
+                          (fops/apply-action rewrite-created-form-route*
+                            route-target
+                            original-ident
+                            current-ident
+                            session-id)]))
         saved-ops    (when (fn? saved)
                        (saved env data form-ident))
-        on-saved-ops (when (seq on-saved)
+        _            (when (and app (seq on-saved))
                        (let [[id-key id] form-ident
                              {:keys [children] :as ast} (eql/query->ast on-saved)
                              new-ast (assoc ast :children
-                                                (mapv (fn [{:keys [type] :as node}]
-                                                        (if (= type :call)
-                                                          (assoc-in node [:params id-key] id)
-                                                          node))
-                                                  children))
-                             txn     (eql/ast->query new-ast)
-                             app     (:fulcro/app env)]
-                         (when app
-                           (log/debug "Running on-saved tx:" txn)
-                           (rc/transact! app txn))
-                         nil))]
-    (into base-ops (concat (or saved-ops []) (or on-saved-ops [])))))
+                                               (mapv (fn [{:keys [type] :as node}]
+                                                       (if (= type :call)
+                                                         (assoc-in node [:params id-key] id)
+                                                         node))
+                                                 children))
+                             txn     (eql/ast->query new-ast)]
+                         (log/debug "Running on-saved tx:" txn)
+                         (rc/transact! app txn)))]
+    (into base-ops (concat (or route-ops []) (or saved-ops [])))))
 
 (defn on-save-failed-expr
   "Expression that handles save failure. Extracts errors from mutation result and sets them."
@@ -1031,14 +1092,13 @@
         result        (scf/mutation-result data)
         errors        (some-> result (get save-mutation) :com.fulcrologic.rad.form/errors)
         {:keys [on-save-failed]} options
+        app           (:fulcro/app env)
         base-ops      (when (seq errors)
                         [(fops/assoc-alias :server-errors errors)])
         trigger-ops   (when (fn? save-failed)
                         (save-failed env data form-ident))
-        _             (when (seq on-save-failed)
-                        (let [app (:fulcro/app env)]
-                          (when app
-                            (rc/transact! app on-save-failed))))]
+        _             (when (and app (seq on-save-failed))
+                        (rc/transact! app on-save-failed))]
     (into (or base-ops []) (or trigger-ops []))))
 
 (defn undo-all-expr
@@ -1101,7 +1161,6 @@
   "Expression for continuing a previously denied route change."
   [env data _event-name _event-data]
   (let [form-ident (actor-ident data)
-        {:keys [form relative-root route timeouts-and-params]} (:desired-route data)
         app        (:fulcro/app env)]
     (when app
       (scr/force-continue-routing! app))

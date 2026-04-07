@@ -10,6 +10,7 @@
     [com.fulcrologic.rad.statechart.form :as form]
     [com.fulcrologic.rad.statechart.form-options :as sfo]
     [com.fulcrologic.statecharts.data-model.operations :as ops]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
     [fulcro-spec.core :refer [assertions component specification]]))
 
 (def default-street "111 Main")
@@ -254,4 +255,262 @@
       (assertions
         "still includes the base on-loaded ops"
         (pos? (count (filterv #(= (:op %) :fulcro/apply-action) ops))) => true))))
+
+;; --- Issues 12 & 13: Side effects as ops + URL update after create save ---
+
+(defn- apply-action-ops
+  "Extract all :fulcro/apply-action ops from an ops vector."
+  [ops]
+  (filterv #(= (:op %) :fulcro/apply-action) ops))
+
+(defn- mark-pristine-op?
+  "Returns true if the given op is a mark-pristine (entity->pristine*) apply-action."
+  [op]
+  (and (= (:op op) :fulcro/apply-action)
+       (= (:f op) fs/entity->pristine*)))
+
+(defn- has-mark-pristine-op?
+  "Returns true if ops contain a mark-pristine apply-action."
+  [ops]
+  (boolean (some mark-pristine-op? ops)))
+
+(defn- non-pristine-apply-action-ops
+  "Returns apply-action ops that are NOT mark-pristine (i.e. routing, transactions, etc.)."
+  [ops]
+  (filterv #(and (= (:op %) :fulcro/apply-action)
+                 (not (mark-pristine-op? %)))
+    ops))
+
+(defattr saved-id :saved/id :uuid {ao/identity? true})
+(defattr saved-name :saved/name :string {})
+
+(def saved-trigger-result (atom nil))
+
+(defn test-saved-trigger [env data form-ident]
+  (reset! saved-trigger-result {:called? true :form-ident form-ident})
+  [(ops/assign :saved-trigger-ran true)])
+
+(form/defsc-form SavedForm [this props]
+  {fo/attributes [saved-name]
+   fo/id         saved-id
+   sfo/triggers  {:saved test-saved-trigger}})
+
+(form/defsc-form SavedFormNoTrigger [this props]
+  {fo/attributes [saved-name]
+   fo/id         saved-id})
+
+(specification "on-saved-expr (issue 13)"
+  (component "with on-saved transaction — executes directly, not in ops"
+    (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map {}
+                      :fulcro/actors    {:actor/form {:component form-key
+                                                      :ident     form-ident}}
+                      :options          {:on-saved [(list 'some-mutation {})]}}
+          mock-app   {:mock true}
+          env        {:fulcro/app mock-app}
+          ops        (form/on-saved-expr env data nil nil)]
+      (assertions
+        "includes mark-pristine op"
+        (has-mark-pristine-op? ops) => true
+        "does not include on-saved transaction in ops (executed as direct side effect)"
+        (empty? (non-pristine-apply-action-ops ops)) => true)))
+
+  (component "without on-saved transaction"
+    (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map {}
+                      :fulcro/actors    {:actor/form {:component form-key
+                                                      :ident     form-ident}}
+                      :options          {}}
+          ops        (form/on-saved-expr {} data nil nil)]
+      (assertions
+        "includes mark-pristine op"
+        (has-mark-pristine-op? ops) => true)))
+
+  (component "with :saved trigger"
+    (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+          form-key   (rc/class->registry-key SavedForm)
+          data       {:fulcro/state-map {}
+                      :fulcro/actors    {:actor/form {:component form-key
+                                                      :ident     form-ident}}}
+          _          (reset! saved-trigger-result nil)
+          ops        (form/on-saved-expr {} data nil nil)]
+      (assertions
+        "calls the :saved trigger"
+        (:called? @saved-trigger-result) => true
+        "passes form ident to trigger"
+        (:form-ident @saved-trigger-result) => form-ident
+        "includes trigger ops in result"
+        (boolean (some #(and (= (:op %) :assign) (contains? (:data %) :saved-trigger-ran)) ops)) => true))))
+
+;; --- Issue 12: created-form-route-update and rewrite-created-form-route* ---
+
+(specification "created-form-route-update (issue 12)"
+  (component "returns nil for edit (non-create) saves"
+    (let [form-ident [:saved/id #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map {}
+                      :fulcro/actors    {:actor/form {:component form-key
+                                                      :ident     form-ident}}
+                      :options          {}}]
+      (assertions
+        "returns nil when create? is not set"
+        (form/created-form-route-update data) => nil)))
+
+  (component "returns nil for embedded forms"
+    (let [tempid     (tempid/tempid)
+          form-ident [:saved/id tempid]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                {}
+                      :fulcro/actors                   {:actor/form {:component form-key
+                                                                     :ident     form-ident}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   form-ident
+                      :options                          {:embedded? true}}]
+      (assertions
+        "returns nil when form is embedded"
+        (form/created-form-route-update data) => nil)))
+
+  (component "returns nil when original-ident still has tempid (no remap yet)"
+    (let [tempid     (tempid/tempid)
+          form-ident [:saved/id tempid]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                {}
+                      :fulcro/actors                   {:actor/form {:component form-key
+                                                                     :ident     form-ident}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   form-ident
+                      :options                          {}}]
+      (assertions
+        "returns nil when ident still has a tempid (original == current)"
+        (form/created-form-route-update data) => nil)))
+
+  (component "returns route update when tempid has been remapped"
+    (let [tempid     (tempid/tempid)
+          real-id    #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                {}
+                      :fulcro/actors                   {:actor/form {:component form-key
+                                                                     :ident     [:saved/id real-id]}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   [:saved/id tempid]
+                      :options                          {}}
+          result     (form/created-form-route-update data)]
+      (assertions
+        "returns a non-nil map"
+        (map? result) => true
+        "current-ident uses the real id"
+        (:current-ident result) => [:saved/id real-id]
+        "original-ident preserves the tempid ident"
+        (:original-ident result) => [:saved/id tempid]
+        "route-target is the form's registry key"
+        (:route-target result) => form-key))))
+
+(specification "on-saved-expr includes route rewrite ops for create saves (issue 12)"
+  (component "when tempid has been remapped"
+    (let [tempid     (tempid/tempid)
+          real-id    #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                {}
+                      :fulcro/actors                   {:actor/form {:component form-key
+                                                                     :ident     [:saved/id real-id]}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   [:saved/id tempid]
+                      :options                          {}}
+          ops        (form/on-saved-expr {} data nil nil)
+          assign-ops (filterv #(= (:op %) :assign) ops)]
+      (assertions
+        "includes mark-pristine op"
+        (has-mark-pristine-op? ops) => true
+        "includes route-rewrite apply-action op"
+        (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                          (= (:f %) form/rewrite-created-form-route*)) ops)) => true
+        "clears the create? flag"
+        (boolean (some #(= (:data %) {:com.fulcrologic.rad.form/create? false}) assign-ops)) => true
+        "updates original-ident to the real ident"
+        (boolean (some #(= (:data %) {:original-ident [:saved/id real-id]}) assign-ops)) => true)))
+
+  (component "when form was edited (not a create)"
+    (let [form-ident [:saved/id #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map {}
+                      :fulcro/actors    {:actor/form {:component form-key
+                                                      :ident     form-ident}}
+                      :options          {}}
+          ops        (form/on-saved-expr {} data nil nil)]
+      (assertions
+        "includes a mark-pristine op"
+        (has-mark-pristine-op? ops) => true
+        "does not include any route-rewrite op"
+        (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                          (= (:f %) form/rewrite-created-form-route*)) ops)) => false)))
+
+  (component "when form is embedded"
+    (let [tempid     (tempid/tempid)
+          real-id    #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map                   {}
+                      :fulcro/actors                      {:actor/form {:component form-key
+                                                                        :ident     [:saved/id real-id]}}
+                      :com.fulcrologic.rad.form/create?    true
+                      :original-ident                      [:saved/id tempid]
+                      :options                             {:embedded? true}}
+          ops        (form/on-saved-expr {} data nil nil)]
+      (assertions
+        "includes a mark-pristine op"
+        (has-mark-pristine-op? ops) => true
+        "does not include any route-rewrite op (embedded forms don't route)"
+        (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                          (= (:f %) form/rewrite-created-form-route*)) ops)) => false))))
+
+(specification "on-save-failed-expr (issue 13)"
+  (component "with on-save-failed transaction — executes directly, not in ops"
+    (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map {}
+                      :fulcro/actors    {:actor/form {:component form-key
+                                                      :ident     form-ident}}
+                      :options          {:on-save-failed [(list 'handle-failure {})]}
+                      :_event           {:data {}}}
+          mock-app   {:mock true}
+          env        {:fulcro/app mock-app}
+          ops        (form/on-save-failed-expr env data nil nil)]
+      (assertions
+        "returns a vector of ops"
+        (vector? ops) => true
+        "does not include on-save-failed transaction in ops (executed as direct side effect)"
+        (empty? (apply-action-ops ops)) => true))))
+
+(specification "leave-form-expr (issue 13)"
+  (component "with no on-cancel and no app"
+    (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+          form-key   (rc/class->registry-key SavedFormNoTrigger)
+          data       {:fulcro/state-map {}
+                      :fulcro/actors    {:actor/form {:component form-key
+                                                      :ident     form-ident}}
+                      :options          {}}
+          ops        (form/leave-form-expr {} data nil nil)]
+      (assertions
+        "includes the pristine->entity state restoration op"
+        (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                          (= (:f %) fs/pristine->entity*)) ops)) => true
+        "only contains the pristine->entity op"
+        (count (apply-action-ops ops)) => 1))))
+
+(specification "continue-abandoned-route-expr (issue 13)"
+  (let [form-ident [:saved/id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        form-key   (rc/class->registry-key SavedFormNoTrigger)
+        data       {:fulcro/state-map {}
+                    :fulcro/actors    {:actor/form {:component form-key
+                                                    :ident     form-ident}}
+                    :desired-route    {:form "some-form"}}
+        ;; No app in env — side effects (force-continue-routing!) are skipped when app is nil
+        ops        (form/continue-abandoned-route-expr {} data nil nil)]
+    (assertions
+      "includes the route-denied? alias reset"
+      (boolean (some #(= (:op %) :fulcro/assoc-alias) ops)) => true
+      "includes pristine->entity state restoration"
+      (boolean (some #(and (= (:op %) :fulcro/apply-action)
+                        (= (:f %) fs/pristine->entity*)) ops)) => true)))
 
