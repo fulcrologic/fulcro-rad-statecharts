@@ -36,17 +36,17 @@
 (defn id-child-pairs
   "Returns a sequence of [id cls] pairs for each child (i.e. the seq of the children setting)"
   [container]
-  (seq (comp/component-options container ::children)))
+  (seq (comp/component-options container :com.fulcrologic.rad.container/children)))
 
 (defn child-classes
   "Returns a de-duped set of classes of the children of the given instance/class (using it's query)"
   [container]
-  (set (vals (comp/component-options container ::children))))
+  (set (vals (comp/component-options container :com.fulcrologic.rad.container/children))))
 
 (defn child-report-session-id
   "Returns the statechart session ID for a child report given its class and container-assigned `id`."
   [child-class id]
-  (sc.session/ident->session-id (comp/get-ident child-class {::report/id id})))
+  (sc.session/ident->session-id (comp/get-ident child-class {:com.fulcrologic.rad.report/id id})))
 
 (defn broadcast-to-children!
   "Sends `event` to all child report statecharts of the given `container-class`."
@@ -106,7 +106,7 @@
                                       path (conj container-ident k)]
                                   (merge/merge-component
                                     s cls
-                                    (or (comp/get-initial-state cls {::report/id id}) {})
+                                    (or (comp/get-initial-state cls {:com.fulcrologic.rad.report/id id}) {})
                                     :replace path)))
                               state-map
                               children)))
@@ -117,13 +117,13 @@
                                       (not (nil? default-value)) (?! default-value app))]
                               (if-not (nil? v)
                                 (conj ops (fops/apply-action assoc-in
-                                            [::control/id control-key ::control/value] v))
+                                            [:com.fulcrologic.rad.control/id control-key :com.fulcrologic.rad.control/value] v))
                                 ops)))
                           []
                           controls)]
     (doseq [[id c] children]
-      (report/start-report! app c {::report/id                     id
-                                   ::report/externally-controlled? true
+      (report/start-report! app c {:com.fulcrologic.rad.report/id                     id
+                                   :com.fulcrologic.rad.report/externally-controlled? true
                                    :route-params                   route-params}))
     (into [merge-op] param-ops)))
 
@@ -148,7 +148,7 @@
                   (not (nil? default-value)) (?! default-value app))]
           (if-not (nil? v)
             (conj ops (fops/apply-action assoc-in
-                        [::control/id control-key ::control/value] v))
+                        [:com.fulcrologic.rad.control/id control-key :com.fulcrologic.rad.control/value] v))
             ops)))
       []
       controls)))
@@ -187,7 +187,7 @@
    instead of using the old `install-layout!` approach."
   [container-instance]
   (log/error "No container layout renderer installed for style"
-    (or (some-> container-instance comp/component-options ::layout-style) :default))
+    (or (some-> container-instance comp/component-options :com.fulcrologic.rad.container/layout-style) :default))
   nil)
 
 (defn start-container!
@@ -252,9 +252,9 @@
                                        :query query
                                        :initial-state (list 'fn '[_]
                                                         `(into {:ui/parameters {}
-                                                                :ui/controls   (mapv #(select-keys % #{::control/id}) (control/control-map->controls ~controls))}
-                                                           (map (fn [[id# c#]] [id# (comp/get-initial-state c# {::report/id id#})]) ~children)))
-                                       :ident (list 'fn [] [::id fqkw])
+                                                                :ui/controls   (mapv #(select-keys % #{:com.fulcrologic.rad.control/id}) (control/control-map->controls ~controls))}
+                                                           (map (fn [[id# c#]] [id# (comp/get-initial-state c# {:com.fulcrologic.rad.report/id id#})]) ~children)))
+                                       :ident (list 'fn [] [:com.fulcrologic.rad.container/id fqkw])
                                        sfro/busy? (list 'fn '[app _] (list `container-busy? 'app (list `comp/registry-key->class fqkw)))
                                        sfro/initialize :once)
                                (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)

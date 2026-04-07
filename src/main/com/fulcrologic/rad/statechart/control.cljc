@@ -34,8 +34,8 @@
 (defsc Control
   "A component used for normalizing control state in the app so that reports in containers can share controls."
   [_ _]
-  {:query [::id ::value]
-   :ident ::id})
+  {:query [:com.fulcrologic.rad.control/id :com.fulcrologic.rad.control/value]
+   :ident :com.fulcrologic.rad.control/id})
 
 (defmulti render-control
   "Render a control element. Dispatches on [control-type style].
@@ -69,8 +69,8 @@
 (defmutation set-parameter [{:keys [k value]}]
   (action [{:keys [component ref state]}]
     (let [options (comp/component-options component)
-          {:keys [local?]} (get-in options [::controls k])
-          path    (if local? (conj ref :ui/parameters k) [::id k ::value])]
+          {:keys [local?]} (get-in options [:com.fulcrologic.rad.control/controls k])
+          path    (if local? (conj ref :ui/parameters k) [:com.fulcrologic.rad.control/id k :com.fulcrologic.rad.control/value])]
       ;; TODO: Route-param tracking will be re-added during statechart routing conversion
       (swap! state assoc-in path value))))
 
@@ -85,7 +85,7 @@
   (if (map? control-map)
     (reduce-kv
       (fn [m k v]
-        (conj m (merge {::id k} v)))
+        (conj m (merge {:com.fulcrologic.rad.control/id k} v)))
       []
       control-map)
     control-map))
@@ -94,12 +94,12 @@
   "Get the current value of a control. If it is normalized, then it will come from the normalized table. If the control
    is local to the instance, then it will come from there."
   [instance control-key]
-  (let [{:keys [local?]} (get (comp/component-options instance ::controls) control-key)]
+  (let [{:keys [local?]} (get (comp/component-options instance :com.fulcrologic.rad.control/controls) control-key)]
     (if local?
       (get-in (comp/props instance) [:ui/parameters control-key])
       (-> instance
         (raw.app/current-state)
-        (get-in [::id control-key ::value])))))
+        (get-in [:com.fulcrologic.rad.control/id control-key :com.fulcrologic.rad.control/value])))))
 
 (defn component-controls
   "Gets all of the controls declared on the given class or instance (e.g. report, container).
@@ -110,12 +110,12 @@
   ([class-or-instance]
    (component-controls class-or-instance true))
   ([class-or-instance recursive?]
-   (let [parent-controls (comp/component-options class-or-instance ::controls)
+   (let [parent-controls (comp/component-options class-or-instance :com.fulcrologic.rad.control/controls)
          children        (when recursive? (child-classes class-or-instance true))]
      (merge
        (reduce
          (fn [controls c]
-           (let [candidates         (comp/component-options c ::controls)
+           (let [candidates         (comp/component-options c :com.fulcrologic.rad.control/controls)
                  non-local-controls (reduce-kv
                                       (fn [m k v]
                                         (if (and (map? v) (not (:local? v)))
@@ -129,8 +129,8 @@
        ;; parent always wins
        parent-controls))))
 
-(>def ::action-layout (s/coll-of keyword? :kind vector?))
-(>def ::input-layout (s/coll-of (s/coll-of keyword? :kind vector?) :kind vector?))
+(>def :com.fulcrologic.rad.control/action-layout (s/coll-of keyword? :kind vector?))
+(>def :com.fulcrologic.rad.control/input-layout (s/coll-of (s/coll-of keyword? :kind vector?) :kind vector?))
 
 (>defn standard-control-layout
   "Returns a map of:
@@ -141,8 +141,8 @@ are returned from the control map (which is stable, but not necessarily the orde
 on `class-or-instance`. This layout can be declared on the class-or-instance, or will default to a
 single-row layout based on the entry order in the control map (stable but undefined)."
   [class-or-instance]
-  [(s/or :cls comp/component-class? :inst comp/component?) => (s/keys :req-un [::action-layout ::input-layout])]
-  (let [{::keys [control-layout]} (comp/component-options class-or-instance)
+  [(s/or :cls comp/component-class? :inst comp/component?) => (s/keys :req-un [:com.fulcrologic.rad.control/action-layout :com.fulcrologic.rad.control/input-layout])]
+  (let [{:com.fulcrologic.rad.control/keys [control-layout]} (comp/component-options class-or-instance)
         ;; For backward compat with report option
         control-layout (or control-layout (comp/component-options class-or-instance :com.fulcrologic.rad.report/control-layout))
         {:keys [action-buttons inputs]} control-layout]
