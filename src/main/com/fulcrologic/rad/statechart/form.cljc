@@ -700,26 +700,26 @@
    The save merge remaps the form actor from a tempid ident to the persisted ident; we use the
    original startup ident to decide when the current route should be replaced instead of pushed."
   [data]
-  (let [FormClass      (actor-class data)
-        form-options   (some-> FormClass rc/component-options)
-        form-ident     (actor-ident data)
-        original-ident (or (:original-ident data) form-ident)
-        id-key         (some-> form-options fo/id ::attr/qualified-key)
-        save-mutation  (or (get form-options fo/save-mutation) `form/save-form)
+  (let [FormClass       (actor-class data)
+        form-options    (some-> FormClass rc/component-options)
+        form-ident      (actor-ident data)
+        original-ident  (or (:original-ident data) form-ident)
+        id-key          (some-> form-options fo/id ::attr/qualified-key)
+        save-mutation   (or (get form-options fo/save-mutation) `form/save-form)
         mutation-result (scf/mutation-result data)
-        persisted-id   (or (get-in mutation-result [save-mutation id-key])
-                         (get mutation-result id-key)
-                         (second form-ident))
-        current-ident  [id-key persisted-id]
-        route-target   (some-> FormClass rc/class->registry-key)]
+        persisted-id    (or (get-in mutation-result [save-mutation id-key])
+                          (get mutation-result id-key)
+                          (second form-ident))
+        current-ident   [id-key persisted-id]
+        route-target    (some-> FormClass rc/class->registry-key)]
     (when (and route-target
-             id-key
-             (not (get-in data [:options :embedded?]))
-             (:com.fulcrologic.rad.form/create? data)
-             (tempid/tempid? (second original-ident))
-             (not= original-ident current-ident)
-             (some? persisted-id)
-             (not (tempid/tempid? persisted-id)))
+            id-key
+            (not (get-in data [:options :embedded?]))
+            (:com.fulcrologic.rad.form/create? data)
+            (tempid/tempid? (second original-ident))
+            (not= original-ident current-ident)
+            (some? persisted-id)
+            (not (tempid/tempid? persisted-id)))
       {:current-ident  current-ident
        :original-ident original-ident
        :route-target   route-target
@@ -907,10 +907,10 @@
    Clears errors, handles autocreate, sets up form config, marks complete,
    derives fields, and invokes the `:after-load` trigger if defined."
   [env data _event-name _event-data]
-  (let [FormClass  (actor-class data)
-        form-ident (actor-ident data)
-        form-key   (rc/class->registry-key FormClass)
-        state-map  (:fulcro/state-map data)
+  (let [FormClass      (actor-class data)
+        form-ident     (actor-ident data)
+        form-key       (rc/class->registry-key FormClass)
+        state-map      (:fulcro/state-map data)
         {{:keys [after-load]} sfo/triggers} (some-> FormClass rc/component-options)
         after-load-ops (when (fn? after-load)
                          (after-load env data form-ident))]
@@ -1007,7 +1007,6 @@
   [_env data _event-name _event-data]
   (mark-complete-ops (actor-ident data)))
 
-
 (defn form-valid?
   "Condition predicate: Returns true if the form passes validation."
   [_env data & _]
@@ -1069,11 +1068,11 @@
                        (let [[id-key id] form-ident
                              {:keys [children] :as ast} (eql/query->ast on-saved)
                              new-ast (assoc ast :children
-                                               (mapv (fn [{:keys [type] :as node}]
-                                                       (if (= type :call)
-                                                         (assoc-in node [:params id-key] id)
-                                                         node))
-                                                 children))
+                                                (mapv (fn [{:keys [type] :as node}]
+                                                        (if (= type :call)
+                                                          (assoc-in node [:params id-key] id)
+                                                          node))
+                                                  children))
                              txn     (eql/ast->query new-ast)]
                          (log/debug "Running on-saved tx:" txn)
                          (rc/transact! app txn)))]
@@ -1880,15 +1879,18 @@
 
    * `:route/target` - (required) The form component class or registry key.
    * `:route/params` - (optional) Set of keywords for route parameters.
+     Defaults to `#{:id}` since every form edit/create routes with `:id`. Pass an
+     explicit set (which should include `:id`) to extend the captured params.
 
    See `scr/istate` for full option details."
   [props]
   (scr/istate
-    (assoc props
-      :invoke-params
-      {:fulcro/aliases {:confirmation-message [:actor/form :ui/confirmation-message]
-                        :route-denied?        [:actor/form :ui/route-denied?]
-                        :server-errors        [:actor/form :com.fulcrologic.rad.form/errors]}})
+    (-> props
+      (update :route/params (fn [p] (or p #{:id})))
+      (assoc :invoke-params
+             {:fulcro/aliases {:confirmation-message [:actor/form :ui/confirmation-message]
+                               :route-denied?        [:actor/form :ui/route-denied?]
+                               :server-errors        [:actor/form :com.fulcrologic.rad.form/errors]}}))
     (exit-fn [{:fulcro/keys [app]} {:route/keys [idents]} & _]
       (when-let [form-ident (get idents (rc/class->registry-key (:route/target props)))]
         [(fops/apply-action update ::form-session-ids dissoc form-ident)

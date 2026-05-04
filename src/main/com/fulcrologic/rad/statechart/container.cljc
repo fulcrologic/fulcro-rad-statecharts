@@ -124,7 +124,7 @@
     (doseq [[id c] children]
       (report/start-report! app c {:com.fulcrologic.rad.report/id                     id
                                    :com.fulcrologic.rad.report/externally-controlled? true
-                                   :route-params                   route-params}))
+                                   :route-params                                      route-params}))
     (into [merge-op] param-ops)))
 
 (defn run-children-expr

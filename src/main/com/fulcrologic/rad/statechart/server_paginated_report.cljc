@@ -13,13 +13,13 @@
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.rad.type-support.date-time :as dt]
     [com.fulcrologic.statecharts :as-alias sc]
-    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
     [com.fulcrologic.statecharts.chart :refer [statechart]]
     [com.fulcrologic.statecharts.convenience :refer [handle on]]
     [com.fulcrologic.statecharts.data-model.operations :as ops]
     [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition]]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
 
 ;; ---- Options ----
 
@@ -56,8 +56,8 @@
         current-page   (or (:current-page aliases) 1)
         total-results  (:total-results aliases)
         {:com.fulcrologic.rad.report/keys [source-attribute load-options page-size BodyItem]
-         ::keys        [direct-page-access?]
-         :or           {direct-page-access? true}} (comp/component-options Report)
+         ::keys                           [direct-page-access?]
+         :or                              {direct-page-access? true}} (comp/component-options Report)
         page-size      (or (?! page-size env) 20)
         load-options   (?! load-options env)
         PageQuery      (rc/nc [:total

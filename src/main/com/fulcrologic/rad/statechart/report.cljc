@@ -151,7 +151,7 @@
         controls     (comp/component-options Report :com.fulcrologic.rad.control/controls)
         controls     (control/control-map->controls controls)]
     (reduce
-      (fn [result {:keys          [local?]
+      (fn [result {:keys                             [local?]
                    :com.fulcrologic.rad.control/keys [id]}]
         (let [v (if local?
                   (get-in state-map (conj report-ident :ui/parameters id))
@@ -186,13 +186,18 @@
         externally-controlled? (or (:com.fulcrologic.rad.report/externally-controlled? event-data)
                                  (:com.fulcrologic.rad.report/externally-controlled? data))
         controls               (comp/component-options Report :com.fulcrologic.rad.control/controls)
-        init-params            {:com.fulcrologic.rad.report/sort         (initial-sort-params data)
-                                :com.fulcrologic.rad.report/current-page 1}
+        ;; URL-restored values (if any) for the standard report state keys.
+        url-sort               (get params :com.fulcrologic.rad.report/sort)
+        url-page               (get params :com.fulcrologic.rad.report/current-page)
+        url-selected           (get params :com.fulcrologic.rad.report/selected-row)
+        init-params            (cond-> {:com.fulcrologic.rad.report/sort         (or url-sort (initial-sort-params data) {})
+                                        :com.fulcrologic.rad.report/current-page (or url-page 1)}
+                                 (some? url-selected) (assoc :com.fulcrologic.rad.report/selected-row url-selected))
         ;; First operation: set initial parameters
         ops                    [(fops/apply-action
                                   (fn [sm]
                                     (as-> sm $
-                                      (assoc-in $ path (merge init-params {:com.fulcrologic.rad.report/sort {}}))
+                                      (assoc-in $ path init-params)
                                       (reduce-kv
                                         (fn [s control-key {:keys [local? retain? default-value]}]
                                           (let [event-value        (enc/nnil (get params control-key))
@@ -504,6 +509,28 @@
   [env data event-name event-data]
   (initialize-params-expr env data event-name event-data))
 
+(defn sync-url-params-expr
+  "Side-effect expression: when URL sync is installed, mirror the report's
+   current URL-relevant state (`:ui/parameters` plus standard report state keys
+   for current-page and selected-row) into `[:routing/parameters <target>]` and
+   replace the current browser URL. No-op when URL sync is not installed.
+
+   Returns no ops; the URL update happens via the routing helper."
+  [env data _event-name _event-data]
+  (let [app          (:fulcro/app env)
+        state-map    (:fulcro/state-map data)
+        report-ident (actor-ident data :actor/report)
+        target-key   (second report-ident)
+        report-props (get-in state-map report-ident)
+        params       (-> (:ui/parameters report-props {})
+                       (assoc :com.fulcrologic.rad.report/current-page
+                              (get-in report-props [:ui/parameters :com.fulcrologic.rad.report/current-page] 1))
+                       (assoc :com.fulcrologic.rad.report/selected-row
+                              (get-in report-props [:ui/parameters :com.fulcrologic.rad.report/selected-row] -1)))]
+    (when (and app target-key (scr/url-sync-installed? app))
+      (scr/replace-route-params! app target-key params))
+    nil))
+
 (defn resume-from-cache-expr
   "Expression: Resume a report from cache — re-filter and re-paginate without reloading."
   [_env data _event-name _event-data]
@@ -547,10 +574,16 @@
       (transition {:target :state/ready}))
 
     (state {:id :state/ready}
-      ;; Pagination
-      (handle :event/goto-page goto-page-expr)
-      (handle :event/next-page next-page-expr)
-      (handle :event/prior-page prior-page-expr)
+      (on-entry {}
+        (script {:expr sync-url-params-expr}))
+      ;; Pagination — use external self-transitions (not `handle`) so the
+      ;; :state/ready on-entry re-fires, which keeps the URL in sync.
+      (transition {:event :event/goto-page :target :state/ready :type :external}
+        (script {:expr goto-page-expr}))
+      (transition {:event :event/next-page :target :state/ready :type :external}
+        (script {:expr next-page-expr}))
+      (transition {:event :event/prior-page :target :state/ready :type :external}
+        (script {:expr prior-page-expr}))
 
       ;; Sort -> intermediate observable state
       (on :event/sort :state/sorting)
@@ -559,10 +592,12 @@
       (on :event/filter :state/filtering)
 
       ;; Row selection
-      (handle :event/select-row select-row-expr)
+      (transition {:event :event/select-row :target :state/ready :type :external}
+        (script {:expr select-row-expr}))
 
       ;; Parameter management
-      (handle :event/set-ui-parameters set-params-expr)
+      (transition {:event :event/set-ui-parameters :target :state/ready :type :external}
+        (script {:expr set-params-expr}))
 
       ;; Reload
       (on :event/run :state/loading)
@@ -574,7 +609,8 @@
         (script {:expr resume-from-cache-expr}))
 
       ;; Clear sort
-      (handle :event/clear-sort clear-sort-expr))
+      (transition {:event :event/clear-sort :target :state/ready :type :external}
+        (script {:expr clear-sort-expr})))
 
     ;; Observable intermediate state for sorting
     (state {:id :state/sorting}
@@ -944,8 +980,8 @@
    (assert (attr/attribute? (options :com.fulcrologic.rad.report/row-pk)))
    (assert (keyword? (options :com.fulcrologic.rad.report/source-attribute)))
    (let [generated-row-key (keyword (namespace registry-key) (str (name registry-key) "-Row"))
-         {:com.fulcrologic.rad.control/keys                   [controls]
-          :com.fulcrologic.rad.report/keys [BodyItem query-inclusions route initialize-ui-props]} options
+         {:com.fulcrologic.rad.control/keys [controls]
+          :com.fulcrologic.rad.report/keys  [BodyItem query-inclusions route initialize-ui-props]} options
          constructor       (comp/react-constructor (:initLocalState options))
          generated-class   (volatile! nil)
          get-class         (fn [] @generated-class)
@@ -1046,6 +1082,18 @@
 ;; ROUTE STATE BUILDER
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn- default-report-route-params
+  "Derive the default `:route/params` for a report's route state. Includes every
+   key in the report's `ro/controls` map plus the standard report state keys
+   (sort, pagination, selection) that should round-trip through the URL."
+  [target]
+  (let [Report   (comp/registry-key->class target)
+        controls (or (some-> Report (comp/component-options :com.fulcrologic.rad.control/controls)) {})]
+    (into #{:com.fulcrologic.rad.report/sort
+            :com.fulcrologic.rad.report/current-page
+            :com.fulcrologic.rad.report/selected-row}
+      (keys controls))))
+
 (defn report-route-state
   "Creates a routing state for a RAD report. On entry, starts the report via
    `start-report!`. Route parameters are merged from statechart session data
@@ -1055,11 +1103,16 @@
 
    * `:route/target` — (required) The report component class or registry key.
    * `:route/params` — (optional) Set of keywords for route parameters.
+     Defaults to the union of every key in the report's `ro/controls` map
+     plus `:com.fulcrologic.rad.report/{sort,current-page,selected-row}`, so
+     control values, sort, page, and selection are all bookmarkable. Pass an
+     explicit set to override.
    * `:report/param-keys` — (optional) Collection of keywords to select from
      merged data/event-data as `:route-params` for the report."
   [{:route/keys  [target]
     :report/keys [param-keys] :as props}]
-  (scr/rstate props
+  (scr/rstate
+    (update props :route/params (fn [p] (or p (default-report-route-params target))))
     (entry-fn [{:fulcro/keys [app]} data _event-name event-data]
       (log/debug "Starting report via routing")
       (start-report! app (comp/registry-key->class target)

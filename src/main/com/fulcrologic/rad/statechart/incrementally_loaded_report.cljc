@@ -19,13 +19,13 @@
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.rad.type-support.date-time :as dt]
     [com.fulcrologic.statecharts :as-alias sc]
-    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
     [com.fulcrologic.statecharts.chart :refer [statechart]]
     [com.fulcrologic.statecharts.convenience :refer [handle on]]
     [com.fulcrologic.statecharts.data-model.operations :as ops]
     [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition]]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
 
 ;; ---- Options ----
 
@@ -46,7 +46,7 @@
   (let [Report         (report/report-class data)
         report-ident   (report/actor-ident data :actor/report)
         {:com.fulcrologic.rad.report/keys [source-attribute load-options]
-         ::keys        [chunk-size]} (comp/component-options Report)
+         ::keys                           [chunk-size]} (comp/component-options Report)
         load-options   (?! load-options env)
         current-params (assoc (report/current-control-parameters data)
                          :report/offset 0
@@ -68,7 +68,7 @@
   (let [Report         (report/report-class data)
         report-ident   (report/actor-ident data :actor/report)
         {:com.fulcrologic.rad.report/keys [BodyItem source-attribute load-options]
-         ::keys        [chunk-size]} (comp/component-options Report)
+         ::keys                           [chunk-size]} (comp/component-options Report)
         load-options   (?! load-options env)
         aliases        (scf/resolve-aliases data)
         loaded-page    (:loaded-page aliases)
