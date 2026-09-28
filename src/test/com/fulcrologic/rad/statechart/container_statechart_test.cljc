@@ -64,9 +64,11 @@
 ;; ===== Test Helpers =====
 
 (defn test-app
-  "Creates a headless Fulcro RAD app with synchronous (immediate) event processing."
+  "Creates a headless Fulcro RAD app with synchronous (immediate) event processing.
+   The remote never responds, so loads stay pending until a test sends :event/loaded itself
+   (otherwise a failed send delivers :event/failed from another thread and races the test)."
   []
-  (let [a (rad-app/fulcro-rad-app {})]
+  (let [a (rad-app/fulcro-rad-app {:remotes {:remote {:transmit! (fn [_ _] nil)}}})]
     (rad-app/install-statecharts! a {:event-loop? :immediate})
     a))
 
