@@ -51,6 +51,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (report/start-report! :app :report-class {})
         (assertions
@@ -70,6 +71,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (report/start-report! :app :report-class {})
         (assertions
@@ -85,6 +87,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (report/start-report! :app :report-class {})
         (assertions
@@ -101,6 +104,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (report/start-report! :app :report-class {})
         (assertions
@@ -120,6 +124,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (spr/start-server-paginated-report! :app :report-class {})
         (assertions
@@ -139,6 +144,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (spr/start-server-paginated-report! :app :report-class {})
         (assertions
@@ -154,6 +160,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (spr/start-server-paginated-report! :app :report-class {})
         (assertions
@@ -170,6 +177,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (spr/start-server-paginated-report! :app :report-class {})
         (assertions
@@ -189,6 +197,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (ilr/start-incrementally-loaded-report! :app :report-class {})
         (assertions
@@ -208,6 +217,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (ilr/start-incrementally-loaded-report! :app :report-class {})
         (assertions
@@ -223,6 +233,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (ilr/start-incrementally-loaded-report! :app :report-class {})
         (assertions
@@ -239,6 +250,7 @@
                     sc.session/ident->session-id  (fn [_] "session-1")
                     scf/current-configuration     (fn [_ _] nil)
                     scf/register-statechart!      reg-fn
+                    scf/actor                     (fn [cls ident] {:component cls :ident ident})
                     scf/start!                    start-fn]
         (ilr/start-incrementally-loaded-report! :app :report-class {})
         (assertions

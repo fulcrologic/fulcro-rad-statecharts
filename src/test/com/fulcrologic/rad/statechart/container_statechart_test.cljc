@@ -9,6 +9,7 @@
     [com.fulcrologic.rad.report-options :as ro]
     [com.fulcrologic.rad.statechart.application :as rad-app]
     [com.fulcrologic.rad.statechart.container :as container]
+    [com.fulcrologic.rad.statechart.container-options :as co]
     [com.fulcrologic.rad.statechart.report :as report]
     [com.fulcrologic.rad.statechart.session :as sc.session]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
@@ -56,7 +57,7 @@
                                    :ui/controls   []
                                    ::ReportA      (comp/get-initial-state ReportA {::report/id ::ReportA})
                                    ::ReportB      (comp/get-initial-state ReportB {::report/id ::ReportB})})
-     ::container/children {::ReportA ReportA
+     co/children          {::ReportA ReportA
                            ::ReportB ReportB}}
     (fn [this] nil)))
 
