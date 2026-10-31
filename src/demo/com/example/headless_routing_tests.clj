@@ -4,11 +4,8 @@
    Requires a running server (started via mount fixture)."
   (:require
    [clojure.test :refer [use-fixtures]]
-   [com.example.client :as client]
-   [com.example.components.datomic :refer [datomic-connections]]
-   [com.example.components.ring-middleware]
-   [com.example.components.server]
-   [com.example.model.seed :as seed]
+   [com.example.headless-client :refer [await! test-client]]
+   [com.example.test-server :refer [with-test-system]]
    [com.example.ui.account-forms :refer [AccountForm]]
    [com.example.ui.inventory-report :refer [InventoryReport]]
    [com.example.ui.invoice-forms :refer [InvoiceForm]]
@@ -19,59 +16,20 @@
    [com.fulcrologic.fulcro.headless :as h]
    [com.fulcrologic.fulcro.headless.hiccup :as hic]
    [com.fulcrologic.rad.ids :refer [new-uuid]]
-   [com.fulcrologic.rad.type-support.date-time :as dt]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-   [datomic.client.api :as d]
-   [fulcro-spec.core :refer [=> assertions specification]]
-   [mount.core :as mount]))
+   [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ---------------------------------------------------------------------------
-;; Test Server Fixture
+;; Fixture — uses shared test_server.clj with unique port 9844
 ;; ---------------------------------------------------------------------------
-
-(def ^:dynamic *test-port* nil)
-
-(defn with-test-system
-  "clojure.test fixture: starts mount system on the given port, seeds data, runs tests."
-  ([] (with-test-system {}))
-  ([{:keys [port] :or {port 9844}}]
-   (fn [tests]
-     (mount/start-with-args {:config    "config/dev.edn"
-                             :overrides {:org.httpkit.server/config {:port port}}})
-     (try
-       (dt/set-timezone! "America/Los_Angeles")
-       (let [connection (:main datomic-connections)]
-         (when connection
-           (d/transact connection
-             {:tx-data
-              [(seed/new-account (new-uuid 100) "Tony" "tony@example.com" "letmein")
-               (seed/new-account (new-uuid 101) "Sam" "sam@example.com" "letmein")
-               (seed/new-category (new-uuid 1000) "Tools")
-               (seed/new-category (new-uuid 1002) "Toys")
-               (seed/new-item (new-uuid 200) "Widget" 33.99
-                 :item/category "Tools")
-               (seed/new-item (new-uuid 201) "Screwdriver" 4.99
-                 :item/category "Tools")
-               (seed/new-invoice "invoice-1"
-                 (dt/html-datetime-string->inst "2020-01-01T12:00")
-                 "Tony"
-                 [(seed/new-line-item "Widget" 1 33.0M)])]})))
-       (binding [*test-port* port]
-         (tests))
-       (finally
-         (mount/stop))))))
 
 (use-fixtures :once (with-test-system {:port 9844}))
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
 ;; ---------------------------------------------------------------------------
-
-(defn test-client
-  "Create a headless client pointing at the test server."
-  [port]
-  (client/init port))
 
 (defn routing-config
   "Returns the current statechart configuration for the routing session."
@@ -82,6 +40,15 @@
   "Returns true if the given route state keyword is in the current routing config."
   [app state-kw]
   (contains? (routing-config app) state-kw))
+
+(defn await-form-editing!
+  "Waits until the routed form for `ident` has loaded and its chart is in `:state/editing`, so a later load response
+   cannot overwrite test edits. Routed forms run under generated session ids, found via
+   `form/resolve-form-session-id`. Returns the app."
+  [app ident]
+  (await! app {:description (str "form " (pr-str ident) " in :state/editing")
+               :session-id  #(form/resolve-form-session-id % ident)}
+    #(contains? (scf/current-configuration % (form/resolve-form-session-id % ident)) :state/editing)))
 
 (defn dirty-form!
   "Programmatically marks a form entity as dirty by:
@@ -158,15 +125,7 @@
       (in-route-state? app :com.example.ui.invoice-report/InvoiceReport) => true)))
 
 ;; ---------------------------------------------------------------------------
-;; Tests: Form Navigation (via scr/route-to! API)
-;; TODO: sfr/edit! (com.fulcrologic.rad.form/edit!) sends events to the wrong
-;; statechart session. It targets the form's own session (derived from the
-;; form ident via sc.session/ident->session-id) instead of the routing session
-;; (scr/session-id). The routing session is what controls navigation state
-;; transitions. Until edit! is fixed to route through the routing statechart,
-;; use scr/route-to! directly for form navigation in tests.
-;; See also: form.cljc `edit!` and `start-form!` — the fix likely involves
-;; having edit! call scr/route-to! instead of directly starting the form session.
+;; Tests: Form Navigation (via scr/route-to! API; form/edit! is a thin wrapper over it)
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — navigate to Account form via route-to!"
@@ -253,10 +212,9 @@
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Route Guard (dirty form)
-;; Route guard tests rely on the form statechart marking the form as dirty.
-;; After navigating to a form, we need the form data to load from the
-;; server. Multiple render-frame! calls are needed to process the async
-;; HTTP response and let the form statechart transition to :state/editing.
+;; Route guard tests rely on the form statechart seeing the form as dirty. The form's
+;; load is a real HTTP round-trip, so each test waits for :state/editing
+;; (await-form-editing!) before dirtying the form; a late load would overwrite it.
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — route guard on dirty form"
@@ -272,8 +230,8 @@
       "account form state is active"
       (in-route-state? app :com.example.ui.account-forms/AccountForm) => true)
 
-    ;; Wait for any pending HTTP loads to complete before dirtying the form
-    (h/wait-for-idle! app)
+    ;; Wait for the form's load to finish before dirtying it
+    (await-form-editing! app ident)
 
     ;; Dirty the form programmatically (seed data + modify field)
     (dirty-form! app AccountForm ident
@@ -311,8 +269,8 @@
     (scr/route-to! app AccountForm {:id (new-uuid 100)})
     (h/render-frame! app)
 
-    ;; Wait for any pending HTTP loads to complete before dirtying the form
-    (h/wait-for-idle! app)
+    ;; Wait for the form's load to finish before dirtying it
+    (await-form-editing! app ident)
 
     ;; Dirty the form programmatically
     (dirty-form! app AccountForm ident
@@ -355,8 +313,8 @@
     (scr/route-to! app AccountForm {:id (new-uuid 100)})
     (h/render-frame! app)
 
-    ;; Wait for any pending HTTP loads to complete before dirtying the form
-    (h/wait-for-idle! app)
+    ;; Wait for the form's load to finish before dirtying it
+    (await-form-editing! app ident)
 
     ;; Dirty the form programmatically
     (dirty-form! app AccountForm ident

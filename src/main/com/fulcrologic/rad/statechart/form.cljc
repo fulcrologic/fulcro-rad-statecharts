@@ -51,10 +51,15 @@
 (declare valid? invalid? cancel! undo-all! save! render-field rendering-env
   default-state optional-fields mark-fields-complete* form-key->attribute form-chart)
 
-(defn- resolve-form-session-id
-  "Resolve the statechart session ID for a form. Checks the stored mapping first
-   (works for both istate-invoked and start-form! sessions), falls back to
-   ident->session-id for backward compatibility."
+(defn resolve-form-session-id
+  "Returns the statechart session id of the running form whose ident is `form-ident`, reading the current state of
+   `app-or-instance` (a Fulcro app or any component instance).
+
+   Routed forms (`form-route-state`) run as `scr/istate` invocations with generated session ids, which the form
+   chart records under `[::form-session-ids form-ident]` on startup. Use this function (never
+   `sc.session/ident->session-id`) to address a routed form, e.g. `(scf/send! app (resolve-form-session-id app ident)
+   :event/save {})`. Falls back to `sc.session/ident->session-id`, which is the id `start-form!` uses, when no mapping
+   is recorded."
   [app-or-instance form-ident]
   (let [state-map (raw.app/current-state app-or-instance)]
     (or (get-in state-map [::form-session-ids form-ident])

@@ -1,30 +1,29 @@
 (ns com.example.headless-form-tests
-  "Headless E2E integration tests for forms.
-   Tests create, edit, save, and cancel workflows against a real server
-   with Datomic. Requires a running server (started via mount fixture).
+  "Headless E2E integration tests for forms: edit, save, reset, subforms and navigation, against a real server and
+   Datomic Local (started by the `with-test-system` fixture).
 
-   NOTE: Hiccup rendering returns nil for form routes due to a known issue
-   with `scf/current-configuration` in Root's render body failing in headless
-   CLJ mode. Tests therefore use state-map assertions for form data and
-   `scf/current-configuration app session-id` (passing app, not component
-   instance) for routing state.
+   Routed forms run under `form/form-route-state`, an `scr/istate` that invokes the form chart as a child session
+   with a generated id. Tests must therefore address a form through `form/resolve-form-session-id` (see
+   `form-session-id`), never `sc.session/ident->session-id`, which names a session that does not exist for routed
+   forms.
 
-   Form lifecycle is managed by the form statechart (form_chart.cljc) via
-   `form/start-form!` which uses `scf/start!`. The routing integration in
-   `com.fulcrologic.rad.routing/form-route-state` calls `form/start-form!`
-   on entry, so forms are started as statechart sessions."
+   Loads and saves are real HTTP round-trips, so tests wait with `await!` (poll until a predicate holds, fail on
+   timeout) rather than rendering a fixed number of frames.
+
+   Assertions are on the normalized state map and statechart configurations, not rendered hiccup."
   (:require
    [clojure.test :refer [use-fixtures]]
    [com.example.components.datomic :refer [datomic-connections]]
-   [com.example.headless-client :refer [test-client]]
+   [com.example.headless-client :refer [await! test-client]]
    [com.example.test-server :refer [with-test-system]]
    [com.example.ui.account-forms :refer [AccountForm]]
    [com.example.ui.invoice-forms :refer [InvoiceForm]]
    [com.example.ui.item-forms :refer [ItemForm]]
+   [com.fulcrologic.fulcro.algorithms.form-state :as fs]
    [com.fulcrologic.fulcro.application :as app]
    [com.fulcrologic.fulcro.headless :as h]
    [com.fulcrologic.rad.ids :refer [new-uuid]]
-   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [datomic.client.api :as d]
@@ -50,11 +49,16 @@
   [app state-kw]
   (contains? (routing-config app) state-kw))
 
+(defn form-session-id
+  "Returns the statechart session id of the running form for `ident`. Routed forms get generated ids, which the form
+   chart records in app state; `form/resolve-form-session-id` reads them."
+  [app ident]
+  (form/resolve-form-session-id app ident))
+
 (defn form-config
   "Returns the set of active statechart states for the form session."
   [app ident]
-  (let [session-id (sc.session/ident->session-id ident)]
-    (scf/current-configuration app session-id)))
+  (scf/current-configuration app (form-session-id app ident)))
 
 (defn form-in-state?
   "Returns true if the form's statechart is in the given state."
@@ -66,13 +70,33 @@
   [app ident]
   (get-in (app/current-state app) ident))
 
-(defn wait-for-form!
-  "Route to a form and wait for data to load. Returns the app.
-   Calls render-frame! enough times to process async HTTP responses."
-  [app form-class params]
-  (scr/route-to! app form-class params)
-  (dotimes [_ 30] (h/render-frame! app))
-  app)
+(defn await-form!
+  "Waits until the form for `ident` is in `state-kw` (default `:state/editing`). Returns the app."
+  ([app ident] (await-form! app ident :state/editing))
+  ([app ident state-kw]
+   (await! app {:description (str "form " (pr-str ident) " in " state-kw)
+                :session-id  #(form-session-id % ident)}
+     #(form-in-state? % ident state-kw))))
+
+(defn route-to-form!
+  "Routes to `form-class` to edit the entity at `ident`, then waits until its form chart reaches `:state/editing`
+   (the load has been merged). Returns the app."
+  [app form-class ident]
+  (scr/route-to! app form-class {:id (second ident)})
+  (await-form! app ident))
+
+(defn pristine-value
+  "Returns the form-state pristine (last loaded or saved) value of `k` for the form entity at `ident`."
+  [app ident k]
+  (get-in (app/current-state app) [::fs/forms-by-ident (fs/form-id ident) ::fs/pristine-state k]))
+
+(defn await-saved!
+  "Waits until the save round-trip for the form at `ident` has finished: the form chart is back in `:state/editing`
+   and the form was marked pristine with `k` = `v`. Returns the app."
+  [app ident k v]
+  (await! app {:description (str "form " (pr-str ident) " saved with " k " = " (pr-str v))
+               :session-id  #(form-session-id % ident)}
+    #(and (form-in-state? % ident :state/editing) (= v (pristine-value % ident k)))))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Account Form — Edit Existing
@@ -84,7 +108,7 @@
     (h/render-frame! app)
 
     ;; Route to account form for editing
-    (wait-for-form! app AccountForm {:id (new-uuid 100)})
+    (route-to-form! app AccountForm ident)
 
     (assertions
       "routes to AccountForm state"
@@ -107,12 +131,13 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — modify account and save"
+  ;; Saves Sally (102), an account no other test in this namespace reads, so test order doesn't matter.
   (let [app   (test-client 9846)
-        ident [:account/id (new-uuid 100)]]
+        ident [:account/id (new-uuid 102)]]
     (h/render-frame! app)
 
     ;; Route to account form
-    (wait-for-form! app AccountForm {:id (new-uuid 100)})
+    (route-to-form! app AccountForm ident)
 
     (assertions
       "form is in editing state before modification"
@@ -120,33 +145,31 @@
 
     ;; Modify the name field directly in app state
     (swap! (::app/state-atom app) assoc-in
-      (conj ident :account/name) "Tony Updated")
+      (conj ident :account/name) "Sally Updated")
     (h/render-frame! app)
 
     (assertions
       "name is updated in local state"
-      (:account/name (entity-data app ident)) => "Tony Updated")
+      (:account/name (entity-data app ident)) => "Sally Updated")
 
     ;; Trigger save via the form statechart
-    (scf/send! app (sc.session/ident->session-id ident) :event/save {})
-    (dotimes [_ 10] (h/render-frame! app))
-    (h/wait-for-idle! app)
-    (dotimes [_ 10] (h/render-frame! app))
+    (scf/send! app (form-session-id app ident) :event/save {})
+    (await-saved! app ident :account/name "Sally Updated")
 
     (assertions
       "form returns to editing state after save"
       (form-in-state? app ident :state/editing) => true
 
       "saved name persists in state"
-      (:account/name (entity-data app ident)) => "Tony Updated")
+      (:account/name (entity-data app ident)) => "Sally Updated")
 
     ;; Verify persistence: create a fresh client and re-load
     (let [app2 (test-client 9846)
           _    (h/render-frame! app2)
-          _    (wait-for-form! app2 AccountForm {:id (new-uuid 100)})]
+          _    (route-to-form! app2 AccountForm ident)]
       (assertions
         "saved data persists across client sessions"
-        (:account/name (entity-data app2 ident)) => "Tony Updated"))))
+        (:account/name (entity-data app2 ident)) => "Sally Updated"))))
 
 ;; ---------------------------------------------------------------------------
 ;; Tests: Account Form — Cancel (undo changes)
@@ -158,7 +181,7 @@
     (h/render-frame! app)
 
     ;; Route to Sam's account form
-    (wait-for-form! app AccountForm {:id (new-uuid 101)})
+    (route-to-form! app AccountForm ident)
 
     (assertions
       "form loads Sam's data"
@@ -176,8 +199,8 @@
       (:account/name (entity-data app ident)) => "Sam Modified")
 
     ;; Trigger reset (undo all changes without leaving form)
-    (scf/send! app (sc.session/ident->session-id ident) :event/reset {})
-    (dotimes [_ 30] (h/render-frame! app))
+    (scf/send! app (form-session-id app ident) :event/reset {})
+    (await-form! app ident)
 
     (assertions
       "after reset, form is still in editing state"
@@ -196,7 +219,7 @@
     (h/render-frame! app)
 
     ;; Route to Tony's account (which has seeded addresses via autocreate)
-    (wait-for-form! app AccountForm {:id (new-uuid 100)})
+    (route-to-form! app AccountForm ident)
 
     (let [account (entity-data app ident)
           primary (:account/primary-address account)]
@@ -228,7 +251,7 @@
     (h/render-frame! app)
 
     ;; Route to Widget item form
-    (wait-for-form! app ItemForm {:id (new-uuid 200)})
+    (route-to-form! app ItemForm ident)
 
     (assertions
       "routes to ItemForm state"
@@ -253,7 +276,7 @@
     (h/render-frame! app)
 
     ;; Route to Screwdriver item form
-    (wait-for-form! app ItemForm {:id (new-uuid 201)})
+    (route-to-form! app ItemForm ident)
 
     (assertions
       "form loads Screwdriver data"
@@ -267,10 +290,8 @@
     (h/render-frame! app)
 
     ;; Save
-    (scf/send! app (sc.session/ident->session-id ident) :event/save {})
-    (dotimes [_ 10] (h/render-frame! app))
-    (h/wait-for-idle! app)
-    (dotimes [_ 10] (h/render-frame! app))
+    (scf/send! app (form-session-id app ident) :event/save {})
+    (await-saved! app ident :item/name "Screwdriver Pro")
 
     (assertions
       "form returns to editing after save"
@@ -301,7 +322,7 @@
       (some? inv-id) => true)
 
     (let [ident [:invoice/id inv-id]]
-      (wait-for-form! app InvoiceForm {:id inv-id})
+      (route-to-form! app InvoiceForm ident)
 
       (assertions
         "routes to InvoiceForm state"
@@ -327,14 +348,14 @@
       (in-route-state? app :com.example.ui.ui/LandingPage) => true)
 
     ;; Navigate to account form
-    (wait-for-form! app AccountForm {:id (new-uuid 100)})
+    (route-to-form! app AccountForm [:account/id (new-uuid 100)])
 
     (assertions
       "first navigation goes to AccountForm"
       (in-route-state? app :com.example.ui.account-forms/AccountForm) => true)
 
     ;; Navigate to item form
-    (wait-for-form! app ItemForm {:id (new-uuid 200)})
+    (route-to-form! app ItemForm [:item/id (new-uuid 200)])
 
     (assertions
       "second navigation goes to ItemForm"
@@ -344,7 +365,7 @@
       (in-route-state? app :com.example.ui.account-forms/AccountForm) => false)
 
     ;; Navigate back to account form
-    (wait-for-form! app AccountForm {:id (new-uuid 101)})
+    (route-to-form! app AccountForm [:account/id (new-uuid 101)])
 
     (assertions
       "third navigation goes back to AccountForm"

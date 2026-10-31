@@ -1,20 +1,21 @@
 (ns com.example.headless-report-tests
-  "Headless E2E integration tests for reports.
-   Tests inventory report (load, sort, filter) and invoice report (load, sort)
-   against a real Datomic database with seeded data.
+  "Headless E2E integration tests for reports: inventory (load, filter), invoices (load) and per-account invoices
+   (routed with an `:account/id` parameter), against a real server and a freshly seeded Datomic Local database.
 
-   NOTE: Hiccup rendering returns nil for routed views in headless CLJ mode
-   (same known issue as form tests — scf/current-configuration in Root's render
-   body fails in CLJ). Tests use state-map assertions instead."
+   Loads are real HTTP round-trips, so tests wait with `await!` (poll until the report chart is in `:state/ready` with
+   the expected rows, fail on timeout) rather than rendering a fixed number of frames. Assertions are on the
+   normalized state map and statechart configurations."
   (:require
    [clojure.test :refer [use-fixtures]]
-   [com.example.headless-client :refer [test-client]]
+   [com.example.headless-client :refer [await! test-client]]
    [com.example.test-server :refer [with-test-system]]
    [com.example.ui.inventory-report :refer [InventoryReport]]
    [com.example.ui.invoice-forms :refer [AccountInvoices]]
    [com.example.ui.invoice-report :refer [InvoiceReport]]
    [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.components :as comp]
    [com.fulcrologic.fulcro.headless :as h]
+   [com.fulcrologic.rad.ids :refer [new-uuid]]
    [com.fulcrologic.rad.statechart.report :as report]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
@@ -46,17 +47,29 @@
   (let [routing-session :com.fulcrologic.statecharts.integration.fulcro.routing/session]
     (contains? (scf/current-configuration app routing-session) state-kw)))
 
-(defn wait-for-report!
-  "Route to a report and wait for data to load. Returns the app.
-   Routes via statechart routing, then waits for HTTP responses to complete.
-   The fops/load ok-action fires the statechart :event/loaded automatically."
-  [app report-class route-params]
-  (scr/route-to! app report-class route-params)
-  (dotimes [_ 5] (h/render-frame! app))
-  ;; Wait for all pending HTTP requests to complete
-  (h/wait-for-idle! app)
-  (dotimes [_ 5] (h/render-frame! app))
-  app)
+(defn current-row-count
+  "Returns the number of current rows of `report-class` in the app state."
+  [app report-class]
+  (count (:ui/current-rows (get-in (app/current-state app) (comp/get-ident report-class {})))))
+
+(defn await-report!
+  "Waits until the statechart of `report-class` is in `:state/ready` and the report has at least `min-rows` current
+   rows (default 0). Returns the app."
+  ([app report-class] (await-report! app report-class 0))
+  ([app report-class min-rows]
+   (let [sid (report/report-session-id report-class)]
+     (await! app {:description (str (comp/component-name report-class) " in :state/ready with >= " min-rows " rows")
+                  :session-id  sid}
+       #(and (contains? (scf/current-configuration % sid) :state/ready)
+          (<= min-rows (current-row-count % report-class)))))))
+
+(defn route-to-report!
+  "Routes to `report-class` with `route-params` and waits (see `await-report!`) for its load to finish with at least
+   `min-rows` rows. Returns the app."
+  ([app report-class route-params] (route-to-report! app report-class route-params 0))
+  ([app report-class route-params min-rows]
+   (scr/route-to! app report-class route-params)
+   (await-report! app report-class min-rows)))
 
 ;; ---------------------------------------------------------------------------
 ;; Inventory Report
@@ -69,7 +82,7 @@
     (h/render-frame! app)
 
     (component "loading"
-      (wait-for-report! app InventoryReport {})
+      (route-to-report! app InventoryReport {} 1)
 
       (let [rd    (report-data app :com.fulcrologic.rad.report/id rpt-key)
             names (row-names app :com.fulcrologic.rad.report/id rpt-key :item/name)]
@@ -110,7 +123,7 @@
     (component "filtering"
       ;; Send filter event to re-filter rows client-side
       (scf/send! app sid :event/filter {})
-      (dotimes [_ 5] (h/render-frame! app))
+      (await-report! app InventoryReport)
 
       (let [rd (report-data app :com.fulcrologic.rad.report/id rpt-key)]
         (assertions
@@ -128,7 +141,7 @@
     (h/render-frame! app)
 
     (component "loading"
-      (wait-for-report! app InvoiceReport {})
+      (route-to-report! app InvoiceReport {} 1)
 
       (let [state          (app/current-state app)
             rd             (report-data app :com.fulcrologic.rad.report/id rpt-key)
@@ -167,9 +180,12 @@
     (h/render-frame! app)
 
     (component "loading account-specific invoices"
-      (wait-for-report! app AccountInvoices {})
+      ;; Sam (101) has exactly one seeded invoice: invoice-3, 2 Wrench + 2 Hammer at 12.50 = 50.00
+      (route-to-report! app AccountInvoices {:account/id (new-uuid 101)} 1)
 
-      (let [rd (report-data app :com.fulcrologic.rad.report/id rpt-key)]
+      (let [state (app/current-state app)
+            rd    (report-data app :com.fulcrologic.rad.report/id rpt-key)
+            rows  (:ui/current-rows rd)]
         (assertions
           "report statechart is in ready state"
           (scf/current-configuration app sid) => #{:state/ready}
@@ -177,5 +193,8 @@
           "busy flag is cleared"
           (:ui/busy? rd) => false
 
-          "loads invoice rows"
-          (pos? (count (:ui/current-rows rd))) => true)))))
+          "loads exactly the account's one seeded invoice"
+          (count rows) => 1
+
+          "the row is that account's invoice (total 50.00)"
+          (mapv #(compare 50.00M (get-in state (conj % :invoice/total))) rows) => [0])))))
