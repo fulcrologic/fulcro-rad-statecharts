@@ -1,5 +1,13 @@
 # RAD Source Notes
 
+> **Partly stale (found in the 2026-10-31 review; full refresh is spec `rp-18`).** Verify against code. Known-wrong items:
+> - **Routing:** `form-route-state` is now an `scr/istate`. It is no longer `rstate` + `start-form!`, so routed forms get generated session ids. Look them up through `::form-session-ids`, not `ident->session-id`.
+> - **Upstream namespaces:** `blob` and `pathom3` from upstream fulcro-rad still work with this engine. `secure-resolver` is not a pass-through.
+> - **Validation:** "no `->arity-tolerant`" is a bug (issue #30), not an intentional simplification.
+> - **Stubbed functions:** the "Stubbed Functions" list predates later work.
+>
+> Gap list: `docs/ai/specs/rad-parity/review/00-gap-report.md`.
+
 ## Design Decision: impl namespace delegation
 
 `statechart/report.cljc` delegates 19 pure rendering/utility functions to `com.fulcrologic.rad.report.impl` via

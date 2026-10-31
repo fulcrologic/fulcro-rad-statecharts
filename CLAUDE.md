@@ -16,6 +16,28 @@ This project uses a spec-driven, team-based workflow. See `docs/ai/specs/WORKFLO
 
 All related projects live in the parent directory (`../`). Use relative paths only — never absolute paths.
 
+What each repo is for (verified from git history 2026-10-31):
+
+- `../statecharts`: the engine, the Fulcro integration, and the routing system `integration.fulcro.routing` (`scr`). Its `ui-routes`, `route-url`, `route-history` and `rad_integration` namespaces are deprecated. Never use them.
+- `../fulcro-rad`: upstream RAD (UISM). This lib depends on it and reuses `form.impl`/`report.impl`. Its `statecharts` branch is an abandoned "RAD 2.0" attempt. Ignore it.
+- `../fulcro-rad-semantic-ui`: the published semantic-ui plugin. Legacy `com.fulcrologic.rad.rendering.semantic-ui.*` code must never change. The statechart variant lives on `main` (no branch) under `com.fulcrologic.rad.statechart.rendering.semantic-ui.*` and `com.fulcrologic.rad.statechart.semantic-ui-options`. That code is duplicated from legacy on purpose. Its `statecharts` branch is abandoned.
+- `../fulcro-with-statecharts`: a sandbox **app** that consumes this lib. It is not a dependency. Use it read-only as a donor (its semantic-ui clone, login chart, demo screens).
+- `../fulcro-rad-demo`: the original UISM demo, which `src/demo` ports. Read-only donor.
+- `../fulcro-rad-statecharts-demo`: abandoned. Only useful as source text for the sales/dashboard UIs.
+- `../fulcro-rad-tui`: a downstream consumer of this lib. It still renders reports, controls and containers via the map-based registries, so keep those working as a fallback.
+- `../fulcro-rad-datomic`: must keep working with this lib. Do not edit it.
+
+## Current Effort: rad-parity (branch `rad-parity`)
+
+Goal: full parity with UISM RAD. Specs are in `docs/ai/specs/rad-parity/`, the review that seeded them is in `docs/ai/specs/rad-parity/review/`, and status is in `TRACKER.md`.
+
+Binding human decisions:
+
+- View mode comes back (`view!`, `view-mode?`, `read-only?` honoring view mode).
+- `fo/confirm` and `fo/silent-abandon?` are dropped. Route denial and confirmation belong in a routing parallel region (scr `:routing-info`). The old keys should warn at compile time.
+- `form/delete!` sends the legacy symbol `com.fulcrologic.rad.form/delete-entity`.
+- Library-level auth is undecided. Demo login is app-level.
+
 ## Maintaining Context with CLAUDE.md Files
 
 As you work, **create and update `CLAUDE.md` files in subdirectories** to capture decisions, patterns, and conventions discovered during implementation. These act as compact memory for future sessions and agents working in that area.
