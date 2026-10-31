@@ -30,10 +30,10 @@
    [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ---------------------------------------------------------------------------
-;; Fixture — uses shared test_server.clj with unique port 9846
+;; Fixture — uses shared test_server.clj on an ephemeral port (`test-client` with no args connects to it)
 ;; ---------------------------------------------------------------------------
 
-(use-fixtures :once (with-test-system {:port 9846}))
+(use-fixtures :once (with-test-system))
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
@@ -103,7 +103,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing account"
-  (let [app   (test-client 9846)
+  (let [app   (test-client)
         ident [:account/id (new-uuid 100)]]
     (h/render-frame! app)
 
@@ -132,7 +132,7 @@
 
 (specification "Form — modify account and save"
   ;; Saves Sally (102), an account no other test in this namespace reads, so test order doesn't matter.
-  (let [app   (test-client 9846)
+  (let [app   (test-client)
         ident [:account/id (new-uuid 102)]]
     (h/render-frame! app)
 
@@ -164,7 +164,7 @@
       (:account/name (entity-data app ident)) => "Sally Updated")
 
     ;; Verify persistence: create a fresh client and re-load
-    (let [app2 (test-client 9846)
+    (let [app2 (test-client)
           _    (h/render-frame! app2)
           _    (route-to-form! app2 AccountForm ident)]
       (assertions
@@ -176,7 +176,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — cancel account edit"
-  (let [app   (test-client 9846)
+  (let [app   (test-client)
         ident [:account/id (new-uuid 101)]]
     (h/render-frame! app)
 
@@ -214,7 +214,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — account with address subform"
-  (let [app   (test-client 9846)
+  (let [app   (test-client)
         ident [:account/id (new-uuid 100)]]
     (h/render-frame! app)
 
@@ -246,7 +246,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing item"
-  (let [app   (test-client 9846)
+  (let [app   (test-client)
         ident [:item/id (new-uuid 200)]]
     (h/render-frame! app)
 
@@ -271,7 +271,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — modify item price and save"
-  (let [app   (test-client 9846)
+  (let [app   (test-client)
         ident [:item/id (new-uuid 201)]]
     (h/render-frame! app)
 
@@ -305,7 +305,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — edit existing invoice"
-  (let [app        (test-client 9846)
+  (let [app        (test-client)
         connection (:main datomic-connections)
         ;; Query Datomic for the seeded invoice ID (random UUID)
         inv-ids    (d/q '[:find ?id
@@ -340,7 +340,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Form — sequential navigation between forms"
-  (let [app (test-client 9846)]
+  (let [app (test-client)]
     (h/render-frame! app)
 
     (assertions

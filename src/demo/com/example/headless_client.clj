@@ -3,6 +3,7 @@
    polls the client until an async condition (HTTP round-trip, statechart transition) holds."
   (:require
    [com.example.client :as client]
+   [com.example.test-server :refer [*test-port*]]
    [com.fulcrologic.fulcro.headless :as h]
    [com.fulcrologic.statecharts.integration.fulcro :as scf]))
 
@@ -11,9 +12,10 @@
   10000)
 
 (defn test-client
-  "Create a headless test client connecting to http://localhost:`port`/api."
-  [port]
-  (client/init port))
+  "Create a headless test client connecting to http://localhost:`port`/api. With no `port`, uses
+   `com.example.test-server/*test-port*`, the port the `with-test-system` fixture's server bound."
+  ([] (test-client *test-port*))
+  ([port] (client/init port)))
 
 (defn await!
   "Calls `h/render-frame!` on `app` until `(pred app)` is truthy, then returns `app`. Throws (failing the test) once

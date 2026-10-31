@@ -1,8 +1,8 @@
 (ns com.example.test-server
-  "Test server fixture. Starts the full Mount system on a configurable port with a freshly seeded in-memory
-   Datomic Local database, and binds `*test-port*` for use in test code."
+  "Test server fixture. Starts the full Mount system on an ephemeral port (or a pinned one) with a freshly seeded
+   in-memory Datomic Local database, and binds `*test-port*` to the port the server actually bound."
   (:require
-   [com.example.components.server]
+   [com.example.components.server :refer [http-server]]
    [com.fulcrologic.fulcro.server.config :as fserver]
    [com.fulcrologic.rad.database-adapters.datomic-cloud :as datomic]
    [com.fulcrologic.rad.database-adapters.datomic-options :as do]
@@ -11,7 +11,8 @@
    [mount.core :as mount]))
 
 (def ^:dynamic *test-port*
-  "The port the test server is running on, bound during test execution."
+  "The port the test server is listening on, bound during test execution. Pass it to
+   `com.example.headless-client/test-client` (its 0-arity does)."
   nil)
 
 (def config-path
@@ -28,9 +29,13 @@
 
 (defn with-test-system
   "Returns a clojure.test fixture function that starts the full mount system with freshly seeded data and binds
-   `*test-port*`. Anti-forgery is disabled for headless testing since the client uses a hardcoded CSRF token."
+   `*test-port*` to the port the server actually listens on. Anti-forgery is disabled for headless testing since the
+   client uses a hardcoded CSRF token. The options are:
+
+   * `:port` - (optional) The port to listen on. Defaults to 0, an ephemeral port chosen by the OS, so several JVMs
+     can run the `:demo` suite at once. Pin a port only for manual debugging."
   ([] (with-test-system {}))
-  ([{:keys [port] :or {port 3100}}]
+  ([{:keys [port] :or {port 0}}]
    (fn [tests]
      (delete-databases!)
      (mount/start-with-args
@@ -49,7 +54,7 @@
                                  :default-charset        "utf-8"}}}})
      (try
        (dev/seed!)
-       (binding [*test-port* port]
+       (binding [*test-port* (:port http-server)]
          (tests))
        (finally
          (mount/stop)

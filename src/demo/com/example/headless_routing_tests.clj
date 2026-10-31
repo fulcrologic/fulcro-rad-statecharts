@@ -22,10 +22,10 @@
    [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ---------------------------------------------------------------------------
-;; Fixture — uses shared test_server.clj with unique port 9844
+;; Fixture — uses shared test_server.clj on an ephemeral port (`test-client` with no args connects to it)
 ;; ---------------------------------------------------------------------------
 
-(use-fixtures :once (with-test-system {:port 9844}))
+(use-fixtures :once (with-test-system))
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
@@ -73,7 +73,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — initial app startup"
-  (let [app (test-client 9844)]
+  (let [app (test-client)]
     (h/render-frame! app)
 
     (assertions
@@ -94,7 +94,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — navigate to Inventory report via click"
-  (let [app (test-client 9844)]
+  (let [app (test-client)]
     (h/render-frame! app)
 
     (h/click-on-text! app "Inventory")
@@ -111,7 +111,7 @@
       (in-route-state? app :com.example.ui.inventory-report/InventoryReport) => true)))
 
 (specification "Routing — navigate to Invoices report via click"
-  (let [app (test-client 9844)]
+  (let [app (test-client)]
     (h/render-frame! app)
 
     (h/click-on-text! app "Invoices")
@@ -129,7 +129,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — navigate to Account form via route-to!"
-  (let [app (test-client 9844)]
+  (let [app (test-client)]
     (h/render-frame! app)
 
     (scr/route-to! app AccountForm {:id (new-uuid 100)})
@@ -143,7 +143,7 @@
       (in-route-state? app :com.example.ui.ui/LandingPage) => false)))
 
 (specification "Routing — navigate to Item form via route-to!"
-  (let [app (test-client 9844)]
+  (let [app (test-client)]
     (h/render-frame! app)
 
     (scr/route-to! app ItemForm {:id (new-uuid 200)})
@@ -157,7 +157,7 @@
       (in-route-state? app :com.example.ui.ui/LandingPage) => false)))
 
 (specification "Routing — navigate to Invoice form via route-to!"
-  (let [app (test-client 9844)]
+  (let [app (test-client)]
     (h/render-frame! app)
 
     (scr/route-to! app InvoiceForm {:id (new-uuid 1)})
@@ -175,7 +175,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — sequential navigation between pages"
-  (let [app (test-client 9844)]
+  (let [app (test-client)]
     (h/render-frame! app)
 
     (assertions
@@ -218,7 +218,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — route guard on dirty form"
-  (let [app   (test-client 9844)
+  (let [app   (test-client)
         ident [:account/id (new-uuid 100)]]
     (h/render-frame! app)
 
@@ -261,7 +261,7 @@
       (in-route-state? app :com.example.ui.inventory-report/InventoryReport) => true)))
 
 (specification "Routing — cancel route change on dirty form"
-  (let [app   (test-client 9844)
+  (let [app   (test-client)
         ident [:account/id (new-uuid 100)]]
     (h/render-frame! app)
 
@@ -305,7 +305,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Routing — route-denied state contains expected info"
-  (let [app   (test-client 9844)
+  (let [app   (test-client)
         ident [:account/id (new-uuid 100)]]
     (h/render-frame! app)
 

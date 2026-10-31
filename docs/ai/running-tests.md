@@ -59,7 +59,7 @@ fulcro-spec `specification` vars are named `__<description with spaces as dashes
 ## Demo E2E fixtures need no external services
 
 - `com.example.test-server/with-test-system` starts the whole demo system with mount, with Datomic Local **in memory** (`:storage-dir :mem` in `config/dev.edn`) and an http-kit server.
-- Each namespace uses its own port: routing 9844, form 9846, report 9847.
+- The server listens on an ephemeral port (http-kit port 0), bound to `com.example.test-server/*test-port*`; `(test-client)` with no args connects to it. Several JVMs can run `:demo` at once.
 - It deletes the database before and after each run, then reseeds with `development/seed!`, so every namespace starts from the same fresh data.
 - Waits poll with `com.example.headless-client/await!`, which fails after 10 s. Raise it with `(binding [com.example.headless-client/*await-timeout-ms* 30000] ...)` if a machine is slow.
 
