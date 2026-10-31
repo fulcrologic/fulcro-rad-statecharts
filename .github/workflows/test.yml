@@ -18,7 +18,10 @@ jobs:
       - uses: DeLaGuardo/setup-clojure@6d46099eae24853c33c0482f2bb54edf4f1a4c74 # 13.7.0
         with:
           cli: 1.12.6.1673
-      - run: clojure -A:dev:tests:clj-tests
+      # One JVM per suite: loading the demo (upstream com.fulcrologic.rad.form) replaces the headless
+      # fr/render-form :default method, which breaks :unit rendering tests run later in the same JVM (rp-02).
+      - run: clojure -M:dev:tests:demo:clj-tests :unit
+      - run: clojure -M:dev:tests:demo:clj-tests :demo
 
   cljs:
     runs-on: ubuntu-latest
