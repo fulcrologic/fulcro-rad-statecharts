@@ -1,6 +1,6 @@
 # Project Tracker
 
-<!-- Last updated: 2026-10-31 | Active: 1 | Blocked: 19 | Backlog: 1 | Done: 36 | Superseded: 7 | Deferred: 2 -->
+<!-- Last updated: 2026-10-31 | Active: 4 | Blocked: 17 | Backlog: 0 | Done: 36 | Superseded: 7 | Deferred: 2 -->
 
 ## Phase 10: rad-parity (branch `rad-parity`, started 2026-10-31)
 
@@ -32,8 +32,10 @@ Build hygiene (root `CLAUDE.md`), required by every spec:
 
 | Spec | Priority | Depends-on | Status |
 |------|----------|------------|--------|
-| [rp-01-test-harness-and-packaging](rad-parity/rp-01-test-harness-and-packaging.md) | P0 | none | IN PROGRESS: demo E2E helpers, `:demo` suite + CI, kaocha REPL alias, silent test remotes, pom via `clj -Spom`, `deps.cljs`, version evaluation |
-| [rp-12c-sui-test-harness](rad-parity/rp-12c-sui-test-harness.md) | P1 | rp-12a | IN PROGRESS: fulcro-pattern CLJS tests in the SUI repo (pnpm, shadow `:ci-tests` + karma ChromeHeadless, kaocha), with load specs for legacy + statechart nses |
+| [rp-01-test-harness-and-packaging](rad-parity/rp-01-test-harness-and-packaging.md) | P0 | none | IMPLEMENTED (`7be1514`..`e163007`, CI green); critique pending. `:unit` 91/431, `:demo` 21/91, karma 74/74; pathom3 removed (PR #26 folded in); fulcro 3.10.1, statecharts RC19 |
+| [rp-12c-sui-test-harness](rad-parity/rp-12c-sui-test-harness.md) | P1 | rp-12a | IMPLEMENTED (`032880e`, SUI main, local). Critique PASS-WITH-FIXES; the fix-up is in progress (honest bridge claim, denial-modal/pristine docs, option-portability render test, `:legacy` kaocha id, release note) |
+| [rp-02-form-save-validation-delete](rad-parity/rp-02-form-save-validation-delete.md) | P0 | rp-01 | IN PROGRESS: #29 save errors, #30 default validator + arity, `delete!` legacy symbol + CLJ, form `:default` render collision (lib side) |
+| [rp-04-report-variants-and-charts](rad-parity/rp-04-report-variants-and-charts.md) | P0 | rp-01 | IN PROGRESS: Chart registration, variant-aware start, incremental aliases, route-param hygiene, busy on failure, spr refresh + single-row, `ro/route`, start-time externally-controlled?, report `:default` collision (lib side), istate-safe reports |
 
 Done in this phase:
 - rp-12a: the copy (`40cfdfe`) plus follow-up commits `431e6b0`, `c760b6c` and `68bc60f`. All are on SUI `main`, local, unpushed. Option nses are shared with legacy, base deps are fulcro-rad 1.6.24 / Clojure 1.12.6 / CLJS 1.12.145, and the route-denied modal now uses `scr/route-denied?`.
@@ -46,9 +48,7 @@ Done in this phase:
 
 | Spec | Priority | Depends-on | Scope |
 |------|----------|------------|-------|
-| [rp-02-form-save-validation-delete](rad-parity/rp-02-form-save-validation-delete.md) | P0 | rp-01 | #29 save errors, #30 default validator + arity, `delete!` legacy symbol + CLJ, form `:default` render collision (lib side) |
 | [rp-03-form-routing-options](rad-parity/rp-03-form-routing-options.md) | P0 | rp-02 | `edit!`/`create!` options to routed forms (not in URL), chart registration, keyword chart + istate, exit cleanup, create→save URL replace, `fo/route-prefix` |
-| [rp-04-report-variants-and-charts](rad-parity/rp-04-report-variants-and-charts.md) | P0 | rp-01 | Chart registration, variant-aware start, incremental aliases, route-param hygiene, busy on failure, spr refresh + single-row, `ro/route`, start-time externally-controlled?, report `:default` collision (lib side), istate-safe reports |
 | [rp-05-container-parity](rad-parity/rp-05-container-parity.md) | P0 | rp-04 | `container-route-state`, istate-safe macro, container render multimethod with map fallback, `co/statechart`, not busy while loading, drop `:event/unmount`, param ordering, `co/*` options |
 | [rp-06-headless-renderer-parity](rad-parity/rp-06-headless-renderer-parity.md) | P0 | rp-02, rp-05 | Fields via `input-changed!`/`input-blur!`, plugin-side collision cleanup, missing field renderers, quick-create, subforms, controls, report options, container renderer |
 | [rp-07-form-lifecycle-parity](rad-parity/rp-07-form-lifecycle-parity.md) | P1 | rp-03 | Row on-change, autocreate order, cancel keeps session, pristine on forced exit, trigger timing, reload, picker preload, busy/read-only, CLJS input timing, re-exports, custom-chart API, dead `sfo` keys |
