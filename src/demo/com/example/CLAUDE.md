@@ -29,5 +29,6 @@ How to run the tests: `docs/ai/running-tests.md` (the `:demo` kaocha suite, from
 ## Renderer collision (until rp-02)
 
 - Loading the demo loads upstream `com.fulcrologic.rad.form`, which re-registers `fr/render-form :default`.
-- Any later `:unit` run in the same JVM then fails its headless rendering tests.
+- If the headless renderer was loaded earlier (by a `:unit` run), upstream wins. A later `:unit` run in that JVM then fails 16 headless-rendering assertions.
+- `:demo` first, then `:unit`, passes. Details in `docs/ai/running-tests.md`.
 - These demo tests assert on state and configuration, not form hiccup.

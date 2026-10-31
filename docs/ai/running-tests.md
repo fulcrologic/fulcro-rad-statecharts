@@ -31,11 +31,14 @@ clojure -M:dev:tests:demo:kaocha:nrepl --port 7911 # or pick a port
 (kaocha.repl/run :demo)
 ```
 
-**Order matters until rp-02 lands: run `:unit` before `:demo`, or restart the REPL.**
-- Loading the demo loads upstream `com.fulcrologic.rad.form`. Its `fr/render-form :default` method replaces the headless renderer's.
-- From then on, in that JVM, `:unit` fails 16 assertions in `headless-rendering-test` (forms render nil).
-- Verified 2026-10-31. See `docs/ai/specs/rad-parity/review/review-demo-failures.md` §5.
-- Don't work around it in tests.
+**Order matters until rp-02 lands: run `:unit` before `:demo`. Once `:demo` has run, restart the REPL before you run `:unit` again.**
+- The demo loads upstream `com.fulcrologic.rad.form`. Its `fr/render-form :default` method replaces the headless renderer's if the headless renderer was loaded first, i.e. by an earlier `:unit` run.
+- After that, `:unit` fails 16 assertions in `headless-rendering-test` (forms render nil).
+- Verified 2026-10-31 in fresh JVMs:
+  - `:unit` → `:demo` both pass, then `:unit` again fails 16.
+  - `:demo` → `:unit` both pass, because when the demo loads first the headless renderer loads after upstream.
+- A run that loads both suites at once hits the same failure: the CLI runner with no suite argument, or a namespace focus without the skip below. CI therefore runs each suite in its own JVM.
+- See `docs/ai/specs/rad-parity/review/review-demo-failures.md` §5. Don't work around it in tests.
 
 ## Run one namespace or one test
 

@@ -98,13 +98,46 @@ Only these files may be edited:
 
 ## Verification
 
-1. [ ] `:demo` suite: 21/21 tests pass in the implementer's REPL. Before the fix: the 14 form failures (session id plus timing) and the AccountInvoices failure. After the fix: none.
-2. [ ] `packaging_spec` fails against the old `pom.xml` and passes after `clj -Spom`. No hand edits to pom dependencies.
-3. [ ] A `:unit` run shows no `ArityException … fulcro-app/fn` log lines.
-4. [ ] Tests run with kaocha in the implementer's own REPL per `docs/ai/running-tests.md`. No CLI test runs.
-5. [ ] Full CLJ suite green: `(kaocha.repl/run :unit)` and `(kaocha.repl/run :demo)`, 0 failures/errors. Run both orders and record the result (req 12).
-6. [ ] CLJS `ci-tests` and `main` builds compile with 0 warnings (compile only).
-7. [ ] GitHub Actions run on `rad-parity` is green with the `:demo` suite included.
-8. [ ] Version bumps: outcome recorded (kept/reverted, why).
-9. [ ] `src/demo/com/example/CLAUDE.md` records the session-id and polling helpers. REPL killed. Committed and pushed.
-10. [ ] `cljfmt check <changed files>` passes from the repo root (fulcro `.cljfmt.edn`; see root `CLAUDE.md` "Build Hygiene").
+1. [x] `:demo` suite: 21/21 tests pass in the implementer's REPL. Before the fix: the 14 form failures (session id plus timing) and the AccountInvoices failure. After the fix: none.
+2. [x] `packaging_spec` fails against the old `pom.xml` and passes after `clj -Spom`. No hand edits to pom dependencies.
+3. [x] A `:unit` run shows no `ArityException … fulcro-app/fn` log lines.
+4. [x] Tests run with kaocha in the implementer's own REPL per `docs/ai/running-tests.md`. No CLI test runs.
+5. [x] Full CLJ suite green: `(kaocha.repl/run :unit)` and `(kaocha.repl/run :demo)`, 0 failures/errors. Run both orders and record the result (req 12).
+6. [x] CLJS `ci-tests` and `main` builds compile with 0 warnings (compile only).
+7. [x] GitHub Actions run on `rad-parity` is green with the `:demo` suite included.
+8. [x] Version bumps: outcome recorded (kept/reverted, why).
+9. [x] `src/demo/com/example/CLAUDE.md` records the session-id and polling helpers. REPL killed. Committed and pushed.
+10. [x] `cljfmt check <changed files>` passes from the repo root (fulcro `.cljfmt.edn`; see root `CLAUDE.md` "Build Hygiene").
+
+### Verification notes (implementer, 2026-10-31)
+
+- **Final results (fulcro 3.10.1, statecharts RC19, demo fulcro-rad-datomic 1.5.7), in my own REPL** (`clojure -M:dev:tests:demo:kaocha:nrepl`; guardrails enabled with `guardrails-test.edn`):
+  - `:unit`: 91 tests, 431 assertions, 0 failures/errors.
+  - `:demo`: 21 tests, 91 assertions, 0 failures/errors.
+  - 0 `ArityException`, `Send threw` and `No renderer` log lines.
+- **Item 1, before/after.** With the fix in place but the helper temporarily redefined back to `ident->session-id`, all 8 form specs error. The `await!` timeout reports session `:com.fulcrologic.rad.sc/account_id--…` in `#{}`. With the fix: 0 failures.
+- **AccountInvoices has exactly 1 row (Sam's invoice-3, total 50.00), not the review's 2.** The review's REPL had seeded twice. `start-databases` reuses the Datomic Local `:mem` DB, so data accumulated across fixtures (random-id invoices duplicated, saves leaked). `with-test-system` now deletes the DB before and after each run.
+  - The routing tests moved onto that shared fixture. Their private fixture had anti-forgery on, so their form loads never succeeded.
+  - The form save test now edits Sally (102), because saves really persist now and kaocha randomizes order.
+- **Item 2.** The red run listed fulcro 3.9.3, statecharts RC13, fulcro-rad 1.6.22, guardrails 1.2.16, stray encore and no promesa. Green after `clj -Spom`. Only `<dependencies>` changed; scm, licenses, gpg plugin and `0.1.6-SNAPSHOT` are untouched.
+- **Item 5, order (req 12), fresh JVMs:**
+  - `:unit` → `:demo`: both green.
+  - `:demo` → `:unit`: both green.
+  - `:unit` → `:demo` → `:unit`: the second `:unit` fails 16 assertions, all in `headless-rendering-test`.
+  - The hazard is "headless renderer loaded, then demo loads upstream `rad.form`". A kaocha run that loads both suites at once hits it too: the CLI runner with no suite argument, or a namespace focus without `{:kaocha.filter/skip [:demo]}`.
+  - CI and `make tests` run `:unit` and `:demo` in separate JVMs. `running-tests.md` documents the rule.
+- **Item 6.** Clean compiles (`.shadow-cljs/builds` removed) after each bump: `ci-tests` 428 files and `main` 441 files, both with 0 warnings.
+  - `ci-tests` now uses fulcro's `:ns-regexp "-(test|spec)$"` (also the `:test` build), so the CLJC `*-test` namespaces run in CLJS too.
+  - Karma (ChromeHeadless, `--single-run`): 74/74 SUCCESS locally and on CI. With `-spec$` only it was 52/52.
+- **Item 7.** GitHub Actions on `rad-parity`: green, starting with run 41223499397.
+  - clj: `:unit` 91/431, `:demo` 21/91, each in its own JVM with `-M:dev:tests:demo:clj-tests <suite>`.
+  - cljs: karma 74/74.
+- **Item 8, version bumps** (each kept only after a fresh-REPL `:unit` + `:demo` run, clean CLJS compiles and karma):
+  - fulcro 3.10.0-RC2 → 3.10.1: KEPT. pom regenerated.
+  - fulcro-rad-datomic 1.5.6 → 1.5.7 (`:demo` only): KEPT. pom unchanged.
+  - statecharts RC18 → RC19: KEPT. RC19 only adds a fail-fast check for an old promesa. pom regenerated.
+- **PR #26 folded in.** Removed `com.wsscode/pathom3` from `:dev`; the promesa 11 pin stays.
+  - fulcro-rad-datomic's `lazy-invoke` macro `requiring-resolve`s pathom3 at compile time when it is present. When it is absent, that path compiles to a throw. It is only reached via `make-pathom3-resolver`, which the demo (Pathom 2) never calls.
+  - Suites green without it.
+- **Item 10.** `cljfmt check` passes on every changed `.clj`/`.cljc`/`.edn` file.
+
