@@ -53,7 +53,10 @@ Four core form defects, all verified (gap report §1.2, §1.3, §1.8, §3 Forms 
 5. **Render collision, library side.** A form renders through the installed plugin whether upstream `com.fulcrologic.rad.form` is loaded before or after the plugin and this lib.
    - The lib no longer registers `:default` methods on upstream multimethods (`fr/render-form`, `fr/render-field`). This matches the existing `report.cljc` policy comment (about line 107).
    - The mechanism is documented for plugin authors, both in the `statechart/form.cljc` ns docstring and in `statechart/CLAUDE.md`. Document what to register (`form/render-element` and specific `fr/*` dispatch values) and what never to register (`:default` on upstream `fr/*` multimethods).
-6. **Suite order.** Running `:unit` after `:demo` in the same REPL passes. This removes the hazard rp-01 req 12 documented. Update `docs/ai/running-tests.md` and CI to drop any workaround rp-01 added.
+   - **Mixed builds** (SUI critique I4, 2026-10-31). The lib's current `fr/render-field :default` only logs, and `fr/render-form :default` is lib-owned. When the lib loads AFTER upstream `com.fulcrologic.rad.form`, *legacy* (UISM) forms lose their field rendering: upstream `form/render-field` goes through `fr/render-field`, and the lib's `:default` returns nil. Removing the lib's `:default`s must fix this.
+     - Add a test proving that a legacy upstream form renders its fields in both load orders (lib before and after upstream `rad.form`).
+     - The SUI statechart plugin's bridge `:default`s currently hide this. They go away in rp-12b req 1.
+6. **Suite order.** Running `:unit` after `:demo` in the same REPL passes. The exact failing shape rp-01 found is `:unit`→`:demo`→`:unit`: 16 `headless-rendering-test` failures, because the headless renderer loads first and the demo's upstream `rad.form` loads after it. This removes the hazard rp-01 req 12 documented. Update `docs/ai/running-tests.md` and CI to drop any workaround rp-01 added, including the `{:kaocha.filter/skip [:demo]}` advice for single-ns runs if it's no longer needed.
 
 ## File Ownership
 

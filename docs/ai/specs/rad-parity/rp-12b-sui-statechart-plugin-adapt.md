@@ -57,6 +57,18 @@ The copy is still a **bridge**. Per its "Known debt" section in `../fulcro-rad-s
     - assert the container method is registered and renders;
     - assert forms render in both upstream load orders;
     - statically assert (via `clojure.tools.namespace.parse` over the new files) that none of the req 8 banned namespaces is required.
+11. **From the rp-12a/12c critique (2026-10-31):**
+    - **Ban list (req 8).** Also ban `com.fulcrologic.rad.container`, `com.fulcrologic.fulcro.routing.dynamic-routing` and `com.fulcrologic.rad.routing*`.
+      - `container.cljc` requires upstream `rad.container` only for `id-child-pairs`. Use the lib's `statechart.container/id-child-pairs`.
+      - Drop the unused upstream `rad.report` require in `controls/control.cljc`.
+      - Replace the upstream form helpers: `form/field-label`, `omit-label?`, `field-style-config`, `render-fn`, `form-layout-renderer`, `standard-action-buttons` and `ref-container-renderer`.
+    - **Mixed build.** After the plugin's bridge `:default`s are removed (req 1), legacy SUI forms and reports must still render, in a build containing legacy SUI + this lib + statechart SUI, in both load orders. This depends on rp-02 req 5 (mixed builds).
+    - **Fail-when-broken proofs.** Every test must be shown to fail with its relevant bridge or dispatch method removed. The plugin loads upstream `rad.form`, whose `:default`s do the same map lookup, so the current render-field assertion is NOT discriminating (critique I3).
+    - **Route-denial verification (req 6).**
+      - The denial UI is visible in a real browser (karma or the rp-14 Chrome check) and disappears after Cancel. CLJ checks can't see the CLJS `shouldComponentUpdate` problem: the lib form query has no `[::sc/session-id '_]` link (critique I1).
+      - After Continue, the entity is pristine. Needs rp-07 req 4 (critique I2).
+    - **Test infra.** A guardrails test config with JVM opts for the CLJ suite, since the headless tests will exercise the lib's `>defn`s (CLJS already uses `:throw? true`). The `:legacy` kaocha id was added by the critique fix-up, so keep it working.
+    - **Docs.** The tested lib version and its minimum are stated. The debt list is complete.
 
 ## File Ownership
 
