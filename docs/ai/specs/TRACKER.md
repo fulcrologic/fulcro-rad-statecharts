@@ -32,13 +32,15 @@ Build hygiene (root `CLAUDE.md`), required by every spec:
 
 | Spec | Priority | Depends-on | Status |
 |------|----------|------------|--------|
-| [rp-12a-sui-statechart-plugin-copy](rad-parity/rp-12a-sui-statechart-plugin-copy.md) (follow-up) | P1 | — | IN PROGRESS (separate agent): drop the duplicated option nses, base deps → fulcro-rad 1.6.24 + `clj -Spom`, route-denied modal on `scr/route-denied?`. The copy itself is done (`40cfdfe`, local, unpushed). |
+| [rp-01-test-harness-and-packaging](rad-parity/rp-01-test-harness-and-packaging.md) | P0 | none | IN PROGRESS: demo E2E helpers, `:demo` suite + CI, kaocha REPL alias, silent test remotes, pom via `clj -Spom`, `deps.cljs`, version evaluation |
+| [rp-12c-sui-test-harness](rad-parity/rp-12c-sui-test-harness.md) | P1 | rp-12a | IN PROGRESS: fulcro-pattern CLJS tests in the SUI repo (pnpm, shadow `:ci-tests` + karma ChromeHeadless, kaocha), with load specs for legacy + statechart nses |
+
+Done in this phase:
+- rp-12a: the copy (`40cfdfe`) plus follow-up commits `431e6b0`, `c760b6c` and `68bc60f`. All are on SUI `main`, local, unpushed. Option nses are shared with legacy, base deps are fulcro-rad 1.6.24 / Clojure 1.12.6 / CLJS 1.12.145, and the route-denied modal now uses `scr/route-denied?`.
 
 ### Backlog (ready)
 
-| Spec | Priority | Depends-on | Status |
-|------|----------|------------|--------|
-| [rp-01-test-harness-and-packaging](rad-parity/rp-01-test-harness-and-packaging.md) | P0 | none | READY: demo E2E helpers, `:demo` suite + CI, kaocha REPL alias, silent test remotes, pom via `clj -Spom`, `deps.cljs`, version evaluation |
+(none)
 
 ### Blocked
 
@@ -54,7 +56,7 @@ Build hygiene (root `CLAUDE.md`), required by every spec:
 | [rp-09-route-denial-region](rad-parity/rp-09-route-denial-region.md) | P1 | rp-07, rp-06, rp-08, rp-14 | Remove dead route-denied paths, compile-time warnings, replacement fns, `route-denial` ns + render hook, headless + demo |
 | [rp-10-report-options-parity](rad-parity/rp-10-report-options-parity.md) | P1 | rp-04 | Resume re-init, hook signatures (no nil; `sro` table), `post-process`, `columns-EQL`, upstream variant keys, `reload!`/`set-parameter!`, `sro/triggers`, dead `sro` keys, clear-sort, layout/row style, URL sort/page |
 | [rp-11-url-sync-parity](rad-parity/rp-11-url-sync-parity.md) | P1 | rp-03, rp-05, rp-10, rp-09, rp-14 | Merge params, global controls in URL, `track-in-url?`, variants/containers, module-correct writes, URL tests, demo CLJ URL sync, `:url-codec` doc |
-| [rp-12b-sui-statechart-plugin-adapt](rad-parity/rp-12b-sui-statechart-plugin-adapt.md) | P1 | rp-12a, rp-02, rp-05, rp-08, rp-09 | Plugin on lib dispatch points, statechart form/report/control API, container method, route-denial helper (no in-form modal), view mode, no upstream engine requires, tests in the SUI repo |
+| [rp-12b-sui-statechart-plugin-adapt](rad-parity/rp-12b-sui-statechart-plugin-adapt.md) | P1 | rp-12a, rp-12c, rp-02, rp-05, rp-08, rp-09 | Plugin on lib dispatch points, statechart form/report/control API, container method, route-denial helper (no in-form modal), view mode, no upstream engine requires, tests in the SUI repo |
 | [rp-13-embedded-forms-reports](rad-parity/rp-13-embedded-forms-reports.md) | P1 | rp-03, rp-04, rp-07 | `statechart.embedded`: parent-chart invocation of form/report charts (no React hooks): modal edit, master-detail, quick-create editing |
 | [rp-14-demo-browser-ui](rad-parity/rp-14-demo-browser-ui.md) | P1 | rp-12a, rp-06 | Demo on the SUI statechart plugin (`:local/root`), CSS, nav, route-denied modal extracted, logging, housekeeping, Chrome check |
 | [rp-15-demo-screens](rad-parity/rp-15-demo-screens.md) | P1 | rp-06, rp-10, rp-14 | AccountList, full InvoiceList/Inventory, restored resolvers, blob avatar/files + server, tags quick-create, timezone, quick-create fix, per-screen tests |
