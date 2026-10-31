@@ -47,7 +47,7 @@
                                      thheller/shadow-cljs                   {:mvn/version "3.3.6"}}}
 
            :demo      {:extra-paths ["src/demo"]
-                       :extra-deps  {com.fulcrologic/fulcro-rad-datomic {:mvn/version "1.5.6"}
+                       :extra-deps  {com.fulcrologic/fulcro-rad-datomic {:mvn/version "1.5.7"}
                                      com.datomic/local                  {:mvn/version "1.0.291"}
                                      com.datomic/client-cloud           {:mvn/version "1.0.131"}
                                      mount/mount                        {:mvn/version "0.1.23"}
