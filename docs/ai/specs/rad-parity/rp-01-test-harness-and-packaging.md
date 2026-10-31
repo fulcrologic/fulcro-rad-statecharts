@@ -93,7 +93,7 @@ Only these files may be edited:
 
 ## Open Questions
 
-- Open PR #26 ("Remove unused pathom3 dependency", branch `remove-pathom3`) touches `deps.edn`. Should it merge before rp-01 starts, or be folded into rp-01? Conductor/human call. Recommendation: fold it into rp-01, verifying that the demo and the pathom3 claims in the docs (rp-18) don't need it.
+- (Resolved 2026-10-31) PR #26: FOLD IT IN. `com.wsscode/pathom3` in `:dev` is unused: nothing in src/ or the demo uses Pathom 3, and it only dragged in promesa 8. Remove it from `deps.edn`, but keep the top-level promesa 11 pin, because statecharts requires promesa 11+ for consumers. The conductor closes PR #26 when rad-parity merges.
 - Is Datomic Local (`com.datomic/local` from Maven Central) acceptable in public CI? Recommendation: yes. It's in-memory, needs no credentials, and is what the fixtures already use.
 
 ## Verification

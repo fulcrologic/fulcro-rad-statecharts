@@ -59,8 +59,10 @@ This lib reads `spr/point-in-time-view?` etc. in its own namespaces instead.
    - `point-in-time-view?` defaults to **true**, as upstream.
    - Point-in-time is set only when it's enabled. This covers sort, filter, refresh and goto.
 6. **Missing fns.** `report/reload!` and report-ns `report/set-parameter!` exist, delegate to the control/chart fns, and are documented. The `control_options.cljc` docstring example works.
-7. **`sro/triggers :on-change`** is implemented per its docstring. It's called when a control or parameter value of the report changes, through `control/set-parameter!` and `:event/set-ui-parameters`, and its returned ops are applied in the report's session.
-   - Upstream had no report triggers (see Context). The conductor may drop this requirement. If it's dropped, remove `sro/triggers` and change the macro error message instead.
+7. **Remove `sro/triggers`** (DROPPED as a feature by the human, 2026-10-31: upstream never had report triggers, and there's no clear use for them).
+   - Delete the `sro/triggers` option and its docstring.
+   - `defsc-report` gives a compile-time **warning** if `:com.fulcrologic.rad.report/triggers` or the `sro` triggers key is present. The warning says report triggers aren't supported.
+   - Change the macro's existing `ro/triggers` error so it stops pointing at `sro/triggers`.
 8. **`sro/on-loaded` and `sro/statechart-id`** are removed, with a compile-time **warning** in `defsc-report` when present that names the working alternative: `ro/report-loaded`, or a keyword `sro/statechart`. This is the same decision as rp-07 req 13 for `sfo`.
 9. **Clear sort.** `:event/clear-sort` is handled in every non-loading state of all three charts.
 10. **`ro/layout-style` and `ro/row-style` reach the renderers.** The report's render path supplies them as the `rro/style`/`rro/row-style` dispatch values when the `rro/*` keys aren't set. Test with a defmethod on a non-default style.
@@ -85,11 +87,9 @@ Read-only: `container.cljc` (rp-05), `form.cljc`, `rendering/headless/**`.
 ## Approach
 
 - Read the upstream handlers in `../fulcro-rad/src/main/com/fulcrologic/rad/report.cljc` and `state_machines/*.cljc` (read-only) for the exact behavior of resume, post-process, columns-EQL and clear-sort.
-- For req 7, the trigger needs the old value. Capture it in `set-parameter` before the write, then send an event to the report session carrying `{k old new}`.
-
 ## Open Questions
 
-- Keep `sro/triggers` (a new feature), or drop it (req 7)? Recommendation: keep it. It's small, it's already documented, and the macro already steers users to it. The tradeoff is one more engine-specific option with no upstream counterpart.
+- (Resolved 2026-10-31) `sro/triggers`: the human dropped it. See req 7.
 
 ## Verification
 

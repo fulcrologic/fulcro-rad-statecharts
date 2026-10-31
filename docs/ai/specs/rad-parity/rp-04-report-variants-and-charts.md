@@ -90,7 +90,7 @@ Read-only: `container.cljc` (rp-05) and `rendering/headless/**` (rp-06).
 
 Prefer the data-model if `scf/start!` `:data` and `data-model` merge the way you need. Verify that first and record it.
 
-**Prior art.** Unmerged `origin/move-reports-to-istates` (March 2026) converted `report-route-state` to istate. Read it for req 11. This spec deliberately keeps rstate as the documented route path, for caching and resume parity.
+**Prior art.** Unmerged `origin/move-reports-to-istates` (March 2026) converted `report-route-state` to istate. The human judged it STALE (16 commits behind). Use it as reference only; never merge it. Read it for req 11. This spec deliberately keeps rstate as the documented route path, for caching and resume parity.
 
 **Registration helper.** Share one private helper across the three start fns: `(chart-id-for app report-class)` registers a map under the registry key, validates a keyword, and returns the id.
 

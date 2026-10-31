@@ -82,7 +82,7 @@ Read-only: `src/test/com/fulcrologic/rad/test_helpers.cljc` (owned by rp-01). Pu
 - `store-options` stores the options and clears the slot.
 - Verify how invoke params, `scf/start!` `:data` and the chart `data-model` combine before relying on this, and record the finding in `statechart/CLAUDE.md`.
 
-**Prior art.** Unmerged `origin/fix/issues-12-13-url-update-side-effects` (April 2026) has a URL-update-after-create attempt. Read it before implementing req 6. Don't merge it blindly; verify it against current code, including rp-02's changes.
+**Prior art.** Unmerged `origin/fix/issues-12-13-url-update-side-effects` (April 2026) has a URL-update-after-create attempt. The human judged it STALE: issues #12/#13 were already fixed on main via #23, and the branch is 25 commits behind. Use it as reference only. Read it before implementing req 6. Don't merge it blindly; verify it against current code, including rp-02's changes.
 
 **Registration.** Use `(rc/class->registry-key FormClass)` as the id for map charts.
 
