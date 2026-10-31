@@ -21,8 +21,7 @@
    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
    [fulcro-spec.core :refer [=> assertions component specification]]))
 
-(use-fixtures :once
-  (with-test-system {:port 9847}))
+(use-fixtures :once (with-test-system))
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
@@ -76,7 +75,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Inventory report"
-  (let [app     (test-client 9847)
+  (let [app     (test-client)
         rpt-key :com.example.ui.inventory-report/InventoryReport
         sid     (report/report-session-id InventoryReport)]
     (h/render-frame! app)
@@ -135,7 +134,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Invoice report"
-  (let [app     (test-client 9847)
+  (let [app     (test-client)
         rpt-key :com.example.ui.invoice-report/InvoiceReport
         sid     (report/report-session-id InvoiceReport)]
     (h/render-frame! app)
@@ -174,7 +173,7 @@
 ;; ---------------------------------------------------------------------------
 
 (specification "Account invoices report"
-  (let [app     (test-client 9847)
+  (let [app     (test-client)
         rpt-key :com.example.ui.invoice-forms/AccountInvoices
         sid     (report/report-session-id AccountInvoices)]
     (h/render-frame! app)
