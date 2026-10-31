@@ -18,6 +18,12 @@ Commit and push (on the current branch) at major checkpoints as you work. Don't 
   - `clj -Spom` does honor `:optional true`.
   - A dependency only some users need (e.g. fulcro-rad-statecharts for the semantic-ui statechart namespaces) goes in a deps.edn alias and is documented. It stays out of the pom.
 
+- **Pushing.** Always push the branch explicitly: `git push origin <branch>`. The global `push.default` is `matching`, so a bare `git push` tries to push every local branch that also exists on the remote, including stale `fix/*` branches.
+- **Testing pattern.** Follow `../fulcro`:
+  - CLJ suites run via kaocha in a REPL, never the CLI runner.
+  - CLJS runs as shadow `compile ci-tests`, then `karma start --single-run` (ChromeHeadless), with pnpm locked down (`pnpm install --frozen-lockfile`).
+  - `make tests` chains all of it.
+
 ## Spec-Based Team Workflow
 
 This project uses a spec-driven, team-based workflow. See `docs/ai/specs/WORKFLOW.md` for full details, `docs/ai/specs/TRACKER.md` for status.
