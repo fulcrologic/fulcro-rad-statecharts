@@ -13,7 +13,10 @@ Commit and push (on the current branch) at major checkpoints as you work. Don't 
   - The `clj-paren-repair-claude-hook --cljfmt` hook formats files on Edit/Write.
   - Before committing, run `cljfmt check <changed files>` from the repo root.
   - Never mass-format legacy code you are told not to change (e.g. legacy semantic-ui namespaces).
-- **pom.xml.** Whenever you change `deps.edn` `:deps`, regenerate the dependencies with `clj -Spom`; never hand-edit them. Express provided-scope deps in `deps.edn` (`:scope "provided"`) so `-Spom` produces them.
+- **pom.xml.** Whenever you change `deps.edn` `:deps`, regenerate the dependencies with `clj -Spom`; never hand-edit them.
+  - Don't use `:scope "provided"` in deps.edn: `clj -Spom` silently drops it (verified with CLI 1.12.6), so it is noise.
+  - `clj -Spom` does honor `:optional true`.
+  - A dependency only some users need (e.g. fulcro-rad-statecharts for the semantic-ui statechart namespaces) goes in a deps.edn alias and is documented. It stays out of the pom.
 
 ## Spec-Based Team Workflow
 
