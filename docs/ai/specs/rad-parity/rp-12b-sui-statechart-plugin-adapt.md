@@ -69,6 +69,8 @@ The copy is still a **bridge**. Per its "Known debt" section in `../fulcro-rad-s
       - After Continue, the entity is pristine. Needs rp-07 req 4 (critique I2).
     - **Test infra.** A guardrails test config with JVM opts for the CLJ suite, since the headless tests will exercise the lib's `>defn`s (CLJS already uses `:throw? true`). The `:legacy` kaocha id was added by the critique fix-up, so keep it working.
     - **Docs.** The tested lib version and its minimum are stated. The debt list is complete.
+    - **dom-server nil.** Rendering a master form in CLJ dom-server throws an NPE when `:async-abandon-modal` is nil or `(constantly nil)`, because dom-server can't render a nil child inside `StandardFormContainer`'s fragment. Found in the `f95b5c9` fix-up. Removing the in-form modal (req 6) must leave the fragment free of nil children, with a CLJ render test.
+    - **Legacy README snippet.** The legacy example threads `install-ui-controls!` with `->`, but the fn returns the runtime map, not the app. It's docs only: fix it, or ask the human, since it describes legacy.
 
 ## File Ownership
 

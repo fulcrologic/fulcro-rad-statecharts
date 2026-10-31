@@ -32,12 +32,12 @@ Build hygiene (root `CLAUDE.md`), required by every spec:
 
 | Spec | Priority | Depends-on | Status |
 |------|----------|------------|--------|
-| [rp-12c-sui-test-harness](rad-parity/rp-12c-sui-test-harness.md) | P1 | rp-12a | IMPLEMENTED (`032880e`, SUI main, local). Critique PASS-WITH-FIXES; the fix-up is in progress (honest bridge claim, denial-modal/pristine docs, option-portability render test, `:legacy` kaocha id, release note) |
 | [rp-02-form-save-validation-delete](rad-parity/rp-02-form-save-validation-delete.md) | P0 | rp-01 | IN PROGRESS: #29 save errors, #30 default validator + arity, `delete!` legacy symbol + CLJ, form `:default` render collision (lib side) |
 | [rp-04-report-variants-and-charts](rad-parity/rp-04-report-variants-and-charts.md) | P0 | rp-01 | IN PROGRESS: Chart registration, variant-aware start, incremental aliases, route-param hygiene, busy on failure, spr refresh + single-row, `ro/route`, start-time externally-controlled?, report `:default` collision (lib side), istate-safe reports |
 | [rp-19a-statecharts-done-invoke-arity](rad-parity/rp-19a-statecharts-done-invoke-arity.md) | P0 | none | IN PROGRESS: `../statecharts` main (local). `application-chart` `:done.invoke.*` is 2-arity but called with 4, so finished child sessions leak and throw in CLJ. Audit integration fns. Needs an RC20 release (human) |
 
 Done in this phase:
+- rp-12c: `032880e` + critique fixes `f95b5c9` (SUI main, local). kaocha `:unit` 4/56, `:legacy` 1/18 (without `:statecharts`, so fulcro 3.9.5), karma 4/4 with 0 warnings. Also satisfies rp-12a Verification 3 (option-portability render spec). The SUI release version (1.5.0 vs 1.4.9) is a human call; `CHANGELOG.md` is under "Unreleased".
 - rp-01: `7be1514`..`e163007`, CI green. Critique PASS-WITH-FIXES: I1 → rp-19a, I2 → rp-02, I3 → rp-06 req 9, suggestions → rp-01b.
 - rp-12a: the copy (`40cfdfe`) plus follow-up commits `431e6b0`, `c760b6c` and `68bc60f`. All are on SUI `main`, local, unpushed. Option nses are shared with legacy, base deps are fulcro-rad 1.6.24 / Clojure 1.12.6 / CLJS 1.12.145, and the route-denied modal now uses `scr/route-denied?`.
 
