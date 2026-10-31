@@ -6,6 +6,15 @@ Convert fulcro-rad from Fulcro UI State Machines (UISMs) to the fulcrologic stat
 
 Commit and push (on the current branch) at major checkpoints as you work. Don't wait until the end — push progress incrementally.
 
+## Build Hygiene (applies to every repo we touch)
+
+- **Formatting.** Every repo uses fulcro's `.cljfmt.edn` (canonical copy: `../fulcro/.cljfmt.edn`).
+  - cljfmt 0.16+ reads that file as EDN, so the catch-all indent regex must be written `#re ".*"`. The plain regex literal `#".*"` makes cljfmt fail silently in the edit hook.
+  - The `clj-paren-repair-claude-hook --cljfmt` hook formats files on Edit/Write.
+  - Before committing, run `cljfmt check <changed files>` from the repo root.
+  - Never mass-format legacy code you are told not to change (e.g. legacy semantic-ui namespaces).
+- **pom.xml.** Whenever you change `deps.edn` `:deps`, regenerate the dependencies with `clj -Spom`; never hand-edit them. Express provided-scope deps in `deps.edn` (`:scope "provided"`) so `-Spom` produces them.
+
 ## Spec-Based Team Workflow
 
 This project uses a spec-driven, team-based workflow. See `docs/ai/specs/WORKFLOW.md` for full details, `docs/ai/specs/TRACKER.md` for status.
