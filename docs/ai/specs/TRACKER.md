@@ -1,36 +1,125 @@
 # Project Tracker
 
-<!-- Last updated: 2026-02-22 | Active: 1 | Blocked: 5 | Backlog: 0 | Done: 35 | Deferred: 3 -->
+<!-- Last updated: 2026-10-31 | Active: 1 | Blocked: 19 | Backlog: 1 | Done: 36 | Superseded: 7 | Deferred: 2 -->
 
-## Active
+## Phase 10: rad-parity (branch `rad-parity`, started 2026-10-31)
+
+Goal: full parity with UISM RAD 1.6.24.
+- Seeded by a full review, in [rad-parity/review/](rad-parity/review/). Start with [00-gap-report.md](rad-parity/review/00-gap-report.md).
+- The specs are in [rad-parity/](rad-parity/).
+- Line numbers in the review predate the `fab72f9` reformat of `src/`. Specs cite function names.
+
+### Human decisions (binding)
+
+The canonical copy is the repo root [`CLAUDE.md`](../../../CLAUDE.md) ("Binding human decisions", "Sibling Projects", "Build Hygiene"). This is a summary, with where each decision is encoded:
+
+1. **View mode comes back** (`view!`, `view-mode?`, `read-only?` honoring view mode). → rp-08
+2. **`fo/confirm` and `fo/silent-abandon?` are dropped.** Route denial lives in the routing parallel region (scr `:routing-info`). The old keys warn at compile time. Plugins get thin `continue-abandoned-route!`/`clear-route-denied!` replacements. → rp-09
+3. **`form/delete!` sends `com.fulcrologic.rad.form/delete-entity`** and works in CLJ. → rp-02
+4. **The pnpm lockfile update is committed** (`a5e113e`).
+5. **SUI statechart plugin** in `../fulcro-rad-semantic-ui` `main` (no branch). → rp-12a/rp-12b
+   - Rendering code goes under `com.fulcrologic.rad.statechart.rendering.semantic-ui.*`.
+   - The option namespaces (`com.fulcrologic.rad.semantic-ui-options`, `rendering.semantic-ui.form-options`) are **shared with legacy**.
+   - Legacy source never changes.
+   - Base deps move to fulcro-rad 1.6.24 (approved).
+6. **Library-level auth is undecided.** Demo login is app-level. → rp-17, open question
+
+Build hygiene (root `CLAUDE.md`), required by every spec:
+- Regenerate pom dependencies with `clj -Spom` after any `deps.edn` `:deps` change. Never hand-edit them. No `:scope "provided"` (`-Spom` drops it). Optional deps go in a documented alias.
+- Run `cljfmt check <changed files>` from the repo root.
+
+### Active
 
 | Spec | Priority | Depends-on | Status |
 |------|----------|------------|--------|
-| [phase9-delete-routing-update-deps](phase9-delete-routing-update-deps.md) | P0 | form-consolidation, report-consolidation, container-consolidation | IN PROGRESS |
+| [rp-12a-sui-statechart-plugin-copy](rad-parity/rp-12a-sui-statechart-plugin-copy.md) (follow-up) | P1 | — | IN PROGRESS (separate agent): drop the duplicated option nses, base deps → fulcro-rad 1.6.24 + `clj -Spom`, route-denied modal on `scr/route-denied?`. The copy itself is done (`40cfdfe`, local, unpushed). |
 
-## Blocked
+### Backlog (ready)
 
 | Spec | Priority | Depends-on | Status |
 |------|----------|------------|--------|
-| [phase9-update-tests](phase9-update-tests.md) | P0 | delete-routing-update-deps | BLOCKED |
-| [phase9-update-demo](phase9-update-demo.md) | P1 | delete-routing-update-deps | BLOCKED |
-| [phase9-update-docs](phase9-update-docs.md) | P2 | delete-routing-update-deps | BLOCKED |
-| [phase8-readme](phase8-readme.md) | P2 | delete-routing-update-deps | BLOCKED |
-| [phase9-final-verification](phase9-final-verification.md) | P0 | update-tests, update-demo | BLOCKED |
+| [rp-01-test-harness-and-packaging](rad-parity/rp-01-test-harness-and-packaging.md) | P0 | none | READY: demo E2E helpers, `:demo` suite + CI, kaocha REPL alias, silent test remotes, pom via `clj -Spom`, `deps.cljs`, version evaluation |
 
-## Backlog
+### Blocked
 
-(none)
+| Spec | Priority | Depends-on | Scope |
+|------|----------|------------|-------|
+| [rp-02-form-save-validation-delete](rad-parity/rp-02-form-save-validation-delete.md) | P0 | rp-01 | #29 save errors, #30 default validator + arity, `delete!` legacy symbol + CLJ, form `:default` render collision (lib side) |
+| [rp-03-form-routing-options](rad-parity/rp-03-form-routing-options.md) | P0 | rp-02 | `edit!`/`create!` options to routed forms (not in URL), chart registration, keyword chart + istate, exit cleanup, create→save URL replace, `fo/route-prefix` |
+| [rp-04-report-variants-and-charts](rad-parity/rp-04-report-variants-and-charts.md) | P0 | rp-01 | Chart registration, variant-aware start, incremental aliases, route-param hygiene, busy on failure, spr refresh + single-row, `ro/route`, start-time externally-controlled?, report `:default` collision (lib side), istate-safe reports |
+| [rp-05-container-parity](rad-parity/rp-05-container-parity.md) | P0 | rp-04 | `container-route-state`, istate-safe macro, container render multimethod with map fallback, `co/statechart`, not busy while loading, drop `:event/unmount`, param ordering, `co/*` options |
+| [rp-06-headless-renderer-parity](rad-parity/rp-06-headless-renderer-parity.md) | P0 | rp-02, rp-05 | Fields via `input-changed!`/`input-blur!`, plugin-side collision cleanup, missing field renderers, quick-create, subforms, controls, report options, container renderer |
+| [rp-07-form-lifecycle-parity](rad-parity/rp-07-form-lifecycle-parity.md) | P1 | rp-03 | Row on-change, autocreate order, cancel keeps session, pristine on forced exit, trigger timing, reload, picker preload, busy/read-only, CLJS input timing, re-exports, custom-chart API, dead `sfo` keys |
+| [rp-08-form-view-mode](rad-parity/rp-08-form-view-mode.md) | P1 | rp-07, rp-06 | `view!`/`view-mode?`/`read-only?`, view mode in the URL, chart guards, headless read-only rendering |
+| [rp-09-route-denial-region](rad-parity/rp-09-route-denial-region.md) | P1 | rp-07, rp-06, rp-08, rp-14 | Remove dead route-denied paths, compile-time warnings, replacement fns, `route-denial` ns + render hook, headless + demo |
+| [rp-10-report-options-parity](rad-parity/rp-10-report-options-parity.md) | P1 | rp-04 | Resume re-init, hook signatures (no nil; `sro` table), `post-process`, `columns-EQL`, upstream variant keys, `reload!`/`set-parameter!`, `sro/triggers`, dead `sro` keys, clear-sort, layout/row style, URL sort/page |
+| [rp-11-url-sync-parity](rad-parity/rp-11-url-sync-parity.md) | P1 | rp-03, rp-05, rp-10, rp-09, rp-14 | Merge params, global controls in URL, `track-in-url?`, variants/containers, module-correct writes, URL tests, demo CLJ URL sync, `:url-codec` doc |
+| [rp-12b-sui-statechart-plugin-adapt](rad-parity/rp-12b-sui-statechart-plugin-adapt.md) | P1 | rp-12a, rp-02, rp-05, rp-08, rp-09 | Plugin on lib dispatch points, statechart form/report/control API, container method, route-denial helper (no in-form modal), view mode, no upstream engine requires, tests in the SUI repo |
+| [rp-13-embedded-forms-reports](rad-parity/rp-13-embedded-forms-reports.md) | P1 | rp-03, rp-04, rp-07 | `statechart.embedded`: parent-chart invocation of form/report charts (no React hooks): modal edit, master-detail, quick-create editing |
+| [rp-14-demo-browser-ui](rad-parity/rp-14-demo-browser-ui.md) | P1 | rp-12a, rp-06 | Demo on the SUI statechart plugin (`:local/root`), CSS, nav, route-denied modal extracted, logging, housekeeping, Chrome check |
+| [rp-15-demo-screens](rad-parity/rp-15-demo-screens.md) | P1 | rp-06, rp-10, rp-14 | AccountList, full InvoiceList/Inventory, restored resolvers, blob avatar/files + server, tags quick-create, timezone, quick-create fix, per-screen tests |
+| [rp-16-demo-advanced-screens](rad-parity/rp-16-demo-advanced-screens.md) | P1 | rp-05, rp-10, rp-13, rp-15 | SalesReport, RealSalesReport (pivot, controls, chart), Dashboard container, master-detail via rp-13 |
+| [rp-17-demo-auth](rad-parity/rp-17-demo-auth.md) | P1 | rp-09, rp-11, rp-16 | App-level session chart, login/logout, auth-gated routes with bookmark replay. Open question: library-level auth |
+| [rp-18-docs-and-cleanup](rad-parity/rp-18-docs-and-cleanup.md) | P2 | rp-02 … rp-11, rp-13 | README/migration rewrite + docs reference test, remove upstream doc copies and `make publish`, `cleanup-analysis.md`, CLAUDE.md refresh, clj-kondo export, `user.clj` |
+| [rp-19-statecharts-followups](rad-parity/rp-19-statecharts-followups.md) | P2 | rp-03, rp-11 | `../statecharts`: `rad_integration` pointer, url-sync `prev-url` (if confirmed), istate keyword chart without `:route/reachable`. Open question: branch/release policy |
+| [rp-20-final-verification](rad-parity/rp-20-final-verification.md) | P0 | all | Full CLJ + CLJS suites, Chrome walkthrough, fulcro-rad-tui / fulcro-rad-datomic compatibility, statecharts bump, final critique, tracker |
+
+### Why the extra Depends-on edges exist (file-ownership serialization)
+
+Specs that share a file never run concurrently. Each spec lists its owned files, and these chains enforce the rule:
+
+- **`statechart/form.cljc`:** rp-01 (visibility of `resolve-form-session-id` only) → rp-02 → rp-03 → rp-07 → rp-08 → rp-09 → rp-11. rp-13 must not edit it.
+- **Report namespaces + `control.cljc`:** rp-04 → rp-10 → rp-11.
+- **`container.cljc`:** rp-05 → rp-11 (URL sync only).
+- **`rendering/headless/**`:** rp-06 → rp-08 → rp-09.
+- **`statechart/application.cljc`:** rp-09 (one warning) → rp-11.
+- **Demo shell.**
+  - rp-01 owns the demo test files.
+  - rp-14 owns `client.cljc`, `system.cljc`, `ui/ui.cljc`, the ring page, the `:demo` alias, `package.json` and `shadow-cljs.edn`.
+  - After rp-14:
+    - rp-09 owns `ui/route_denied.cljc`;
+    - rp-11 owns `system.cljc`;
+    - `ui/ui.cljc` passes along rp-15 → rp-16 → rp-17.
+- **`tests.edn`, CI, `running-tests.md`:** rp-01 → rp-02 (removes the suite-order workaround).
+- **rp-19 "Findings" section:** appended by rp-03, then rp-11.
+- **Shared notes.**
+  - `statechart/CLAUDE.md` is shared by the form and report chains. Edit only your own section, and re-read it right before editing.
+  - `src/main/com/fulcrologic/rad/CLAUDE.md` is refreshed only by rp-18.
+
+### Recommended order
+
+- **P0:** rp-01 → (rp-02 ∥ rp-04) → (rp-03 ∥ rp-05) → rp-06.
+- **P1 library:** rp-07 → rp-08 → rp-09 → rp-11. rp-10 runs alongside after rp-04. rp-13 runs after rp-07.
+- **Plugin and demo:** rp-14 as soon as rp-06 is done → rp-15 → rp-16 → rp-17. rp-12b after rp-09.
+- **P2:** rp-18, rp-19.
+- **Last:** rp-20.
+
+### Superseded (2026-10-31)
+
+| Spec | Was | Superseded by | Note |
+|------|-----|---------------|------|
+| [phase9-delete-routing-update-deps](phase9-delete-routing-update-deps.md) | IN PROGRESS since 2026-02-22 | rp-01, rp-20 | Its code work landed: `statechart/routing.cljc` and the satellites are gone, and the demo uses `form/`/`report/` route states. Verification moved to rp-01/rp-20. |
+| [phase9-update-tests](phase9-update-tests.md) | BLOCKED | rp-01 | Tests use the consolidated namespaces (90 tests pass). The demo E2E failures are rp-01. |
+| [phase9-update-demo](phase9-update-demo.md) | BLOCKED | rp-14, rp-15 | The demo CLJS `main` build compiles. A usable browser demo is rp-14. |
+| [phase9-update-docs](phase9-update-docs.md) | BLOCKED | rp-18 | |
+| [phase8-readme](phase8-readme.md) | BLOCKED | rp-18 | Its "statechart.routing" guidance is obsolete. |
+| [phase9-final-verification](phase9-final-verification.md) | BLOCKED | rp-20 | |
+| [rad-hooks-conversion](rad-hooks-conversion.md) | DEFERRED | rp-13 | Its `use-statechart` plan breaks the no-hooks-for-data rule. rp-13 uses parent-chart invocation instead. |
 
 ## Deferred
 
 | Spec | Priority | Reason | Summary |
 |------|----------|--------|---------|
-| [blob-statechart](blob-statechart.md) | P3 | Handled externally | Blob/file-upload statechart conversion |
-| [auth-statechart](auth-statechart.md) | P3 | Handled externally | Auth UISM to statechart conversion |
-| [rad-hooks-conversion](rad-hooks-conversion.md) | P3 | React hooks banned; use statecharts | RAD hooks (use-form, use-report) conversion |
+| [blob-statechart](blob-statechart.md) | P3 | Not needed | Upstream `rad.blob` has no UISM and works with this engine (review-ecosystem §1). Renderer gaps are in rp-06 and rp-15. |
+| [auth-statechart](auth-statechart.md) | P3 | Undecided (decision 6) | App-level demo auth is rp-17. Library-level auth is an open question there. |
 
 ## Done
+
+### Phase 10: rad-parity
+
+| Spec | Completed | Summary |
+|------|-----------|---------|
+| [rp-12a-sui-statechart-plugin-copy](rad-parity/rp-12a-sui-statechart-plugin-copy.md) | 2026-10-31 | `../fulcro-rad-semantic-ui` `40cfdfe` (local, unpushed): copied the f-w-s clone to `com.fulcrologic.rad.statechart.rendering.semantic-ui.*`, legacy untouched. Follow-up active. |
 
 ### Phase 0: Library Cleanup (pre-conversion) — completed 2026-02-21
 
@@ -141,7 +230,9 @@
 
 ## Test Summary
 
-**Final Test Suite: 77 tests, 366 assertions, 0 failures**
+> **2026-10-31 (rad-parity review):** `:unit` has 90 tests, 427 assertions, 0 failures. Demo headless E2E has 21 tests and 15 failures, all test-side (stale session-id helper, fixed-frame waits, missing `:account/id`); CI never ran them. Several chart specs mock every expression, so P0 bugs passed the suite. Fixes: rp-01, rp-04. The list below is the February 2026 snapshot.
+
+**Final Test Suite (2026-02-22): 77 tests, 366 assertions, 0 failures**
 
 All test namespaces passing:
 - com.fulcrologic.rad.statechart.form-statechart-test
@@ -160,7 +251,11 @@ All test namespaces passing:
 
 ## Remaining TODOs
 
-Minor implementation items in demo app (not blocking release):
+> **2026-10-31:** both items are stale. Remaining work is tracked in Phase 10.
+> - There is no `master_detail.cljc` in `src/demo`. Master-detail is rp-16 (on rp-13).
+> - The line-item triggers are converted, but they never fire from the UI, because the headless renderer bypasses the form chart. That's rp-06, with the demo coverage in rp-15.
+
+(February 2026 text, kept for history:)
 - **master_detail.cljc**: Needs statechart reimplementation (currently a stub routing to inventory)
 - **line_item_forms.cljc**: `on-change` trigger is a no-op stub (form still functional, just doesn't auto-persist line items)
 
@@ -186,6 +281,9 @@ Minor implementation items in demo app (not blocking release):
 | 6 | 2026-02-21 | 2 critical, 15 important, 12 suggested | [critique-consolidated](critique-consolidated.md) — 4-agent deep critique + cross-review |
 
 ## Implementation Order (Recommended)
+
+### Phase 10: rad-parity — ACTIVE
+See "Phase 10 → Recommended order" at the top of this file.
 
 ### Phase 0: Cleanup — DONE
 1. cleanup-deletions (delete ~22 files)
@@ -228,18 +326,41 @@ Minor implementation items in demo app (not blocking release):
 
 ## Open Questions for Human Review
 
+### Phase 10 (rad-parity), open
+
+Each item has a recommendation in its spec.
+
+- rp-01: Datomic Local in public CI. Recommendation: yes.
+- rp-09: Default when an app renders no route-denial UI. Recommendation: no blocking `js/confirm`; warn instead.
+- rp-10: Keep `sro/triggers` (a new feature, since upstream had no report triggers). Recommendation: keep.
+- rp-12a/rp-12b: Push and release policy for `../fulcro-rad-semantic-ui` `main`. For now: local commits only.
+- rp-13: Follow-up spec to replace the SUI plugin's hook-based picker and modals with `statechart.embedded`. Recommendation: yes.
+- rp-14: Demo production `-main`/`prod.edn`. Recommendation: no.
+- rp-17: Library-level auth (decision 6, undecided). Recommendation: not yet.
+- rp-19: Branch and release policy for `../statecharts`. For now: a local branch.
+- rp-20: Release version. Recommendation: 0.2.0, since there are breaking option and signature changes.
+
+### Earlier phases
+
 All questions resolved by human review 2026-02-20. See [critique-round-2.md](plans/critique-round-2.md) Section "Consolidated Open Questions for Human Review" for the full list with DECIDED annotations. Only 2 minor items remain open (ident->session-id separator edge case, statecharts release version).
 
 ## Known Issues
 
+> **2026-10-31:** the items below were re-checked by the rad-parity review. The live issue list is the Phase 10 spec set.
+
 ### Critical
 - **C1: Statecharts not released to Clojars** — local path dep blocks downstream consumption. Must release statecharts library first.
+  - *Stale (2026-10-31):* `deps.edn` uses `com.fulcrologic/statecharts 1.4.0-RC18` from Clojars. The real packaging defect is `pom.xml` drift (fulcro 3.9.3, statecharts RC13, …) → rp-01.
 
 ### Remaining Important
 - **`scf/current-configuration` returns nil in headless Root render**: Route-denied modal can't be tested via hiccup.
+  - *Probably misdiagnosed (2026-10-31, Suspected):* the nil hiccup matches the `fr/render-form :default` load-order collision (review-demo-failures §5) → rp-02. Demo routing tests do render Root content. A headless denial-UI test is required in rp-09.
 - **Container Tier 2 tests**: 6 assertion failures — child report lifecycle not starting in test setup. Tier 1 passes.
+  - *Stale (2026-10-31):* `:unit` has 0 failures. The container test was made deterministic with a silent remote in `e3d4e90`.
 - **6 pre-existing report Tier 2 errors**: `v20150901_impl.cljc:836` protocol incompatibility in statecharts test mocks.
+  - *Stale (2026-10-31):* 0 errors in the `:unit` run.
 - **No rendering plugin ported**: semantic-ui/react-bootstrap need multimethod conversion for browser use.
+  - *Update (2026-10-31):* a statechart SUI copy exists (rp-12a, `../fulcro-rad-semantic-ui` `40cfdfe`, unpushed). It is still a map-registry/UISM bridge with React-hooks data (rp-12b). react-bootstrap is not planned. The headless plugin gaps are rp-06.
 
 ### Resolved in Phase 5 (CLJS Compat)
 - ~~CLJS keyword encoding invalid~~ → `ident->session-id` now uses `KW.ns..name` encoding (no colons in keyword names)
@@ -269,20 +390,35 @@ All questions resolved by human review 2026-02-20. See [critique-round-2.md](pla
 - ~~Invoice form render exception~~ → Fixed: added missing headless field renderers
 
 ### Verified Working (Post Phase 8)
+
+Annotated 2026-10-31 against the rad-parity review:
+
 - 77 tests, 366 assertions (CLJ) — all passing
+  - *Now 90/427, 0 failures. But mocked specs hid P0 bugs* (rp-04 incremental 0 rows, chart clobbering asserted as correct).
 - CLJS compilation: 396 files, 0 warnings
+  - *Still true:* `main` builds 441 files with 0 warnings.
 - All Tier 1 pure chart tests pass (form, report, container, server-paginated, incrementally-loaded)
+  - *True, but several mock every expression* → rp-04.
 - E2E tests: 21 total (form 8, routing 10, report 3) — all pass
+  - **FALSE:** 15/21 fail (test-side). The claim was written before `4aa769c` and the istate switch, and never re-run → rp-01.
 - Zero UISM/DR references in production code
+  - *True for code references, but misleading.* UISM is still loaded transitively (`report.impl` → `rad.control`, and `rad.application`) → documented in rp-18.
 - Zero `requiring-resolve` in CLJS code paths
+  - *Still true.*
 - pom.xml matches deps.edn
+  - **FALSE:** fulcro 3.9.3, statecharts RC13, fulcro-rad 1.6.22, guardrails 1.2.16, stray encore, no promesa → rp-01 (`clj -Spom`).
 - All 24 deps at latest versions
+  - **FALSE:** fulcro 3.10.0-RC2 (3.10.1 final exists), fulcro-rad-datomic 1.5.6 (1.5.7 exists) → rp-01.
 - README and migration guide complete
+  - **FALSE:** they teach the deleted `com.fulcrologic.rad.routing` (`rroute/*`), which now resolves to upstream DR, and list 11 nonexistent namespaces → rp-18.
 - **Phase 8 Restructuring**: All form/report/supporting namespaces restructured as rad.statechart.* with upstream re-exports
+  - *True.*
 - **Demo App**: Migrated to statechart.* namespaces, compiles successfully
+  - *True, but it covers about ⅓ of fulcro-rad-demo and renders only through the unstyled headless plugin* → rp-14 to rp-17.
 
 ## Important Notes
 
 - **fulcro-rad-datomic** is at `../fulcro-rad-datomic/` for reference — do NOT edit it, but maintain compatible names so it can reference this library
 - All sibling projects referenced by specs live in the parent directory (`../`). See [WORKFLOW.md](WORKFLOW.md) for the full convention.
 - **Classpath warning:** The demo deps.edn MUST use `:override-deps` to exclude old fulcro-rad from transitive dependencies. Old RAD on the classpath will cause conflicts.
+  - *2026-10-31:* fulcro-rad 1.6.24 is now a direct dependency (this lib uses its `form.impl`/`report.impl`), so no override is needed for it. The rule that still applies: exactly one fulcro-rad-statecharts (this repo's `src/main`) on the demo classpath (rp-14).
