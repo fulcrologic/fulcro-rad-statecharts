@@ -7,7 +7,8 @@
            com.fulcrologic/fulcro-i18n       {:mvn/version "1.1.2"}
            com.fulcrologic/guardrails        {:mvn/version "1.3.2"}
            com.fulcrologic/statecharts       {:mvn/version "1.4.0-RC18"}
-           ;; statecharts needs promesa >= 11 (promesa.core/await!); pathom3 otherwise drags in 8.x
+           ;; statecharts needs promesa >= 11 (promesa.core/await!). Pinned so consumers whose other deps pull an older
+           ;; promesa still resolve 11.
            funcool/promesa                   {:mvn/version "11.0.678"}
            commons-codec/commons-codec       {:mvn/version "1.21.0"}
            potemkin/potemkin                 {:mvn/version "0.4.9"}
@@ -20,16 +21,27 @@
  :aliases {:tests     {:extra-paths ["src/test"]
                        :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.2.8"}}}
 
+           ;; CLI test runner, for CI and `make tests` only. From a REPL use :kaocha (docs/ai/running-tests.md).
            :clj-tests {:extra-paths ["src/test"]
+                       :jvm-opts    ["-Dguardrails.enabled" "-Dguardrails.config=guardrails-test.edn"
+                                     "-Dcom.fulcrologic.fulcro.inspect=true" "-XX:-OmitStackTraceInFastThrow"]
                        :main-opts   ["-m" "kaocha.runner"]
                        :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}
+
+           ;; kaocha with no main-opts, so a test REPL can load it: -M:dev:tests:demo:kaocha:nrepl
+           :kaocha    {:jvm-opts   ["-Dguardrails.enabled" "-Dguardrails.config=guardrails-test.edn"
+                                    "-Dcom.fulcrologic.fulcro.inspect=true" "-XX:-OmitStackTraceInFastThrow"]
+                       :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}
+
+           :nrepl     {:jvm-opts   ["-Djdk.attach.allowAttachSelf"]
+                       :extra-deps {nrepl/nrepl {:mvn/version "1.5.1"}}
+                       :main-opts  ["-m" "nrepl.cmdline"]}
 
            :dev       {:extra-paths ["src/dev" "resources"]
                        :extra-deps  {binaryage/devtools                     {:mvn/version "1.0.7"}
                                      com.fulcrologic/fulcro-devtools-remote {:mvn/version "0.2.8"}
                                      com.fulcrologic/fulcro-inspect         {:mvn/version "1.0.5"}
                                      com.wsscode/pathom                     {:mvn/version "2.4.0"}
-                                     com.wsscode/pathom3                    {:mvn/version "2025.01.16-alpha"}
                                      mount/mount                            {:mvn/version "0.1.23"}
                                      org.clojure/tools.namespace            {:mvn/version "1.5.1"}
                                      thheller/shadow-cljs                   {:mvn/version "3.3.6"}}}

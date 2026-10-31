@@ -1,7 +1,12 @@
 #kaocha/v1
-    {:tests    [{:id           :unit
-                 :ns-patterns  ["-test$" "-spec$"]
-                 :test-paths   ["src/test"]
-                 :skip-meta    [:integration]
-                 :source-paths ["src/main"]}]
-     :plugins  []}
+ {:tests   [{:id           :unit
+             :ns-patterns  ["-test$" "-spec$"]
+             :test-paths   ["src/test"]
+             :skip-meta    [:integration]
+             :source-paths ["src/main"]}
+            ;; Headless full-stack E2E tests against the demo app. Needs the :demo alias on the classpath.
+            {:id           :demo
+             :ns-patterns  ["headless-.*-tests$"]
+             :test-paths   ["src/demo"]
+             :source-paths ["src/main" "src/demo"]}]
+  :plugins []}

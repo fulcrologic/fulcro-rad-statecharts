@@ -14,7 +14,9 @@
   "Creates a fully initialized headless test app with routing. Returns the app.
 
    Uses `:immediate` event processing so all statechart transitions are synchronous.
-   No URL sync is installed.
+   No URL sync is installed. The remote never responds, so loads stay pending until a test
+   sends the result event itself (otherwise a failed send delivers `:event/failed` from
+   another thread and races the test).
 
    `routing-chart` is the statechart definition for routing.
 
@@ -25,7 +27,7 @@
    * `:controls` — UI controls map to install via `install-ui-controls!`.
    * `:extra-env` — Map merged into every expression's `env`."
   [routing-chart & [{:keys [root controls extra-env]}]]
-  (let [test-app (rad-app/fulcro-rad-app {})]
+  (let [test-app (rad-app/fulcro-rad-app {:remotes {:remote {:transmit! (fn [_ _] nil)}}})]
     (when root
       (app/set-root! test-app root {:initialize-state? true}))
     (when controls
