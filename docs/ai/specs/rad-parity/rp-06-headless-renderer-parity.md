@@ -55,6 +55,11 @@ The headless plugin (`src/main/com/fulcrologic/rad/rendering/headless/`) is both
    - `ro/column-alignment` and `ro/column-class(es)` are emitted as data or class attributes.
    - Tests per option.
 8. **Container renderer.** Implement rp-05's container multimethod for headless: render `co/title`, the container controls, and children laid out per `co/layout` (default: one row per child). Test it.
+9. **UI-driven demo form E2E tests** (rp-01 critique I3, 2026-10-31). Once fields go through `input-changed!` (req 1), convert `src/demo/com/example/headless_form_tests.clj` from direct state edits to real interaction:
+   - Edit fields with `swap!`/`assoc-in` → type into them (`type-into-labeled!`).
+   - Save with `scf/send! :event/save` → click Save (`click-on-text! "Save"`).
+   - Assert on the rendered hiccup.
+   - At least one test must prove a derive-fields/on-change effect (e.g. the invoice total) through typing.
 
 ## File Ownership
 
