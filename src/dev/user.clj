@@ -1,11 +1,11 @@
 (ns user
   (:require
-    [clojure.pprint]
-    [clojure.spec.alpha :as s]
-    [clojure.tools.namespace.repl
-     :refer [refresh set-refresh-dirs]]
-    [expound.alpha :as expound]
-    [taoensso.timbre :as log]))
+   [clojure.pprint]
+   [clojure.spec.alpha :as s]
+   [clojure.tools.namespace.repl
+    :refer [refresh set-refresh-dirs]]
+   [expound.alpha :as expound]
+   [taoensso.timbre :as log]))
 
 (set-refresh-dirs "src/main" "src/test" "src/dev" "src/example")
 

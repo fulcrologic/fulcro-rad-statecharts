@@ -2,11 +2,11 @@
   "Account form with address subforms. Ported from fulcro-rad-demo with
    blob/avatar/file/tag fields removed and converted to statecharts."
   (:require
-    [com.example.model.account :as account]
-    [com.example.ui.address-forms :refer [AddressForm]]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.statechart.form :as form]))
+   [com.example.model.account :as account]
+   [com.example.ui.address-forms :refer [AddressForm]]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.form :as form]))
 
 (form/defsc-form AccountForm [this props]
   {fo/id             account/id

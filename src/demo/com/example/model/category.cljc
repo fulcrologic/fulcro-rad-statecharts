@@ -1,9 +1,9 @@
 (ns com.example.model.category
   (:require
-    #?(:clj [com.example.components.database-queries :as queries])
-    [com.fulcrologic.rad.attributes :refer [defattr]]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.report-options :as ro]))
+   #?(:clj [com.example.components.database-queries :as queries])
+   [com.fulcrologic.rad.attributes :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.report-options :as ro]))
 
 (defattr id :category/id :uuid
   {ao/identity? true

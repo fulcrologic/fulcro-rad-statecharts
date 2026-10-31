@@ -3,16 +3,16 @@
    Uses a real Fulcro app with :event-loop? :immediate to verify that
    statechart + Fulcro state integration works correctly."
   (:require
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.rad.attributes :refer [defattr]]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.statechart.application :as rad-app]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [fulcro-spec.core :refer [=> assertions specification]]))
+   [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.rad.attributes :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.application :as rad-app]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ===== Test Model =====
 

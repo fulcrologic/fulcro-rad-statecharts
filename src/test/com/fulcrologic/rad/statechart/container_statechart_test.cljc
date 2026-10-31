@@ -3,17 +3,17 @@
    Uses a real Fulcro app with :event-loop? :immediate to verify that
    statechart + Fulcro state integration works correctly."
   (:require
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.rad.attributes :refer [defattr]]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.statechart.application :as rad-app]
-    [com.fulcrologic.rad.statechart.container :as container]
-    [com.fulcrologic.rad.statechart.container-options :as co]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [fulcro-spec.core :refer [=> assertions specification]]))
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.rad.attributes :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.report-options :as ro]
+   [com.fulcrologic.rad.statechart.application :as rad-app]
+   [com.fulcrologic.rad.statechart.container :as container]
+   [com.fulcrologic.rad.statechart.container-options :as co]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ===== Test Model =====
 
@@ -48,17 +48,17 @@
 ;; Container component — built programmatically (not via macro)
 (def TestContainer
   (comp/sc ::TestContainer
-    {:query               (fn [_] [:ui/parameters
-                                   {:ui/controls (comp/get-query com.fulcrologic.rad.statechart.control/Control)}
-                                   {::ReportA (comp/get-query ReportA)}
-                                   {::ReportB (comp/get-query ReportB)}])
-     :ident               (fn [_ _] [::container/id ::TestContainer])
-     :initial-state       (fn [_] {:ui/parameters {}
-                                   :ui/controls   []
-                                   ::ReportA      (comp/get-initial-state ReportA {::report/id ::ReportA})
-                                   ::ReportB      (comp/get-initial-state ReportB {::report/id ::ReportB})})
-     co/children          {::ReportA ReportA
-                           ::ReportB ReportB}}
+    {:query         (fn [_] [:ui/parameters
+                             {:ui/controls (comp/get-query com.fulcrologic.rad.statechart.control/Control)}
+                             {::ReportA (comp/get-query ReportA)}
+                             {::ReportB (comp/get-query ReportB)}])
+     :ident         (fn [_ _] [::container/id ::TestContainer])
+     :initial-state (fn [_] {:ui/parameters {}
+                             :ui/controls   []
+                             ::ReportA      (comp/get-initial-state ReportA {::report/id ::ReportA})
+                             ::ReportB      (comp/get-initial-state ReportB {::report/id ::ReportB})})
+     co/children    {::ReportA ReportA
+                     ::ReportB ReportB}}
     (fn [this] nil)))
 
 ;; ===== Test Helpers =====

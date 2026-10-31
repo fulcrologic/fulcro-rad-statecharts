@@ -1,17 +1,17 @@
 (ns com.fulcrologic.rad.statechart.form-spec
   (:require
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.rad.attributes :refer [defattr]]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.statechart.form-options :as sfo]
-    [com.fulcrologic.statecharts.data-model.operations :as ops]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-    [fulcro-spec.core :refer [assertions component specification]]))
+   [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+   [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.rad.attributes :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.statechart.form-options :as sfo]
+   [com.fulcrologic.statecharts.data-model.operations :as ops]
+   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+   [fulcro-spec.core :refer [assertions component specification]]))
 
 (def default-street "111 Main")
 (def default-email "nobody@example.net")
@@ -148,7 +148,7 @@
         data       {:fulcro/state-map {form-ident {:df/id   (second form-ident)
                                                    :df/name "test"}}
                     :fulcro/actors    {:actor/form {:component form-key
-                                                   :ident     form-ident}}}
+                                                    :ident     form-ident}}}
         ops        (form/on-loaded-expr {} data nil nil)
         apply-ops  (filterv #(= (:op %) :fulcro/apply-action) ops)
         has-update-tree? (some #(= (:f %) form/update-tree*) apply-ops)]
@@ -267,7 +267,7 @@
   "Returns true if the given op is a mark-pristine (entity->pristine*) apply-action."
   [op]
   (and (= (:op op) :fulcro/apply-action)
-       (= (:f op) fs/entity->pristine*)))
+    (= (:f op) fs/entity->pristine*)))
 
 (defn- has-mark-pristine-op?
   "Returns true if ops contain a mark-pristine apply-action."
@@ -278,7 +278,7 @@
   "Returns apply-action ops that are NOT mark-pristine (i.e. routing, transactions, etc.)."
   [ops]
   (filterv #(and (= (:op %) :fulcro/apply-action)
-                 (not (mark-pristine-op? %)))
+              (not (mark-pristine-op? %)))
     ops))
 
 (defattr saved-id :saved/id :uuid {ao/identity? true})
@@ -362,9 +362,9 @@
     (let [tempid     (tempid/tempid)
           form-ident [:saved/id tempid]
           form-key   (rc/class->registry-key SavedFormNoTrigger)
-          data       {:fulcro/state-map                {}
-                      :fulcro/actors                   {:actor/form {:component form-key
-                                                                     :ident     form-ident}}
+          data       {:fulcro/state-map                 {}
+                      :fulcro/actors                    {:actor/form {:component form-key
+                                                                      :ident     form-ident}}
                       :com.fulcrologic.rad.form/create? true
                       :original-ident                   form-ident
                       :options                          {:embedded? true}}]
@@ -376,9 +376,9 @@
     (let [tempid     (tempid/tempid)
           form-ident [:saved/id tempid]
           form-key   (rc/class->registry-key SavedFormNoTrigger)
-          data       {:fulcro/state-map                {}
-                      :fulcro/actors                   {:actor/form {:component form-key
-                                                                     :ident     form-ident}}
+          data       {:fulcro/state-map                 {}
+                      :fulcro/actors                    {:actor/form {:component form-key
+                                                                      :ident     form-ident}}
                       :com.fulcrologic.rad.form/create? true
                       :original-ident                   form-ident
                       :options                          {}}]
@@ -390,9 +390,9 @@
     (let [tempid     (tempid/tempid)
           real-id    #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
           form-key   (rc/class->registry-key SavedFormNoTrigger)
-          data       {:fulcro/state-map                {}
-                      :fulcro/actors                   {:actor/form {:component form-key
-                                                                     :ident     [:saved/id real-id]}}
+          data       {:fulcro/state-map                 {}
+                      :fulcro/actors                    {:actor/form {:component form-key
+                                                                      :ident     [:saved/id real-id]}}
                       :com.fulcrologic.rad.form/create? true
                       :original-ident                   [:saved/id tempid]
                       :options                          {}}
@@ -412,9 +412,9 @@
     (let [tempid     (tempid/tempid)
           real-id    #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
           form-key   (rc/class->registry-key SavedFormNoTrigger)
-          data       {:fulcro/state-map                {}
-                      :fulcro/actors                   {:actor/form {:component form-key
-                                                                     :ident     [:saved/id real-id]}}
+          data       {:fulcro/state-map                 {}
+                      :fulcro/actors                    {:actor/form {:component form-key
+                                                                      :ident     [:saved/id real-id]}}
                       :com.fulcrologic.rad.form/create? true
                       :original-ident                   [:saved/id tempid]
                       :options                          {}}
@@ -450,12 +450,12 @@
     (let [tempid     (tempid/tempid)
           real-id    #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd"
           form-key   (rc/class->registry-key SavedFormNoTrigger)
-          data       {:fulcro/state-map                   {}
-                      :fulcro/actors                      {:actor/form {:component form-key
-                                                                        :ident     [:saved/id real-id]}}
-                      :com.fulcrologic.rad.form/create?    true
-                      :original-ident                      [:saved/id tempid]
-                      :options                             {:embedded? true}}
+          data       {:fulcro/state-map                 {}
+                      :fulcro/actors                    {:actor/form {:component form-key
+                                                                      :ident     [:saved/id real-id]}}
+                      :com.fulcrologic.rad.form/create? true
+                      :original-ident                   [:saved/id tempid]
+                      :options                          {:embedded? true}}
           ops        (form/on-saved-expr {} data nil nil)]
       (assertions
         "includes a mark-pristine op"

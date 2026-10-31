@@ -7,46 +7,46 @@
     ;; the macro to cljs.analyzer/error on :clj for located errors, ex-info on :bb). babashka can't
     ;; load the cljs compiler, so it omits cljs.analyzer entirely. :cljs needs neither (macro code
     ;; is :clj-only).
-    #?@(:bb  [[com.fulcrologic.fulcro.algorithms.macro-support :as ms]]
-        :clj [[cljs.analyzer :as ana]
-              [com.fulcrologic.fulcro.algorithms.macro-support :as ms]])
-    [clojure.set :as set]
-    [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [com.fulcrologic.fulcro.raw.application :as raw.app]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
-    [com.fulcrologic.rad.attributes :as attr]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.errors :refer [required! warn-once!]]
-    [com.fulcrologic.rad.form :as-alias form]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.form-render :as fr]
-    [com.fulcrologic.rad.form-render-options :as fro]
-    [com.fulcrologic.rad.form.impl :as form-impl]
-    [com.fulcrologic.rad.options-util :as opts :refer [?!]]
-    [com.fulcrologic.rad.picker-options :as po]
-    [com.fulcrologic.rad.statechart.control :as control]
-    [com.fulcrologic.rad.statechart.form-options :as sfo]
-    [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.statecharts :as sc]
-    [com.fulcrologic.statecharts.chart :refer [statechart]]
-    [com.fulcrologic.statecharts.convenience :refer [handle on]]
-    [com.fulcrologic.statecharts.data-model.operations :as ops]
-    [com.fulcrologic.statecharts.elements :refer [data-model entry-fn exit-fn final on-entry script state transition]]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.algorithms.core :as core]
-    [taoensso.timbre :as log]))
+   #?@(:bb  [[com.fulcrologic.fulcro.algorithms.macro-support :as ms]]
+       :clj [[cljs.analyzer :as ana]
+             [com.fulcrologic.fulcro.algorithms.macro-support :as ms]])
+   [clojure.set :as set]
+   [clojure.spec.alpha :as s]
+   [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
+   [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+   [com.fulcrologic.fulcro.algorithms.merge :as merge]
+   [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
+   [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.mutations :as m]
+   [com.fulcrologic.fulcro.raw.application :as raw.app]
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
+   [com.fulcrologic.rad.attributes :as attr]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.errors :refer [required! warn-once!]]
+   [com.fulcrologic.rad.form :as-alias form]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.form-render :as fr]
+   [com.fulcrologic.rad.form-render-options :as fro]
+   [com.fulcrologic.rad.form.impl :as form-impl]
+   [com.fulcrologic.rad.options-util :as opts :refer [?!]]
+   [com.fulcrologic.rad.picker-options :as po]
+   [com.fulcrologic.rad.statechart.control :as control]
+   [com.fulcrologic.rad.statechart.form-options :as sfo]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.statecharts :as sc]
+   [com.fulcrologic.statecharts.chart :refer [statechart]]
+   [com.fulcrologic.statecharts.convenience :refer [handle on]]
+   [com.fulcrologic.statecharts.data-model.operations :as ops]
+   [com.fulcrologic.statecharts.elements :refer [data-model entry-fn exit-fn final on-entry script state transition]]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
+   [edn-query-language.core :as eql]
+   [com.fulcrologic.fulcro.algorithms.core :as core]
+   [taoensso.timbre :as log]))
 
 (declare valid? invalid? cancel! undo-all! save! render-field rendering-env
   default-state optional-fields mark-fields-complete* form-key->attribute form-chart)
@@ -330,7 +330,7 @@
 (defn form-options->form-query
   "Converts form options to the necessary EQL query for a form class."
   [{id-attr                        :com.fulcrologic.rad.form/id
-    :com.fulcrologic.rad.form/keys [attributes] :as form-options}]
+    :com.fulcrologic.rad.form/keys [attributes]                 :as form-options}]
   (let [id-key             (::attr/qualified-key id-attr)
         {refs true scalars false} (group-by #(= :ref (::attr/type %)) attributes)
         query-with-scalars (into
@@ -488,49 +488,49 @@
    (defn defsc-form*
      [env args]
      (binding [ms/*macro-error* (fn [e msg] #?(:bb (ms/default-macro-error e msg) :clj (ana/error e msg)))]
-      (let [{:keys [sym doc arglist options body]} (s/conform :com.fulcrologic.rad.form/defsc-form-args args)
-            options      (if (map? options)
-                           (opts/macro-optimize-options env options #{:com.fulcrologic.rad.form/subforms :com.fulcrologic.rad.form/validation-messages :com.fulcrologic.rad.form/field-styles} {})
-                           options)
-            hooks?       (and (comp/cljs? env) (:use-hooks? options))
-            nspc         (if (comp/cljs? env) (-> env :ns :name str) (name (ns-name *ns*)))
-            fqkw         (keyword (str nspc) (name sym))
-            body         (form-body arglist body)
-            [thissym propsym computedsym extra-args] arglist
-            location     (str nspc "." sym)
-            render-form  (if hooks?
-                           (#'comp/build-hooks-render sym thissym propsym computedsym extra-args body)
-                           (#'comp/build-render sym thissym propsym computedsym extra-args body))
-            options-expr `(assoc (convert-options ~fqkw ~location ~options) :render ~render-form
-                                                                            :componentName ~fqkw)]
-       (when (some #(= '_ %) arglist)
-         (throw (ms/macro-error env "The arguments of defsc-form must be unique symbols other than _.")))
-       (cond
-         hooks?
-         `(do
-            (declare ~sym)
-            (let [options# ~options-expr]
-              (defonce ~sym
-                (fn [js-props#]
-                  (let [render# (:render (comp/component-options ~sym))
-                        [this# props#] (comp/use-fulcro js-props# ~sym)]
-                    (render# this# props#))))
-              (comp/add-hook-options! ~sym options#)))
+       (let [{:keys [sym doc arglist options body]} (s/conform :com.fulcrologic.rad.form/defsc-form-args args)
+             options      (if (map? options)
+                            (opts/macro-optimize-options env options #{:com.fulcrologic.rad.form/subforms :com.fulcrologic.rad.form/validation-messages :com.fulcrologic.rad.form/field-styles} {})
+                            options)
+             hooks?       (and (comp/cljs? env) (:use-hooks? options))
+             nspc         (if (comp/cljs? env) (-> env :ns :name str) (name (ns-name *ns*)))
+             fqkw         (keyword (str nspc) (name sym))
+             body         (form-body arglist body)
+             [thissym propsym computedsym extra-args] arglist
+             location     (str nspc "." sym)
+             render-form  (if hooks?
+                            (#'comp/build-hooks-render sym thissym propsym computedsym extra-args body)
+                            (#'comp/build-render sym thissym propsym computedsym extra-args body))
+             options-expr `(assoc (convert-options ~fqkw ~location ~options) :render ~render-form
+                             :componentName ~fqkw)]
+         (when (some #(= '_ %) arglist)
+           (throw (ms/macro-error env "The arguments of defsc-form must be unique symbols other than _.")))
+         (cond
+           hooks?
+           `(do
+              (declare ~sym)
+              (let [options# ~options-expr]
+                (defonce ~sym
+                  (fn [js-props#]
+                    (let [render# (:render (comp/component-options ~sym))
+                          [this# props#] (comp/use-fulcro js-props# ~sym)]
+                      (render# this# props#))))
+                (comp/add-hook-options! ~sym options#)))
 
-         (comp/cljs? env)
-         `(do
-            (declare ~sym)
-            (let [options# ~options-expr]
-              (defonce ~(vary-meta sym assoc :doc doc :jsdoc ["@constructor"])
-                (comp/react-constructor (:initLocalState options#)))
-              (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
+           (comp/cljs? env)
+           `(do
+              (declare ~sym)
+              (let [options# ~options-expr]
+                (defonce ~(vary-meta sym assoc :doc doc :jsdoc ["@constructor"])
+                  (comp/react-constructor (:initLocalState options#)))
+                (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
 
-         :else
-         `(do
-            (declare ~sym)
-            (let [options# ~options-expr]
-              (def ~(vary-meta sym assoc :doc doc :once true)
-                (com.fulcrologic.fulcro.components/configure-component! ~(str sym) ~fqkw options#)))))))))
+           :else
+           `(do
+              (declare ~sym)
+              (let [options# ~options-expr]
+                (def ~(vary-meta sym assoc :doc doc :once true)
+                  (com.fulcrologic.fulcro.components/configure-component! ~(str sym) ~fqkw options#)))))))))
 
 #?(:clj
    (defmacro defsc-form
@@ -1076,11 +1076,11 @@
                        (let [[id-key id] form-ident
                              {:keys [children] :as ast} (eql/query->ast on-saved)
                              new-ast (assoc ast :children
-                                                (mapv (fn [{:keys [type] :as node}]
-                                                        (if (= type :call)
-                                                          (assoc-in node [:params id-key] id)
-                                                          node))
-                                                  children))
+                                       (mapv (fn [{:keys [type] :as node}]
+                                               (if (= type :call)
+                                                 (assoc-in node [:params id-key] id)
+                                                 node))
+                                         children))
                              txn     (eql/ast->query new-ast)]
                          (log/debug "Running on-saved tx:" txn)
                          (rc/transact! app txn)))]
@@ -1812,12 +1812,12 @@
                                           (comp/wrapped-render this#
                                             (fn []
                                               (core/when-let [props#   (comp/props this#)]
-                                                             [k#] (comp/get-ident this#)
-                                                             factory# (some (fn [c#]
-                                                                              (let [ck# (-> c# comp/component-options fo/id ao/qualified-key)]
-                                                                                (when (= ck# k#)
-                                                                                  (comp/computed-factory c# {:keyfn ck#}))))
-                                                                        [~@RADForms])
+                                                [k#] (comp/get-ident this#)
+                                                factory# (some (fn [c#]
+                                                                 (let [ck# (-> c# comp/component-options fo/id ao/qualified-key)]
+                                                                   (when (= ck# k#)
+                                                                     (comp/computed-factory c# {:keyfn ck#}))))
+                                                           [~@RADForms])
                                                 (factory# props#)))))}]
        (if (comp/cljs? &env)
          `(do
@@ -1896,9 +1896,9 @@
     (-> props
       (update :route/params (fn [p] (or p #{:id})))
       (assoc :invoke-params
-             {:fulcro/aliases {:confirmation-message [:actor/form :ui/confirmation-message]
-                               :route-denied?        [:actor/form :ui/route-denied?]
-                               :server-errors        [:actor/form :com.fulcrologic.rad.form/errors]}}))
+        {:fulcro/aliases {:confirmation-message [:actor/form :ui/confirmation-message]
+                          :route-denied?        [:actor/form :ui/route-denied?]
+                          :server-errors        [:actor/form :com.fulcrologic.rad.form/errors]}}))
     (exit-fn [{:fulcro/keys [app]} {:route/keys [idents]} & _]
       (when-let [form-ident (get idents (rc/class->registry-key (:route/target props)))]
         [(fops/apply-action update ::form-session-ids dissoc form-ident)

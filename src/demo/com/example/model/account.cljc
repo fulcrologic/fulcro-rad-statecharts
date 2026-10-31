@@ -1,14 +1,14 @@
 (ns com.example.model.account
   (:refer-clojure :exclude [name])
   (:require
-    #?(:clj [com.example.components.database-queries :as queries])
-    [clojure.string :as str]
-    [com.fulcrologic.rad.attributes :as attr :refer [defattr]]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.form :as form]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [com.wsscode.pathom.connect :as pc]))
+   #?(:clj [com.example.components.database-queries :as queries])
+   [clojure.string :as str]
+   [com.fulcrologic.rad.attributes :as attr :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.form :as form]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.fulcro.mutations :as m]
+   [com.wsscode.pathom.connect :as pc]))
 
 (defattr id :account/id :uuid
   {ao/identity? true

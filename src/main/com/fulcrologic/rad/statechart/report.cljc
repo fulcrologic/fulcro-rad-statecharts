@@ -16,41 +16,41 @@
     ;; the macro to cljs.analyzer/error on :clj for located errors, ex-info on :bb). babashka can't
     ;; load the cljs compiler, so it omits cljs.analyzer entirely. :cljs needs neither (macro code
     ;; is :clj-only).
-    #?@(:bb
-        [[clojure.pprint :refer [pprint]]
-         [com.fulcrologic.fulcro.algorithms.macro-support :as ms]]
-        :clj
-        [[clojure.pprint :refer [pprint]]
-         [cljs.analyzer :as ana]
-         [com.fulcrologic.fulcro.algorithms.macro-support :as ms]])
-    [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as fstate]
-    [com.fulcrologic.rad.attributes :as attr]
-    [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
-    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
-    [com.fulcrologic.rad.report.impl :as report-impl]
-    [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.type-support.date-time :as dt]
-    [com.fulcrologic.rad.picker-options :as picker-options]
-    [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.statecharts :as-alias sc]
-    [com.fulcrologic.statecharts.chart :refer [statechart]]
-    [com.fulcrologic.statecharts.convenience :refer [handle on]]
-    [com.fulcrologic.statecharts.data-model.operations :as ops]
-    [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition entry-fn]]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
-    [com.fulcrologic.rad.statechart.report-options :as sro]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.algorithms.core :as core]
-    [taoensso.timbre :as log]))
+   #?@(:bb
+       [[clojure.pprint :refer [pprint]]
+        [com.fulcrologic.fulcro.algorithms.macro-support :as ms]]
+       :clj
+       [[clojure.pprint :refer [pprint]]
+        [cljs.analyzer :as ana]
+        [com.fulcrologic.fulcro.algorithms.macro-support :as ms]])
+   [clojure.spec.alpha :as s]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+   [com.fulcrologic.fulcro.data-fetch :as df]
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.fulcro.algorithms.merge :as merge]
+   [com.fulcrologic.fulcro.algorithms.normalized-state :as fstate]
+   [com.fulcrologic.rad.attributes :as attr]
+   [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
+   [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
+   [com.fulcrologic.rad.report.impl :as report-impl]
+   [com.fulcrologic.rad.report-options :as ro]
+   [com.fulcrologic.rad.type-support.date-time :as dt]
+   [com.fulcrologic.rad.picker-options :as picker-options]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.statecharts :as-alias sc]
+   [com.fulcrologic.statecharts.chart :refer [statechart]]
+   [com.fulcrologic.statecharts.convenience :refer [handle on]]
+   [com.fulcrologic.statecharts.data-model.operations :as ops]
+   [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition entry-fn]]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
+   [com.fulcrologic.rad.statechart.report-options :as sro]
+   [edn-query-language.core :as eql]
+   [com.fulcrologic.fulcro.algorithms.core :as core]
+   [taoensso.timbre :as log]))
 
 (defn report-ident
   "Returns the ident of a RAD report. The parameter can be a react instance, a class, or the registry key(word)
@@ -532,9 +532,9 @@
         report-props (get-in state-map report-ident)
         params       (-> (:ui/parameters report-props {})
                        (assoc :com.fulcrologic.rad.report/current-page
-                              (get-in report-props [:ui/parameters :com.fulcrologic.rad.report/current-page] 1))
+                         (get-in report-props [:ui/parameters :com.fulcrologic.rad.report/current-page] 1))
                        (assoc :com.fulcrologic.rad.report/selected-row
-                              (get-in report-props [:ui/parameters :com.fulcrologic.rad.report/selected-row] -1)))]
+                         (get-in report-props [:ui/parameters :com.fulcrologic.rad.report/selected-row] -1)))]
     (when (and app target-key (scr/url-sync-installed? app))
       (scr/replace-route-params! app target-key params))
     nil))
@@ -735,91 +735,91 @@
      "
      [sym arglist & args]
      (binding [ms/*macro-error* (fn [e msg] #?(:bb (ms/default-macro-error e msg) :clj (ana/error e msg)))]
-      (let [this-sym  (first arglist)
-            props-sym (second arglist)
-            props-sym (if (map? props-sym) (:as props-sym) props-sym)
-            options   (first args)
-            options   (opts/macro-optimize-options &env options #{:com.fulcrologic.rad.report/column-formatters :com.fulcrologic.rad.report/field-formatters :com.fulcrologic.rad.report/column-headings :com.fulcrologic.rad.report/form-links} {})]
-       (when (or (= '_ props-sym) (= '_ this-sym) (= props-sym this-sym) (not (symbol? this-sym)) (not (symbol? props-sym)))
-         (throw (ms/macro-error &env (str "defsc-report argument list must use a real (unique) symbol (or a destructuring with `:as`) for the `this` and `props` (1st and 2nd) arguments."))))
-       (req! &env sym options :com.fulcrologic.rad.report/columns #(or (symbol? %) (every? symbol? %)))
-       (req! &env sym options :com.fulcrologic.rad.report/row-pk #(symbol? %))
-       (req! &env sym options :com.fulcrologic.rad.report/source-attribute keyword?)
-       (validate-report-options! options)
-       (let
-         [generated-row-sym (symbol (str (name sym) "-Row"))
-          {:com.fulcrologic.rad.control/keys [controls]
-           :com.fulcrologic.rad.report/keys [BodyItem edit-form columns row-pk form-links query-inclusions
-                                             row-query-inclusion denormalize? row-actions route initialize-ui-props] :as options} options
-          _                 (when edit-form (throw (ms/macro-error &env ":com.fulcrologic.rad.report/edit-form is no longer supported. Use :com.fulcrologic.rad.report/form-links instead.")))
-          normalize?        (not denormalize?)
-          ItemClass         (or BodyItem generated-row-sym)
-          subquery          `(comp/get-query ~ItemClass)
-          nspc              (if (core/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
-          fqkw              (keyword (str nspc) (name sym))
-          user-statechart   (sro/statechart options)
-          query             (into [:com.fulcrologic.rad.report/id
-                                   :ui/parameters
-                                   :ui/cache
-                                   :ui/busy?
-                                   :ui/page-count
-                                   :ui/current-page
-                                   [::picker-options/options-cache (quote '_)]
-                                   {:ui/controls `(comp/get-query Control)}
-                                   {:ui/current-rows subquery}
-                                   [df/marker-table '(quote _)]]
-                              query-inclusions)
-          _                 (when (contains? options :will-enter)
-                              (log/warn "defsc-report" sym ":will-enter is ignored. Routing lifecycle is managed by statecharts routing."))
-          options           (merge
-                              {:com.fulcrologic.rad.report/compare-rows `default-compare-rows}
-                              options
-                              (cond-> {:com.fulcrologic.rad.report/BodyItem ItemClass
-                                       sfro/initialize                      :once
-                                       :query                               query
-                                       :initial-state                       (list 'fn ['params]
-                                                                              `(let [user-ui-props# (?! ~initialize-ui-props ~sym ~'params)]
-                                                                                 (cond-> {:ui/parameters   {}
-                                                                                          :ui/cache        {}
-                                                                                          :ui/controls     (mapv #(select-keys % #{:com.fulcrologic.rad.control/id})
-                                                                                                             (remove :local? (control/control-map->controls ~controls)))
-                                                                                          :ui/busy?        false
-                                                                                          :ui/current-page 1
-                                                                                          :ui/page-count   1
-                                                                                          :ui/current-rows []}
-                                                                                   (contains? ~'params :com.fulcrologic.rad.report/id) (assoc :com.fulcrologic.rad.report/id (:com.fulcrologic.rad.report/id ~'params))
-                                                                                   (seq user-ui-props#) (merge user-ui-props#))))
-                                       :ident                               (list 'fn [] [:com.fulcrologic.rad.report/id `(or (:com.fulcrologic.rad.report/id ~props-sym) ~fqkw)])}
-                                (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                                (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `report-statechart))))
-          body              (if (seq (rest args))
-                              (rest args)
-                              [`(render-layout ~this-sym)])
-          row-query         (list 'fn [] `(let [forms#    ~(:com.fulcrologic.rad.report/form-links options)
-                                                id-attrs# (keep #(comp/component-options % :com.fulcrologic.rad.form/id) (vals forms#))]
-                                            (vec
-                                              (into #{~@row-query-inclusion}
-                                                (map (fn [attr#] (or
-                                                                   (:com.fulcrologic.rad.report/column-EQL attr#)
-                                                                   (::attr/qualified-key attr#))) (conj (set (concat id-attrs# ~columns)) ~row-pk))))))
-          props-sym         (gensym "props")
-          row-ident         (list 'fn []
-                              `(let [k# (::attr/qualified-key ~row-pk)]
-                                 [k# (get ~props-sym k#)]))
-          row-actions       (or row-actions [])
-          body-options      (cond-> {:query                                  row-query
-                                     :com.fulcrologic.rad.report/row-actions row-actions
-                                     :com.fulcrologic.rad.report/columns     columns}
-                              normalize? (assoc :ident row-ident)
-                              form-links (assoc :com.fulcrologic.rad.report/form-links form-links))
-          defs              (if-not BodyItem
-                              [`(comp/defsc ~generated-row-sym [this# ~props-sym computed#]
-                                  ~body-options
-                                  (render-row (:report-instance computed#) ~generated-row-sym ~props-sym))
-                               `(comp/defsc ~sym ~arglist ~options ~@body)]
-                              [`(comp/defsc ~sym ~arglist ~options ~@body)])]
-         `(do
-            ~@defs))))))
+       (let [this-sym  (first arglist)
+             props-sym (second arglist)
+             props-sym (if (map? props-sym) (:as props-sym) props-sym)
+             options   (first args)
+             options   (opts/macro-optimize-options &env options #{:com.fulcrologic.rad.report/column-formatters :com.fulcrologic.rad.report/field-formatters :com.fulcrologic.rad.report/column-headings :com.fulcrologic.rad.report/form-links} {})]
+         (when (or (= '_ props-sym) (= '_ this-sym) (= props-sym this-sym) (not (symbol? this-sym)) (not (symbol? props-sym)))
+           (throw (ms/macro-error &env (str "defsc-report argument list must use a real (unique) symbol (or a destructuring with `:as`) for the `this` and `props` (1st and 2nd) arguments."))))
+         (req! &env sym options :com.fulcrologic.rad.report/columns #(or (symbol? %) (every? symbol? %)))
+         (req! &env sym options :com.fulcrologic.rad.report/row-pk #(symbol? %))
+         (req! &env sym options :com.fulcrologic.rad.report/source-attribute keyword?)
+         (validate-report-options! options)
+         (let
+           [generated-row-sym (symbol (str (name sym) "-Row"))
+            {:com.fulcrologic.rad.control/keys [controls]
+             :com.fulcrologic.rad.report/keys  [BodyItem edit-form columns row-pk form-links query-inclusions
+                                                row-query-inclusion denormalize? row-actions route initialize-ui-props] :as options} options
+            _                 (when edit-form (throw (ms/macro-error &env ":com.fulcrologic.rad.report/edit-form is no longer supported. Use :com.fulcrologic.rad.report/form-links instead.")))
+            normalize?        (not denormalize?)
+            ItemClass         (or BodyItem generated-row-sym)
+            subquery          `(comp/get-query ~ItemClass)
+            nspc              (if (core/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
+            fqkw              (keyword (str nspc) (name sym))
+            user-statechart   (sro/statechart options)
+            query             (into [:com.fulcrologic.rad.report/id
+                                     :ui/parameters
+                                     :ui/cache
+                                     :ui/busy?
+                                     :ui/page-count
+                                     :ui/current-page
+                                     [::picker-options/options-cache (quote '_)]
+                                     {:ui/controls `(comp/get-query Control)}
+                                     {:ui/current-rows subquery}
+                                     [df/marker-table '(quote _)]]
+                                query-inclusions)
+            _                 (when (contains? options :will-enter)
+                                (log/warn "defsc-report" sym ":will-enter is ignored. Routing lifecycle is managed by statecharts routing."))
+            options           (merge
+                                {:com.fulcrologic.rad.report/compare-rows `default-compare-rows}
+                                options
+                                (cond-> {:com.fulcrologic.rad.report/BodyItem ItemClass
+                                         sfro/initialize                      :once
+                                         :query                               query
+                                         :initial-state                       (list 'fn ['params]
+                                                                                `(let [user-ui-props# (?! ~initialize-ui-props ~sym ~'params)]
+                                                                                   (cond-> {:ui/parameters   {}
+                                                                                            :ui/cache        {}
+                                                                                            :ui/controls     (mapv #(select-keys % #{:com.fulcrologic.rad.control/id})
+                                                                                                               (remove :local? (control/control-map->controls ~controls)))
+                                                                                            :ui/busy?        false
+                                                                                            :ui/current-page 1
+                                                                                            :ui/page-count   1
+                                                                                            :ui/current-rows []}
+                                                                                     (contains? ~'params :com.fulcrologic.rad.report/id) (assoc :com.fulcrologic.rad.report/id (:com.fulcrologic.rad.report/id ~'params))
+                                                                                     (seq user-ui-props#) (merge user-ui-props#))))
+                                         :ident                               (list 'fn [] [:com.fulcrologic.rad.report/id `(or (:com.fulcrologic.rad.report/id ~props-sym) ~fqkw)])}
+                                  (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
+                                  (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `report-statechart))))
+            body              (if (seq (rest args))
+                                (rest args)
+                                [`(render-layout ~this-sym)])
+            row-query         (list 'fn [] `(let [forms#    ~(:com.fulcrologic.rad.report/form-links options)
+                                                  id-attrs# (keep #(comp/component-options % :com.fulcrologic.rad.form/id) (vals forms#))]
+                                              (vec
+                                                (into #{~@row-query-inclusion}
+                                                  (map (fn [attr#] (or
+                                                                     (:com.fulcrologic.rad.report/column-EQL attr#)
+                                                                     (::attr/qualified-key attr#))) (conj (set (concat id-attrs# ~columns)) ~row-pk))))))
+            props-sym         (gensym "props")
+            row-ident         (list 'fn []
+                                `(let [k# (::attr/qualified-key ~row-pk)]
+                                   [k# (get ~props-sym k#)]))
+            row-actions       (or row-actions [])
+            body-options      (cond-> {:query                                  row-query
+                                       :com.fulcrologic.rad.report/row-actions row-actions
+                                       :com.fulcrologic.rad.report/columns     columns}
+                                normalize? (assoc :ident row-ident)
+                                form-links (assoc :com.fulcrologic.rad.report/form-links form-links))
+            defs              (if-not BodyItem
+                                [`(comp/defsc ~generated-row-sym [this# ~props-sym computed#]
+                                    ~body-options
+                                    (render-row (:report-instance computed#) ~generated-row-sym ~props-sym))
+                                 `(comp/defsc ~sym ~arglist ~options ~@body)]
+                                [`(comp/defsc ~sym ~arglist ~options ~@body)])]
+           `(do
+              ~@defs))))))
 
 ;; NOTE: removed `(s/fdef defsc-report :args ::comp/args)` — `:com.fulcrologic.fulcro.components/args`
 ;; is not a registered spec in current Fulcro, so the fdef failed to macroexpand on CLJ/babashka.

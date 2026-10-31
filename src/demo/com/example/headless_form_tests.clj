@@ -14,21 +14,21 @@
    `com.fulcrologic.rad.routing/form-route-state` calls `form/start-form!`
    on entry, so forms are started as statechart sessions."
   (:require
-    [clojure.test :refer [use-fixtures]]
-    [com.example.components.datomic :refer [datomic-connections]]
-    [com.example.headless-client :refer [test-client]]
-    [com.example.test-server :refer [with-test-system]]
-    [com.example.ui.account-forms :refer [AccountForm]]
-    [com.example.ui.invoice-forms :refer [InvoiceForm]]
-    [com.example.ui.item-forms :refer [ItemForm]]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.headless :as h]
-    [com.fulcrologic.rad.ids :refer [new-uuid]]
-    [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-    [datomic.client.api :as d]
-    [fulcro-spec.core :refer [=> assertions specification]]))
+   [clojure.test :refer [use-fixtures]]
+   [com.example.components.datomic :refer [datomic-connections]]
+   [com.example.headless-client :refer [test-client]]
+   [com.example.test-server :refer [with-test-system]]
+   [com.example.ui.account-forms :refer [AccountForm]]
+   [com.example.ui.invoice-forms :refer [InvoiceForm]]
+   [com.example.ui.item-forms :refer [ItemForm]]
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.headless :as h]
+   [com.fulcrologic.rad.ids :refer [new-uuid]]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
+   [datomic.client.api :as d]
+   [fulcro-spec.core :refer [=> assertions specification]]))
 
 ;; ---------------------------------------------------------------------------
 ;; Fixture — uses shared test_server.clj with unique port 9846

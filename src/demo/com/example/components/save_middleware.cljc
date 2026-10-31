@@ -2,8 +2,8 @@
   "Form save middleware chain. Wraps Datomic save with error handling
    and value rewriting."
   (:require
-    #?@(:clj [[com.fulcrologic.rad.database-adapters.datomic-cloud :as datomic]
-              [com.fulcrologic.rad.middleware.save-middleware :as r.s.middleware]])))
+   #?@(:clj [[com.fulcrologic.rad.database-adapters.datomic-cloud :as datomic]
+             [com.fulcrologic.rad.middleware.save-middleware :as r.s.middleware]])))
 
 #?(:clj
    (defn wrap-exceptions-as-form-errors

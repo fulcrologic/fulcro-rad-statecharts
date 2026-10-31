@@ -2,22 +2,22 @@
   "Pathom parser setup for the demo. Wires together all resolvers, middleware,
    and plugins into a single parser instance."
   (:require
-    [com.example.components.config :refer [config]]
-    [com.example.model :refer [all-attributes]]
-    #?@(:clj [[com.example.components.auto-resolvers :refer [automatic-resolvers]]
-              [com.example.components.datomic :refer [datomic-connections]]
-              [com.example.components.delete-middleware :as delete]
-              [com.example.components.save-middleware :as save]
-              [com.example.model.account :as account]
-              [com.example.model.invoice :as invoice]
-              [com.fulcrologic.rad.attributes :as attr]
-              [com.fulcrologic.rad.database-adapters.datomic-cloud :as datomic]
-              [com.fulcrologic.rad.form :as form]
-              [com.fulcrologic.rad.pathom :as pathom]
-              [com.fulcrologic.rad.type-support.date-time :as dt]
-              [com.wsscode.pathom.connect :as pc]
-              [com.wsscode.pathom.core :as p]
-              [mount.core :refer [defstate]]])))
+   [com.example.components.config :refer [config]]
+   [com.example.model :refer [all-attributes]]
+   #?@(:clj [[com.example.components.auto-resolvers :refer [automatic-resolvers]]
+             [com.example.components.datomic :refer [datomic-connections]]
+             [com.example.components.delete-middleware :as delete]
+             [com.example.components.save-middleware :as save]
+             [com.example.model.account :as account]
+             [com.example.model.invoice :as invoice]
+             [com.fulcrologic.rad.attributes :as attr]
+             [com.fulcrologic.rad.database-adapters.datomic-cloud :as datomic]
+             [com.fulcrologic.rad.form :as form]
+             [com.fulcrologic.rad.pathom :as pathom]
+             [com.fulcrologic.rad.type-support.date-time :as dt]
+             [com.wsscode.pathom.connect :as pc]
+             [com.wsscode.pathom.core :as p]
+             [mount.core :refer [defstate]]])))
 
 #?(:clj
    (pc/defresolver index-explorer [{::pc/keys [indexes]} _]

@@ -1,9 +1,9 @@
 (ns com.fulcrologic.rad.statechart.session-spec
   (:require
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.rad.ids :refer [new-uuid]]
-    [com.fulcrologic.rad.statechart.session :as session]
-    [fulcro-spec.core :refer [=> assertions specification]]))
+   [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+   [com.fulcrologic.rad.ids :refer [new-uuid]]
+   [com.fulcrologic.rad.statechart.session :as session]
+   [fulcro-spec.core :refer [=> assertions specification]]))
 
 (specification "ident->session-id"
   (assertions

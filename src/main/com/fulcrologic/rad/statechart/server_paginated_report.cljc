@@ -4,22 +4,22 @@
 
    Replaces `com.fulcrologic.rad.state-machines.server-paginated-report`."
   (:require
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.rad.attributes :as attr]
-    [com.fulcrologic.rad.options-util :refer [?!]]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.rad.type-support.date-time :as dt]
-    [com.fulcrologic.statecharts :as-alias sc]
-    [com.fulcrologic.statecharts.chart :refer [statechart]]
-    [com.fulcrologic.statecharts.convenience :refer [handle on]]
-    [com.fulcrologic.statecharts.data-model.operations :as ops]
-    [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition]]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
+   [com.fulcrologic.fulcro.algorithms.merge :as merge]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.rad.attributes :as attr]
+   [com.fulcrologic.rad.options-util :refer [?!]]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.rad.type-support.date-time :as dt]
+   [com.fulcrologic.statecharts :as-alias sc]
+   [com.fulcrologic.statecharts.chart :refer [statechart]]
+   [com.fulcrologic.statecharts.convenience :refer [handle on]]
+   [com.fulcrologic.statecharts.data-model.operations :as ops]
+   [com.fulcrologic.statecharts.elements :refer [data-model on-entry script state transition]]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]))
 
 ;; ---- Options ----
 
@@ -95,8 +95,8 @@
         current-page    (or (:current-page aliases) 1)
         page-count      (when (number? total)
                           (if (zero? total) 0
-                                            (cond-> (int (/ total page-size))
-                                              (pos? (mod total page-size)) inc)))
+                            (cond-> (int (/ total page-size))
+                              (pos? (mod total page-size)) inc)))
         raw-path        (report/resolve-alias-path data :raw-rows)
         page-cache-path (conj (report/resolve-alias-path data :page-cache) current-page)]
     (into

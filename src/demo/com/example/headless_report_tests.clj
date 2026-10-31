@@ -7,18 +7,18 @@
    (same known issue as form tests — scf/current-configuration in Root's render
    body fails in CLJ). Tests use state-map assertions instead."
   (:require
-    [clojure.test :refer [use-fixtures]]
-    [com.example.headless-client :refer [test-client]]
-    [com.example.test-server :refer [with-test-system]]
-    [com.example.ui.inventory-report :refer [InventoryReport]]
-    [com.example.ui.invoice-forms :refer [AccountInvoices]]
-    [com.example.ui.invoice-report :refer [InvoiceReport]]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.headless :as h]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
-    [fulcro-spec.core :refer [=> assertions component specification]]))
+   [clojure.test :refer [use-fixtures]]
+   [com.example.headless-client :refer [test-client]]
+   [com.example.test-server :refer [with-test-system]]
+   [com.example.ui.inventory-report :refer [InventoryReport]]
+   [com.example.ui.invoice-forms :refer [AccountInvoices]]
+   [com.example.ui.invoice-report :refer [InvoiceReport]]
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.headless :as h]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]
+   [fulcro-spec.core :refer [=> assertions component specification]]))
 
 (use-fixtures :once
   (with-test-system {:port 9847}))

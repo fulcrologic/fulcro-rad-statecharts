@@ -2,17 +2,17 @@
   "Line item subform for invoices. Ported from fulcro-rad-demo with
    UISM on-change converted to statechart ops-returning convention."
   (:require
-    [com.example.model :as model]
-    [com.example.model.line-item :as line-item]
-    [com.example.ui.item-forms :as item-forms]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.picker-options :as po]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.statechart.form-options :as sfo]
-    [com.fulcrologic.rad.type-support.decimal :as math]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
+   [com.example.model :as model]
+   [com.example.model.line-item :as line-item]
+   [com.example.ui.item-forms :as item-forms]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.picker-options :as po]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.statechart.form-options :as sfo]
+   [com.fulcrologic.rad.type-support.decimal :as math]
+   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]))
 
 (defn add-subtotal*
   "Compute line-item subtotal from quantity and quoted-price."

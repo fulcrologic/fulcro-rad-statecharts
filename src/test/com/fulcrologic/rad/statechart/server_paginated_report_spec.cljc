@@ -3,10 +3,10 @@
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.statechart.server-paginated-report :as spr]
-    [com.fulcrologic.statecharts.testing :as t]
-    [fulcro-spec.core :refer [=> assertions component specification]]))
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.server-paginated-report :as spr]
+   [com.fulcrologic.statecharts.testing :as t]
+   [fulcro-spec.core :refer [=> assertions component specification]]))
 
 ;; ===== Helpers =====
 
@@ -18,7 +18,7 @@
     :or   {run-on-mount? true page-cached? false next-page-cached? false prior-page-cached? false}
     :as   overrides}]
   (let [base-mocks {spr/server-paginated-init-expr   nil
-                    report/should-run-on-mount?       run-on-mount?
+                    report/should-run-on-mount?      run-on-mount?
                     spr/load-server-page-expr        nil
                     spr/process-server-page-expr     nil
                     spr/page-cached?                 page-cached?
@@ -33,8 +33,8 @@
                     spr/update-sort-and-refresh-expr nil
                     spr/refresh-expr                 nil
                     spr/resume-server-paginated-expr nil
-                    report/select-row-expr            nil
-                    report/set-params-expr            nil}
+                    report/select-row-expr           nil
+                    report/set-params-expr           nil}
         mocks      (merge base-mocks (dissoc overrides :run-on-mount? :page-cached? :next-page-cached? :prior-page-cached?))]
     (t/new-testing-env {:statechart spr/server-paginated-report-statechart} mocks)))
 

@@ -19,17 +19,17 @@
    "
   (:refer-clojure :exclude [run!])
   (:require
-    [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-    [com.fulcrologic.fulcro.raw.application :as raw.app]
-    [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
-    [com.fulcrologic.rad.errors :refer [warn-once!]]
-    [com.fulcrologic.rad.form-render :as fr]
-    [com.fulcrologic.rad.options-util :refer [?! child-classes debounce]]
-    [com.fulcrologic.rad.statechart.session :refer [ident->session-id]]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [taoensso.timbre :as log]))
+   [clojure.spec.alpha :as s]
+   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+   [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+   [com.fulcrologic.fulcro.raw.application :as raw.app]
+   [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
+   [com.fulcrologic.rad.errors :refer [warn-once!]]
+   [com.fulcrologic.rad.form-render :as fr]
+   [com.fulcrologic.rad.options-util :refer [?! child-classes debounce]]
+   [com.fulcrologic.rad.statechart.session :refer [ident->session-id]]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [taoensso.timbre :as log]))
 
 (defsc Control
   "A component used for normalizing control state in the app so that reports in containers can share controls."

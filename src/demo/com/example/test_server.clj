@@ -2,9 +2,9 @@
   "Test server fixture. Starts the full Mount system on a configurable port
    and binds `*test-port*` for use in test code."
   (:require
-    [com.example.components.server]
-    [development :as dev]
-    [mount.core :as mount]))
+   [com.example.components.server]
+   [development :as dev]
+   [mount.core :as mount]))
 
 (def ^:dynamic *test-port*
   "The port the test server is running on, bound during test execution."
@@ -21,7 +21,7 @@
        {:config    "config/dev.edn"
         :overrides {:org.httpkit.server/config {:port port}
                     :ring.middleware/defaults-config
-                    {:params    {:urlencoded true :multipart true
+                    {:params    {:urlencoded true :multipart  true
                                  :nested     true :keywordize true}
                      :cookies   true
                      :session   {:flash        true

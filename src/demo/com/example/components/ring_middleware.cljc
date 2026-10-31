@@ -1,15 +1,15 @@
 (ns com.example.components.ring-middleware
   "Ring middleware stack for the demo server."
   (:require
-    #?@(:clj [[com.example.components.config :as config]
-              [com.example.components.parser :as parser]
-              [com.fulcrologic.fulcro.server.api-middleware :as server]
-              [hiccup.page :refer [html5]]
-              [mount.core :refer [defstate]]
-              [ring.middleware.defaults :refer [wrap-defaults]]
-              [ring.middleware.resource :refer [wrap-resource]]
-              [ring.util.response :as resp]
-              [clojure.string :as str]])))
+   #?@(:clj [[com.example.components.config :as config]
+             [com.example.components.parser :as parser]
+             [com.fulcrologic.fulcro.server.api-middleware :as server]
+             [hiccup.page :refer [html5]]
+             [mount.core :refer [defstate]]
+             [ring.middleware.defaults :refer [wrap-defaults]]
+             [ring.middleware.resource :refer [wrap-resource]]
+             [ring.util.response :as resp]
+             [clojure.string :as str]])))
 
 #?(:clj
    (defn- index

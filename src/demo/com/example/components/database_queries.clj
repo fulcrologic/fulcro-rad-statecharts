@@ -1,9 +1,9 @@
 (ns com.example.components.database-queries
   "Database query functions used by model resolvers."
   (:require
-    [com.fulcrologic.rad.database-adapters.datomic-options :as do]
-    [datomic.client.api :as d]
-    [taoensso.timbre :as log]))
+   [com.fulcrologic.rad.database-adapters.datomic-options :as do]
+   [datomic.client.api :as d]
+   [taoensso.timbre :as log]))
 
 (defn- env->db
   "Extract the Datomic db value for the :production schema from the pathom env."
@@ -39,7 +39,7 @@
                        [?c :account/id ?cid]] db id)]
         (mapv (fn [[id]] {:invoice/id id}) ids))
       (do (log/warn "get-customer-invoices called without :account/id")
-          []))
+        []))
     (log/error "No database atom for production schema!")))
 
 (defn get-all-invoices

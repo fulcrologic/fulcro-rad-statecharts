@@ -3,9 +3,9 @@
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.statecharts.testing :as t]
-    [fulcro-spec.core :refer [=> assertions component specification]]))
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.statecharts.testing :as t]
+   [fulcro-spec.core :refer [=> assertions component specification]]))
 
 ;; ===== Helpers =====
 

@@ -4,14 +4,14 @@
    Verifies all 4 cases: default, sfro/statechart-id priority, sfro/statechart keyword,
    and sfro/statechart inline map."
   (:require
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.rad.statechart.incrementally-loaded-report :as ilr]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.statechart.server-paginated-report :as spr]
-    [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
-    [fulcro-spec.core :refer [=> assertions component specification]]))
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.rad.statechart.incrementally-loaded-report :as ilr]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.server-paginated-report :as spr]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
+   [fulcro-spec.core :refer [=> assertions component specification]]))
 
 ;; ===== Helpers =====
 

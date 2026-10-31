@@ -1,12 +1,12 @@
 (ns com.example.model
   (:require
-    [com.example.model.account :as account]
-    [com.example.model.address :as address]
-    [com.example.model.category :as category]
-    [com.example.model.invoice :as invoice]
-    [com.example.model.item :as item]
-    [com.example.model.line-item :as line-item]
-    [com.fulcrologic.rad.attributes :as attr]))
+   [com.example.model.account :as account]
+   [com.example.model.address :as address]
+   [com.example.model.category :as category]
+   [com.example.model.invoice :as invoice]
+   [com.example.model.item :as item]
+   [com.example.model.line-item :as line-item]
+   [com.fulcrologic.rad.attributes :as attr]))
 
 (def all-attributes (vec (concat
                            account/attributes

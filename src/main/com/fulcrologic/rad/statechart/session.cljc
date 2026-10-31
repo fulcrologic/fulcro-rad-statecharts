@@ -10,8 +10,8 @@
    Routed components use `send-to-self!` and do not need these helpers.
    Embedded (non-routed) components use `ident->session-id` to derive a deterministic session ID."
   (:require
-    [clojure.string :as str]
-    [com.fulcrologic.guardrails.core :refer [=> >defn]]))
+   [clojure.string :as str]
+   [com.fulcrologic.guardrails.core :refer [=> >defn]]))
 
 (def ^{:doc "The namespace used for all ident-derived session ID keywords.
              NOTE: This is kept as 'com.fulcrologic.rad.sc' for backward compatibility

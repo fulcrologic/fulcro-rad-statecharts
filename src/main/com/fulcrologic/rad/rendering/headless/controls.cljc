@@ -3,10 +3,10 @@
    Dispatches via `control/render-control` on `[control-type style]`.
    Plain HTML only, no CSS, no React component libraries."
   (:require
-    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
-       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
-    [com.fulcrologic.rad.statechart.control :as control]
-    [com.fulcrologic.rad.options-util :refer [?!]]))
+   #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
+      :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+   [com.fulcrologic.rad.statechart.control :as control]
+   [com.fulcrologic.rad.options-util :refer [?!]]))
 
 (defmethod control/render-control [:button :default] [_control-type _style instance control-key]
   (let [controls (control/component-controls instance)

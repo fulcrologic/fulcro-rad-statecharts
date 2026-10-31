@@ -9,32 +9,32 @@
   #?(:cljs
      (:require-macros com.fulcrologic.rad.statechart.container))
   (:require
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
-    [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
-    [com.fulcrologic.rad.statechart.session :as sc.session]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-    [com.fulcrologic.statecharts.chart :refer [statechart]]
-    [com.fulcrologic.statecharts.convenience :refer [handle]]
-    [com.fulcrologic.statecharts.elements :refer [on-entry on-exit script state transition]]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+   [com.fulcrologic.fulcro.algorithms.merge :as merge]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.control :as control :refer [Control]]
+   [com.fulcrologic.rad.options-util :as opts :refer [?! debounce]]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+   [com.fulcrologic.statecharts.chart :refer [statechart]]
+   [com.fulcrologic.statecharts.convenience :refer [handle]]
+   [com.fulcrologic.statecharts.elements :refer [on-entry on-exit script state transition]]
     ;; Compile-time error reporting via macro-support's injectable `*macro-error*` (bound below in
     ;; the macro to cljs.analyzer/error on :clj for located errors, ex-info on :bb). babashka can't
     ;; load the cljs compiler, so it omits cljs.analyzer entirely. :cljs needs neither (macro code
     ;; is :clj-only).
-    #?@(:bb  [[com.fulcrologic.fulcro.algorithms.macro-support :as ms]]
-        :clj [[cljs.analyzer :as ana]
-              [com.fulcrologic.fulcro.algorithms.macro-support :as ms]])
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.core :as core]
-    [com.fulcrologic.rad.statechart.container-options :as co]
-    [clojure.spec.alpha :as s]))
+   #?@(:bb  [[com.fulcrologic.fulcro.algorithms.macro-support :as ms]]
+       :clj [[cljs.analyzer :as ana]
+             [com.fulcrologic.fulcro.algorithms.macro-support :as ms]])
+   [com.fulcrologic.fulcro.data-fetch :as df]
+   [com.fulcrologic.statecharts.integration.fulcro.routing-options :as sfro]
+   [taoensso.timbre :as log]
+   [com.fulcrologic.fulcro.algorithms.core :as core]
+   [com.fulcrologic.rad.statechart.container-options :as co]
+   [clojure.spec.alpha :as s]))
 
 ;; ===== Helpers =====
 
@@ -234,38 +234,38 @@
       If you elide the body, one will be generated for you."
      [sym arglist & args]
      (binding [ms/*macro-error* (fn [e msg] #?(:bb (ms/default-macro-error e msg) :clj (ana/error e msg)))]
-      (let [this-sym (first arglist)
-            options  (first args)
-            options  (opts/macro-optimize-options &env options #{} {})
-            {::control/keys [controls] :as options} options
-            children (get options co/children)
-            route    (get options co/route)]
-       (when-not (map? children)
-         (throw (ms/macro-error &env (str "defsc-container " sym " has no declared children."))))
-       (when (and route (not (string? route)))
-         (throw (ms/macro-error &env (str "defsc-container " sym " ::route, when defined, must be a string."))))
-       (when (contains? options :will-enter)
-         (log/warn "defsc-container" sym ":will-enter is ignored. Routing lifecycle is managed by statecharts routing."))
-       (let [query-expr      (into [:ui/parameters
-                                    {:ui/controls `(comp/get-query Control)}
-                                    [df/marker-table '(quote _)]]
-                               (map (fn [[id child-sym]] `{~id (comp/get-query ~child-sym)}) children))
-             query           (list 'fn '[] query-expr)
-             nspc            (if (core/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
-             fqkw            (keyword (str nspc) (name sym))
-             user-statechart (::statechart options)
-             options         (cond-> (assoc options
-                                       :query query
-                                       :initial-state (list 'fn '[_]
-                                                        `(into {:ui/parameters {}
-                                                                :ui/controls   (mapv #(select-keys % #{:com.fulcrologic.rad.control/id}) (control/control-map->controls ~controls))}
-                                                           (map (fn [[id# c#]] [id# (comp/get-initial-state c# {:com.fulcrologic.rad.report/id id#})]) ~children)))
-                                       :ident (list 'fn [] [:com.fulcrologic.rad.container/id fqkw])
-                                       sfro/busy? (list 'fn '[app _] (list `container-busy? 'app (list `comp/registry-key->class fqkw)))
-                                       sfro/initialize :once)
-                               (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
-                               (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `container-statechart)))
-             body            (if (seq (rest args))
-                               (rest args)
-                               [`(render-layout ~this-sym)])]
-         `(comp/defsc ~sym ~arglist ~options ~@body))))))
+       (let [this-sym (first arglist)
+             options  (first args)
+             options  (opts/macro-optimize-options &env options #{} {})
+             {::control/keys [controls] :as options} options
+             children (get options co/children)
+             route    (get options co/route)]
+         (when-not (map? children)
+           (throw (ms/macro-error &env (str "defsc-container " sym " has no declared children."))))
+         (when (and route (not (string? route)))
+           (throw (ms/macro-error &env (str "defsc-container " sym " ::route, when defined, must be a string."))))
+         (when (contains? options :will-enter)
+           (log/warn "defsc-container" sym ":will-enter is ignored. Routing lifecycle is managed by statecharts routing."))
+         (let [query-expr      (into [:ui/parameters
+                                      {:ui/controls `(comp/get-query Control)}
+                                      [df/marker-table '(quote _)]]
+                                 (map (fn [[id child-sym]] `{~id (comp/get-query ~child-sym)}) children))
+               query           (list 'fn '[] query-expr)
+               nspc            (if (core/compiling-cljs?) (-> &env :ns :name str) (name (ns-name *ns*)))
+               fqkw            (keyword (str nspc) (name sym))
+               user-statechart (::statechart options)
+               options         (cond-> (assoc options
+                                         :query query
+                                         :initial-state (list 'fn '[_]
+                                                          `(into {:ui/parameters {}
+                                                                  :ui/controls   (mapv #(select-keys % #{:com.fulcrologic.rad.control/id}) (control/control-map->controls ~controls))}
+                                                             (map (fn [[id# c#]] [id# (comp/get-initial-state c# {:com.fulcrologic.rad.report/id id#})]) ~children)))
+                                         :ident (list 'fn [] [:com.fulcrologic.rad.container/id fqkw])
+                                         sfro/busy? (list 'fn '[app _] (list `container-busy? 'app (list `comp/registry-key->class fqkw)))
+                                         sfro/initialize :once)
+                                 (keyword? user-statechart) (assoc sfro/statechart-id user-statechart)
+                                 (not (keyword? user-statechart)) (assoc sfro/statechart (or user-statechart `container-statechart)))
+               body            (if (seq (rest args))
+                                 (rest args)
+                                 [`(render-layout ~this-sym)])]
+           `(comp/defsc ~sym ~arglist ~options ~@body))))))

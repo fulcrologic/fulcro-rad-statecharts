@@ -3,9 +3,9 @@
    These tests exercise the validation functions directly (they are pure CLJ functions
    that throw ex-info on bad inputs)."
   (:require
-    [com.fulcrologic.rad.statechart.form :as f]
-    [com.fulcrologic.rad.statechart.report :as r]
-    [fulcro-spec.core :refer [=> assertions specification]]))
+   [com.fulcrologic.rad.statechart.form :as f]
+   [com.fulcrologic.rad.statechart.report :as r]
+   [fulcro-spec.core :refer [=> assertions specification]]))
 
 #?(:clj
    (specification "validate-form-options!"

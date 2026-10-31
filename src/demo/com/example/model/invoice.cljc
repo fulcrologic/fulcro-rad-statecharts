@@ -1,13 +1,13 @@
 (ns com.example.model.invoice
   (:require
-    #?(:clj [com.example.components.database-queries :as queries])
-    [com.fulcrologic.rad.attributes :refer [defattr]]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.type-support.date-time :as dt]
-    [com.fulcrologic.rad.type-support.decimal :as math]
-    [com.wsscode.pathom.connect :as pc]))
+   #?(:clj [com.example.components.database-queries :as queries])
+   [com.fulcrologic.rad.attributes :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.report-options :as ro]
+   [com.fulcrologic.rad.type-support.date-time :as dt]
+   [com.fulcrologic.rad.type-support.decimal :as math]
+   [com.wsscode.pathom.connect :as pc]))
 
 (defattr id :invoice/id :uuid
   {ao/identity? true

@@ -2,22 +2,22 @@
   "Demo Root component with statecharts routing.
    Replaces the original fulcro-rad-demo ui.cljc which used dynamic routing."
   (:require
-    #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
-       :cljs [com.fulcrologic.fulcro.dom :as dom])
-    [com.example.ui.account-forms :refer [AccountForm]]
-    [com.example.ui.invoice-forms :refer [InvoiceForm AccountInvoices]]
-    [com.example.ui.item-forms :refer [ItemForm]]
-    [com.example.ui.inventory-report :refer [InventoryReport]]
-    [com.example.ui.invoice-report :refer [InvoiceReport]]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.rad.ids :refer [new-uuid]]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.statecharts :as sc]
-    [com.fulcrologic.statecharts.chart :refer [statechart]]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
-    [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
+   #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
+      :cljs [com.fulcrologic.fulcro.dom :as dom])
+   [com.example.ui.account-forms :refer [AccountForm]]
+   [com.example.ui.invoice-forms :refer [InvoiceForm AccountInvoices]]
+   [com.example.ui.item-forms :refer [ItemForm]]
+   [com.example.ui.inventory-report :refer [InventoryReport]]
+   [com.example.ui.invoice-report :refer [InvoiceReport]]
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+   [com.fulcrologic.rad.ids :refer [new-uuid]]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.statecharts :as sc]
+   [com.fulcrologic.statecharts.chart :refer [statechart]]
+   [com.fulcrologic.statecharts.integration.fulcro :as scf]
+   [com.fulcrologic.statecharts.integration.fulcro.routing :as scr]))
 
 ;; ---------------------------------------------------------------------------
 ;; Landing Page

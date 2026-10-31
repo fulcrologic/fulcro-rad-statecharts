@@ -1,12 +1,12 @@
 (ns com.fulcrologic.rad.statechart.report-test
   (:require
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.rad.attributes :refer [defattr]]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
-    [fulcro-spec.core :refer [=> assertions component specification]]))
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.rad.attributes :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.report-options :as ro]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
+   [fulcro-spec.core :refer [=> assertions component specification]]))
 
 (def seen (atom nil))
 
@@ -131,8 +131,8 @@
                     ro/row-pk           attr
                     ro/report-loaded    (fn [sm] (assoc sm ::callback-called true))})
           data   {:fulcro/state-map {}
-                  :fulcro/actors {:actor/report {:component Report
-                                                 :ident (comp/ident Report {})}}}
+                  :fulcro/actors    {:actor/report {:component Report
+                                                    :ident     (comp/ident Report {})}}}
           ops    (report/process-loaded-data-expr nil data nil nil)]
       (assertions
         "includes an apply-action for the report-loaded callback in addition to transforms"
@@ -144,8 +144,8 @@
                     ro/source-attribute :foo/bar
                     ro/row-pk           attr})
           data   {:fulcro/state-map {}
-                  :fulcro/actors {:actor/report {:component Report
-                                                 :ident (comp/ident Report {})}}}
+                  :fulcro/actors    {:actor/report {:component Report
+                                                    :ident     (comp/ident Report {})}}}
           ops    (report/process-loaded-data-expr nil data nil nil)]
       (assertions
         "includes only the transform apply-action"

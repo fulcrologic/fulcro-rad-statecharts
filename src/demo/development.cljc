@@ -1,16 +1,16 @@
 (ns development
   "REPL development helper. Start the demo with `(go)`, restart with `(restart)`."
   (:require
-    #?@(:clj [[clojure.tools.namespace.repl :as tools-ns]
-              [com.example.components.datomic :refer [datomic-connections]]
-              [com.example.components.ring-middleware]
-              [com.example.components.server]
-              [com.example.model.seed :as seed]
-              [com.fulcrologic.rad.ids :refer [new-uuid]]
-              [com.fulcrologic.rad.type-support.date-time :as dt]
-              [datomic.client.api :as d]
-              [mount.core :as mount]
-              [taoensso.timbre :as log]])))
+   #?@(:clj [[clojure.tools.namespace.repl :as tools-ns]
+             [com.example.components.datomic :refer [datomic-connections]]
+             [com.example.components.ring-middleware]
+             [com.example.components.server]
+             [com.example.model.seed :as seed]
+             [com.fulcrologic.rad.ids :refer [new-uuid]]
+             [com.fulcrologic.rad.type-support.date-time :as dt]
+             [datomic.client.api :as d]
+             [mount.core :as mount]
+             [taoensso.timbre :as log]])))
 
 #?(:clj (tools-ns/set-refresh-dirs "src/main" "src/demo"))
 
@@ -94,6 +94,4 @@
 
 (comment
 
-  (start)
-
-  )
+  (start))

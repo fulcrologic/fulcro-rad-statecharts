@@ -1,16 +1,16 @@
 (ns com.example.ui.invoice-report
   "Invoice report — lists all invoices with customer, date, and total."
   (:require
-    #?@(:clj  [[com.fulcrologic.fulcro.dom-server :as dom]]
-        :cljs [[com.fulcrologic.fulcro.dom :as dom]])
-    [com.example.model.account :as account]
-    [com.example.model.invoice :as invoice]
-    [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.statechart.control :as control]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.type-support.date-time :as dt]
-    [com.fulcrologic.rad.type-support.decimal :as math]))
+   #?@(:clj  [[com.fulcrologic.fulcro.dom-server :as dom]]
+       :cljs [[com.fulcrologic.fulcro.dom :as dom]])
+   [com.example.model.account :as account]
+   [com.example.model.invoice :as invoice]
+   [com.fulcrologic.rad.report-options :as ro]
+   [com.fulcrologic.rad.statechart.control :as control]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.type-support.date-time :as dt]
+   [com.fulcrologic.rad.type-support.decimal :as math]))
 
 (report/defsc-report InvoiceReport [this props]
   {ro/title               "Invoice Report"

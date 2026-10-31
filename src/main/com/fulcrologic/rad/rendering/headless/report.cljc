@@ -4,18 +4,18 @@
    `rr/render-header`, and `rr/render-footer`. Uses HTML table elements.
    Plain HTML only, no CSS."
   (:require
-    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
-       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.statechart.control :as control]
-    [com.fulcrologic.rad.options-util :refer [?!]]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.rad.report-options :as ro]
-    [com.fulcrologic.rad.report-render :as rr]))
+   #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
+      :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.raw.components :as rc]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.statechart.control :as control]
+   [com.fulcrologic.rad.options-util :refer [?!]]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.rad.report-options :as ro]
+   [com.fulcrologic.rad.report-render :as rr]))
 
 (defn- render-report-controls
   "Render the control bar for a report using the control multimethod."

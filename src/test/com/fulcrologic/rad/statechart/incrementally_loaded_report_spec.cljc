@@ -3,10 +3,10 @@
    Tests state transitions and expression execution without any Fulcro app.
    All expressions are mocked — this tests the chart structure, not the expression logic."
   (:require
-    [com.fulcrologic.rad.statechart.incrementally-loaded-report :as ilr]
-    [com.fulcrologic.rad.statechart.report :as report]
-    [com.fulcrologic.statecharts.testing :as t]
-    [fulcro-spec.core :refer [=> assertions component specification]]))
+   [com.fulcrologic.rad.statechart.incrementally-loaded-report :as ilr]
+   [com.fulcrologic.rad.statechart.report :as report]
+   [com.fulcrologic.statecharts.testing :as t]
+   [fulcro-spec.core :refer [=> assertions component specification]]))
 
 ;; ===== Helpers =====
 
@@ -18,14 +18,14 @@
   [{:keys [run-on-mount? loading-complete? cache-expired?]
     :or   {run-on-mount? true loading-complete? true cache-expired? true}
     :as   overrides}]
-  (let [base-mocks {ilr/incremental-init-expr           nil
+  (let [base-mocks {ilr/incremental-init-expr            nil
                     report/should-run-on-mount?          run-on-mount?
-                    ilr/start-chunk-load-expr           nil
-                    ilr/process-chunk-expr              nil
-                    ilr/loading-complete?               loading-complete?
-                    ilr/finalize-report-expr            nil
-                    ilr/cache-expired?                  cache-expired?
-                    ilr/resume-from-cache-expr          nil
+                    ilr/start-chunk-load-expr            nil
+                    ilr/process-chunk-expr               nil
+                    ilr/loading-complete?                loading-complete?
+                    ilr/finalize-report-expr             nil
+                    ilr/cache-expired?                   cache-expired?
+                    ilr/resume-from-cache-expr           nil
                     report/do-sort-and-clear-busy-expr   nil
                     report/do-filter-and-clear-busy-expr nil
                     report/goto-page-expr                nil

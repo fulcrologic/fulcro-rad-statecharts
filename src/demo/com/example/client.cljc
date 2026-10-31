@@ -3,21 +3,21 @@
    CLJ path: headless test app with http-kit driver.
    CLJS path: browser app with relative /api endpoint."
   (:require
-    #?@(:clj
-        [[com.fulcrologic.fulcro.headless :as h]
-         [com.fulcrologic.fulcro.inspect.repl-tool :as repl-tool]
-         [com.fulcrologic.fulcro.networking.http-kit-driver :as hd]]
-        :cljs
-        [[fulcro.inspect.tool :as it]
-         [com.fulcrologic.fulcro.algorithms.timbre-support
-          :refer [console-appender prefix-output-fn]]])
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.networking.http-remote :as net]
-    [com.fulcrologic.rad.application :as rad-app]
-    [com.example.system :as sys]
-    [com.example.ui.ui :refer [Root]]
-    [taoensso.timbre :as log]))
+   #?@(:clj
+       [[com.fulcrologic.fulcro.headless :as h]
+        [com.fulcrologic.fulcro.inspect.repl-tool :as repl-tool]
+        [com.fulcrologic.fulcro.networking.http-kit-driver :as hd]]
+       :cljs
+       [[fulcro.inspect.tool :as it]
+        [com.fulcrologic.fulcro.algorithms.timbre-support
+         :refer [console-appender prefix-output-fn]]])
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.networking.http-remote :as net]
+   [com.fulcrologic.rad.application :as rad-app]
+   [com.example.system :as sys]
+   [com.example.ui.ui :refer [Root]]
+   [taoensso.timbre :as log]))
 
 (defonce SPA (atom nil))
 
@@ -38,8 +38,8 @@
          options       {:remotes
                         {:remote
                          (net/fulcro-http-remote
-                           {:url #?(:clj  (str "http://localhost:" port "/api")
-                                    :cljs "/api")
+                           {:url                #?(:clj  (str "http://localhost:" port "/api")
+                                                   :cljs "/api")
                             #?@(:clj [:http-driver (hd/make-http-kit-driver)])
                             :request-middleware (secured-request-middleware {:csrf-token token})})}}
          spa #?(:cljs (rad-app/fulcro-rad-app options)

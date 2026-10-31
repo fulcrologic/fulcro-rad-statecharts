@@ -3,20 +3,20 @@
    `fr/render-field` multimethod on `[ao/type style]`. Renders plain HTML inputs with
    data attributes for headless test selection. No CSS, no React component libraries."
   (:require
-    [com.fulcrologic.fulcro.components :as comp]
-    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
-       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
-    [com.fulcrologic.fulcro.dom.events :as evt]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.form-render :as fr]
-    [com.fulcrologic.rad.options-util :refer [?!]]
-    [com.fulcrologic.rad.type-support.decimal :as math]
-    [com.fulcrologic.rad.picker-options :as po]
-    [taoensso.timbre :as log]
-    [clojure.edn :as edn]))
+   [com.fulcrologic.fulcro.components :as comp]
+   #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
+      :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+   [com.fulcrologic.fulcro.dom.events :as evt]
+   [com.fulcrologic.fulcro.mutations :as m]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.form-render :as fr]
+   [com.fulcrologic.rad.options-util :refer [?!]]
+   [com.fulcrologic.rad.type-support.decimal :as math]
+   [com.fulcrologic.rad.picker-options :as po]
+   [taoensso.timbre :as log]
+   [clojure.edn :as edn]))
 
 (defn- field-id
   "Generate a stable DOM id for a field based on its qualified key."
@@ -70,8 +70,8 @@
                 read-only? omit-label?]} (form/field-context env attribute)
         required?     (ao/required? attribute)]
     (field-wrapper
-      {:qualified-key      qualified-key :field-label field-label :omit-label? omit-label?
-       :required?          required? :visible? visible? :invalid? invalid?
+      {:qualified-key      qualified-key      :field-label field-label :omit-label? omit-label?
+       :required?          required?          :visible?    visible?    :invalid?    invalid?
        :validation-message validation-message}
       (dom/input (common-input-attrs qualified-key value read-only? required?
                    (fn [evt]
@@ -87,8 +87,8 @@
                 read-only? omit-label?]} (form/field-context env attribute)
         required?     (ao/required? attribute)]
     (field-wrapper
-      {:qualified-key      qualified-key :field-label field-label :omit-label? omit-label?
-       :required?          required? :visible? visible? :invalid? invalid?
+      {:qualified-key      qualified-key      :field-label field-label :omit-label? omit-label?
+       :required?          required?          :visible?    visible?    :invalid?    invalid?
        :validation-message validation-message}
       (dom/input (-> (common-input-attrs qualified-key value read-only? required?
                        (fn [evt]
@@ -137,8 +137,8 @@
                 read-only? omit-label?]} (form/field-context env attribute)
         required?     (ao/required? attribute)]
     (field-wrapper
-      {:qualified-key      qualified-key :field-label field-label :omit-label? omit-label?
-       :required?          required? :visible? visible? :invalid? invalid?
+      {:qualified-key      qualified-key      :field-label field-label :omit-label? omit-label?
+       :required?          required?          :visible?    visible?    :invalid?    invalid?
        :validation-message validation-message}
       (dom/input (-> (common-input-attrs qualified-key (str (or value "")) read-only? required?
                        (fn [evt]
@@ -158,8 +158,8 @@
                             (ao/enumerated-labels attribute)
                             {})]
     (field-wrapper
-      {:qualified-key      qualified-key :field-label field-label :omit-label? omit-label?
-       :required?          required? :visible? visible? :invalid? invalid?
+      {:qualified-key      qualified-key      :field-label field-label :omit-label? omit-label?
+       :required?          required?          :visible?    visible?    :invalid?    invalid?
        :validation-message validation-message}
       (dom/select (cond-> {:id       (field-id qualified-key)
                            :name     (str qualified-key)
@@ -192,8 +192,8 @@
                 read-only? omit-label?]} (form/field-context env attribute)
         required?     (ao/required? attribute)]
     (field-wrapper
-      {:qualified-key      qualified-key :field-label field-label :omit-label? omit-label?
-       :required?          required? :visible? visible? :invalid? invalid?
+      {:qualified-key      qualified-key      :field-label field-label :omit-label? omit-label?
+       :required?          required?          :visible?    visible?    :invalid?    invalid?
        :validation-message validation-message}
       (dom/input
         (common-input-attrs qualified-key (math/numeric->str value) read-only? required?
@@ -221,8 +221,8 @@
             required?      (ao/required? attribute)
             picker-options (po/current-form-options form-instance attribute)]
         (field-wrapper
-          {:qualified-key      qualified-key :field-label field-label :omit-label? omit-label?
-           :required?          required? :visible? visible? :invalid? invalid?
+          {:qualified-key      qualified-key      :field-label field-label :omit-label? omit-label?
+           :required?          required?          :visible?    visible?    :invalid?    invalid?
            :validation-message validation-message}
           (if (seq picker-options)
             (dom/select (cond-> {:id             (field-id qualified-key)

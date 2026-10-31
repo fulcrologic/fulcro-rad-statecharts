@@ -3,16 +3,16 @@
    `fr/render-form`, `fr/render-header`, `fr/render-fields`, `fr/render-footer`,
    and `form/render-element`. Plain HTML only, no CSS."
   (:require
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]
-    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
-       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.form-render :as fr]
-    [com.fulcrologic.rad.options-util :refer [?!]]
-    [taoensso.timbre :as log]))
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.components :as comp]
+   #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
+      :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.form-render :as fr]
+   [com.fulcrologic.rad.options-util :refer [?!]]
+   [taoensso.timbre :as log]))
 
 (defn- render-action-buttons
   "Render form action buttons (save, cancel, undo, delete)."
@@ -61,7 +61,7 @@
                                      (if-let [attr (some #(when (= (ao/qualified-key %) field-key) %) attributes)]
                                        (form/render-field env attr)
                                        (do (log/warn "Layout references unknown attribute" field-key)
-                                           nil)))
+                                         nil)))
                                row)))))
           layout)
         ;; Render all non-identity attributes in order

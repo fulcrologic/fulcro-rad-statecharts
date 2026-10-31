@@ -1,9 +1,9 @@
 (ns com.example.ui.address-forms
   "Address subform for account editing."
   (:require
-    [com.example.model.address :as address]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.statechart.form :as form]))
+   [com.example.model.address :as address]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.statechart.form :as form]))
 
 (form/defsc-form AddressForm [this props]
   {fo/id           address/id

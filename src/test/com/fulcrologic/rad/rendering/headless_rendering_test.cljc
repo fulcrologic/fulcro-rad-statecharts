@@ -6,18 +6,18 @@
    These tests use build-test-app + render-frame! to render real forms via the
    headless plugin and verify hiccup structure and state mutations."
   (:require
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    #?(:clj [com.fulcrologic.fulcro.headless :as h])
-    #?(:clj [com.fulcrologic.fulcro.headless.hiccup :as hic])
-    [com.fulcrologic.rad.statechart.application :as rad-app]
-    [com.fulcrologic.rad.attributes :refer [defattr]]
-    [com.fulcrologic.rad.attributes-options :as ao]
-    [com.fulcrologic.rad.statechart.form :as form]
-    [com.fulcrologic.rad.form-options :as fo]
-    [com.fulcrologic.rad.rendering.headless.plugin]
-    [fulcro-spec.core :refer [specification component assertions =>]]))
+   [com.fulcrologic.fulcro.application :as app]
+   [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+   #?(:clj [com.fulcrologic.fulcro.headless :as h])
+   #?(:clj [com.fulcrologic.fulcro.headless.hiccup :as hic])
+   [com.fulcrologic.rad.statechart.application :as rad-app]
+   [com.fulcrologic.rad.attributes :refer [defattr]]
+   [com.fulcrologic.rad.attributes-options :as ao]
+   [com.fulcrologic.rad.statechart.form :as form]
+   [com.fulcrologic.rad.form-options :as fo]
+   [com.fulcrologic.rad.rendering.headless.plugin]
+   [fulcro-spec.core :refer [specification component assertions =>]]))
 
 ;; =============================================================================
 ;; Test Model
