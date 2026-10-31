@@ -37,7 +37,9 @@
     of ops.
 
   * `:save-failed` - A `(fn [env data form-ident])`. Called after a failed save. Returns a
-    vector of ops.
+    vector of ops. The `::form/errors` the server returned (if any) are already stored on the
+    form when this runs (see `form/server-errors`); `(scf/mutation-result data)` is the save
+    mutation's return value.
 
   * `:after-load` - A `(fn [env data form-ident])`. Called after form data has been loaded
     and processed (form config added, fields marked complete, autocreate done, derive-fields

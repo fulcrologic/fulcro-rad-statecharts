@@ -3,7 +3,7 @@
 > **Partly stale (found in the 2026-10-31 review; full refresh is spec `rp-18`).** Verify against code. Known-wrong items:
 > - **Routing:** `form-route-state` is now an `scr/istate`. It is no longer `rstate` + `start-form!`, so routed forms get generated session ids. Look them up through `::form-session-ids`, not `ident->session-id`.
 > - **Upstream namespaces:** `blob` and `pathom3` from upstream fulcro-rad still work with this engine. `secure-resolver` is not a pass-through.
-> - **Validation:** "no `->arity-tolerant`" is a bug (issue #30), not an intentional simplification.
+> - **Validation:** fixed by rp-02 (#30). `valid?`/`invalid?`/`invalid-attribute-value?` call validators arity-tolerantly, and every form gets a default validator. See `statechart/CLAUDE.md` "Validation".
 > - **Stubbed functions:** the "Stubbed Functions" list predates later work.
 >
 > Gap list: `docs/ai/specs/rad-parity/review/00-gap-report.md`.
@@ -16,17 +16,18 @@
 `com.fulcrologic.rad.statechart.form/id` instead of `com.fulcrologic.rad.form/id`, causing `form-link`, `link`, and
 `genrow` to silently fail to find form IDs).
 
-`statechart/form.cljc` delegates 26 functions to `com.fulcrologic.rad.form.impl` via `(def fn-name form-impl/fn-name)`:
-`master-form`, `master-form?`, `form-key->attribute`, `subform-ui`, `get-field-options`, `render-field`,
-`render-input`, `rendering-env`, `render-layout`, `find-fields`, `optional-fields`, `form-pre-merge`,
+`statechart/form.cljc` delegates 23 functions to `com.fulcrologic.rad.form.impl` via `(def fn-name form-impl/fn-name)`:
+`master-form`, `master-form?`, `form-key->attribute`, `subform-ui`, `get-field-options`,
+`rendering-env`, `find-fields`, `optional-fields`, `form-pre-merge`,
 `form-and-subform-attributes`, `default-to-many`, `default-to-one`, `default-state`, `mark-fields-complete*`,
 `update-tree*`, `computed-value`, `field-label`, `validation-error-message`, `wrap-env`,
 `field-visible?`, `omit-label?`, `field-style-config`, `field-autocomplete`.
 
 Functions kept local: `render-element` (defmulti), `default-render-field`, `render-form-fields`,
 `default-render-layout`, `ref-container-renderer`, `attr->renderer` (statechart multimethod architecture);
-`invalid?`, `valid?`, `invalid-attribute-value?` (intentional validation simplification — no `->arity-tolerant`);
-all statechart-specific functions, expression functions, chart definition, and macros.
+`render-field`, `render-input`, `render-layout` (rp-02: they never call an `fr/*` `:default`, see
+`statechart/CLAUDE.md`); `invalid?`, `valid?`, `invalid-attribute-value?` (arity-tolerant validator calls, default
+validator); all statechart-specific functions, expression functions, chart definition, and macros.
 
 ## Dead Reference Cleanup (Phase 0)
 
@@ -94,11 +95,13 @@ Map-based dispatch keys removed from source code:
 - `render-fn` replaced by `render-element` defmulti dispatching on `[element style]`
 - `form-container-renderer`, `form-layout-renderer` removed (use `render-element` with `:form-container` /
   `:form-body-container`)
-- `attr->renderer` simplified to delegate to `fr/render-field` multimethod
-- `default-render-field` simplified to log error (plugins register via `defmethod fr/render-field`)
+- `attr->renderer` simplified to delegate to `render-field`
+- `default-render-field` simplified to log error. It is the fallback `render-field` uses when no specific
+  `fr/render-field` method exists (no `fr/*` `:default` is registered, rp-02)
 - `install-field-renderer!`, `install-form-container-renderer!`, `install-form-body-renderer!`,
   `install-form-ref-renderer!` removed
-- Plugins should now use `defmethod` on `fr/render-field`, `fr/render-form`, and `form/render-element`
+- Plugins should now use `defmethod` on `form/render-element` and on *specific* `fr/render-field`/`fr/render-form`
+  dispatch values. Never `:default` on `fr/*` (rule in the `statechart/form.cljc` ns docstring)
 
 ### report.cljc
 

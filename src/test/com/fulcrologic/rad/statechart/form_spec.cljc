@@ -9,6 +9,7 @@
    [com.fulcrologic.rad.form-options :as fo]
    [com.fulcrologic.rad.statechart.form :as form]
    [com.fulcrologic.rad.statechart.form-options :as sfo]
+   [com.fulcrologic.rad.statechart.session :as sc.session]
    [com.fulcrologic.statecharts.data-model.operations :as ops]
    [com.fulcrologic.statecharts.integration.fulcro.operations :as fops]
    [fulcro-spec.core :refer [assertions component specification]]))
@@ -514,3 +515,17 @@
       (boolean (some #(and (= (:op %) :fulcro/apply-action)
                         (= (:f %) fs/pristine->entity*)) ops)) => true)))
 
+(specification "resolve-form-session-id"
+  (let [ident       [:account/id #uuid "11111111-1111-1111-1111-111111111111"]
+        other-ident [:account/id #uuid "22222222-2222-2222-2222-222222222222"]
+        app-with    (fn [state-map] {:com.fulcrologic.fulcro.application/state-atom (atom state-map)})]
+    (assertions
+      "returns the session id recorded under ::form-session-ids for the form's ident (routed forms)"
+      (form/resolve-form-session-id (app-with {::form/form-session-ids {ident "generated-id"}}) ident)
+      => "generated-id"
+      "falls back to sc.session/ident->session-id when nothing is recorded (start-form! forms)"
+      (form/resolve-form-session-id (app-with {}) ident)
+      => (sc.session/ident->session-id ident)
+      "falls back when only other forms have recorded ids"
+      (form/resolve-form-session-id (app-with {::form/form-session-ids {other-ident "other-id"}}) ident)
+      => (sc.session/ident->session-id ident))))

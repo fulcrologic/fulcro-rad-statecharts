@@ -1,6 +1,25 @@
 (ns com.fulcrologic.rad.statechart.form
   "Consolidated RAD form namespace. Contains form public API, expression functions,
-   statechart definition, chart fragments, and routing helpers."
+   statechart definition, chart fragments, and routing helpers.
+
+   Rendering, for plugin authors:
+
+   * Register `render-element` methods (this namespace's own multimethod) for the standard layout:
+     `[:form-container style]`, `[:form-body-container style]` and `[:ref-container style]`, with `:default` as the
+     style for the default look.
+   * Register `fr/render-field` methods for specific `[type style]` values (e.g. `[:string :default]`), and
+     `fr/render-form`/`fr/render-header`/... methods for specific dispatch values (`[id-key style]`) when a form
+     needs custom rendering.
+   * Never register `:default` on the upstream `fr/*` multimethods (`com.fulcrologic.rad.form-render`). Upstream
+     `com.fulcrologic.rad.form` registers its own `:default`s for its map-based registry, it is loaded on every
+     full-stack JVM, and the last namespace loaded wins, so a plugin `:default` would break either legacy UISM forms
+     or itself depending on load order.
+
+   This namespace registers no `:default` on `fr/*` either. `render-layout` and `render-field` dispatch the way
+   `fr/render-form`/`fr/render-field` do, use a plugin's specific method when one exists, and otherwise fall back to
+   `(render-element env :form-container)` and `default-render-field`, never to the multimethods' `:default`
+   (`specific-render-method`). Call `render-field`/`render-input` (not `fr/render-field`) from plugin code so the same
+   fallback applies."
   #?(:cljs (:require-macros [com.fulcrologic.rad.statechart.form]))
   (:require
     ;; Compile-time error reporting via macro-support's injectable `*macro-error*` (bound below in
@@ -14,6 +33,7 @@
    [clojure.spec.alpha :as s]
    [com.fulcrologic.fulcro-i18n.i18n :refer [tr]]
    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+   [com.fulcrologic.fulcro.algorithms.lambda :as lambda]
    [com.fulcrologic.fulcro.algorithms.merge :as merge]
    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
@@ -204,33 +224,54 @@
 (defn attr->renderer
   "Given a form rendering environment and an attribute: returns the renderer that can render the given attribute.
 
-  NOTE: With multimethod-based rendering, this now delegates to `fr/render-field`. Retained for backward
+  NOTE: With multimethod-based rendering, this now delegates to `render-field`. Retained for backward
   compatibility with code that needs to obtain a render function for an attribute."
   [env attr]
-  (fn [renv a] (fr/render-field renv a)))
+  (fn [renv a] (render-field renv a)))
 
-(def render-field
-  "[env attr]
+;; NOTE: Do NOT register `:default` methods on upstream rendering multimethods (`fr/render-form`, `fr/render-field`,
+;; ...) here. Upstream `com.fulcrologic.rad.form` registers its own (map-registry) `:default`s, it is loaded on every
+;; full-stack JVM, and the last namespace loaded would win. This namespace's rendering entry points instead look for a
+;; specific method (`specific-render-method`) and otherwise use the defaults below. See the ns docstring.
 
-   Given a form rendering environment and an attribute: renders that attribute as a form field (e.g. a label and an
-   input) according to its type/style/value."
-  form-impl/render-field)
+(defn specific-render-method
+  "Returns the method that `multifn` would dispatch `args` to, or nil when that is the multimethod's `:default` method
+   (or it has no method at all).
 
-(def render-input
-  "[env attr]
-
-   Renders an attribute as a form input according to its type/style/value. This is just like `render-field` but
-   hints to the rendering layer that the label should NOT be rendered."
-  form-impl/render-input)
+   This library renders through a plugin's specific `fr/*` methods, but never through a `:default` method of an
+   upstream multimethod: which `:default` is installed depends on namespace load order (upstream
+   `com.fulcrologic.rad.form` defines its own). When this returns nil, the caller uses its own default instead."
+  [multifn & args]
+  (let [dispatch-fn #?(:clj (.-dispatchFn ^clojure.lang.MultiFn multifn)
+                       :cljs (-dispatch-fn multifn))
+        method      (get-method multifn (apply dispatch-fn args))]
+    (when-not (identical? method (get-method multifn :default))
+      method)))
 
 (defn default-render-field
-  "Default field renderer. Logs a warning when no specific renderer is registered."
-  [env attr]
+  "The field renderer used when no plugin registered an `fr/render-field` method for the attribute's `[type style]`.
+   Logs an error and renders nothing."
+  [_env attr]
   (log/error "No renderer installed to support attribute" attr)
   nil)
 
-(defmethod fr/render-field :default [env attr]
-  (default-render-field env attr))
+(defn render-field
+  "Given a form rendering environment and an attribute: renders that attribute as a form field (e.g. a label and an
+   input) according to its type/style/value.
+
+   Dispatches like `fr/render-field` (on `[type style]`) to the method a plugin registered, and uses
+   `default-render-field` when there is none. It never calls `fr/render-field`'s `:default` method (see
+   `specific-render-method`)."
+  [env attr]
+  (if-let [render (specific-render-method fr/render-field env attr)]
+    (render env attr)
+    (default-render-field env attr)))
+
+(defn render-input
+  "Renders an attribute as a form input according to its type/style/value. This is just like `render-field` but
+   hints to the rendering layer that the label should NOT be rendered."
+  [env attr]
+  (render-field env (assoc attr fo/omit-label? true)))
 
 (def rendering-env
   "[form-instance]
@@ -267,16 +308,22 @@
   (let [env (rendering-env form-instance props)]
     (render-element env :form-container)))
 
-(def render-layout
-  "[form-instance props]
-
-   Render the complete layout of a form. This is the default body of normal form classes. It will call a render factory
+(defn render-layout
+  "Render the complete layout of a form. This is the default body of normal form classes. It will call a render factory
    on any subforms, and they, in turn, will use this to render *their* body. Thus, any form can have a manually-overriden
-   render body."
-  form-impl/render-layout)
+   render body.
 
-(defmethod fr/render-form :default [renv _id-attr]
-  (render-element renv :form-container))
+   Renders through the `fr/render-form` method a plugin registered for the form's `[id-key style]` dispatch value
+   when there is one. Otherwise it renders `(render-element env :form-container)`, which is what plugins register for
+   the standard layout. It never calls `fr/render-form`'s `:default` method (see `specific-render-method`)."
+  [form-instance props]
+  (when-not (comp/component? form-instance)
+    (throw (ex-info "Invalid form instance propagated to render layout." {:form-instance form-instance})))
+  (let [env     (rendering-env form-instance props)
+        id-attr (comp/component-options form-instance fo/id)]
+    (if-let [render (specific-render-method fr/render-form env id-attr)]
+      (render env id-attr)
+      (render-element env :form-container))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Form creation/logic
@@ -436,12 +483,42 @@
    Find all attributes that are referenced by a form and all of its subforms, recursively."
   form-impl/form-and-subform-attributes)
 
+(defn default-validator
+  "Returns the validator a form gets when it has no `fo/validator`. It is equivalent to upstream RAD's
+   `(attr/make-attribute-validator (form-and-subform-attributes Form) true)`: every attribute of the form and of all its
+   subforms (refs included) is checked with `attr/valid-value?`, which honors `ao/required?` (blank strings fail) and
+   `ao/valid?`.
+
+   `get-class` is a `(fn [] form-class)`. `convert-options` runs before the class exists, so the validator resolves the
+   class when it is first called and caches what it builds for that class (a different class at the same registry
+   key, e.g. after a hot reload, rebuilds it). Like any `fs/make-validator` result it has a `[form]` arity (whole form,
+   recursively) and a `[form field]` arity."
+  [get-class]
+  (let [cache         (atom nil)
+        validator-for (fn []
+                        (let [cls (get-class)
+                              {cached-class :class cached :validator} @cache]
+                          (if (and cls (identical? cls cached-class))
+                            cached
+                            (let [v (attr/make-attribute-validator (form-and-subform-attributes cls) true)]
+                              (when cls
+                                (reset! cache {:class cls :validator v}))
+                              v))))]
+    (fn default-form-validator
+      ([form] ((validator-for) form))
+      ([form field] ((validator-for) form field)))))
+
 (defn convert-options
-  "Runtime conversion of form options to what comp/configure-component! needs."
+  "Runtime conversion of form options to what comp/configure-component! needs. `registry-key` is the form's registry
+   key (or, from `form`, a `(fn [] form-class)`)."
   [registry-key location options]
   (required! location options :com.fulcrologic.rad.form/attributes vector?)
   (required! location options :com.fulcrologic.rad.form/id attr/attribute?)
   (let [{:com.fulcrologic.rad.form/keys [id attributes query-inclusion]} options
+        get-class                  (cond
+                                     (keyword? registry-key) #(rc/registry-key->class registry-key)
+                                     (fn? registry-key) registry-key
+                                     :else #(some-> location :registry-key rc/registry-key->class))
         will-enter                 (:will-enter options)
         user-statechart            (sfo/statechart options)
         id-key                     (::attr/qualified-key id)
@@ -451,7 +528,8 @@
         attribute-map              (attr/attribute-map attributes)
         pre-merge                  (form-pre-merge options attribute-map)
         base-options               (merge
-                                     {:com.fulcrologic.rad.control/controls standard-controls}
+                                     {:com.fulcrologic.rad.form/validator   (default-validator get-class)
+                                      :com.fulcrologic.rad.control/controls standard-controls}
                                      options
                                      (cond->
                                        {:ident                                   (fn [_ props] [id-key (get props id-key)])
@@ -1092,25 +1170,27 @@
     (into base-ops (concat (or route-ops []) (or saved-ops [])))))
 
 (defn on-save-failed-expr
-  "Expression that handles save failure. Extracts errors from mutation result and sets them."
+  "Expression that handles save failure. Stores the `::form/errors` from the save mutation's return value in the
+   form's `:server-errors` alias (read them with `server-errors`), then runs the `:save-failed` trigger and the
+   `:on-save-failed` transaction.
+
+   `scf/mutation-result` is already the mutation's return value (the response body's value for the mutation
+   symbol), so the errors are read from it directly."
   [env data _event-name _event-data]
-  (let [FormClass     (actor-class data)
-        form-ident    (actor-ident data)
-        options       (:options data)
-        comp-options  (rc/component-options FormClass)
-        save-mutation (get comp-options fo/save-mutation)
+  (let [FormClass    (actor-class data)
+        form-ident   (actor-ident data)
+        options      (:options data)
+        comp-options (rc/component-options FormClass)
         {:keys [save-failed]} (get comp-options sfo/triggers)
-        save-mutation (or save-mutation `form/save-form)
-        result        (scf/mutation-result data)
-        errors        (some-> result (get save-mutation) :com.fulcrologic.rad.form/errors)
+        errors       (some-> (scf/mutation-result data) :com.fulcrologic.rad.form/errors)
         {:keys [on-save-failed]} options
-        app           (:fulcro/app env)
-        base-ops      (when (seq errors)
-                        [(fops/assoc-alias :server-errors errors)])
-        trigger-ops   (when (fn? save-failed)
-                        (save-failed env data form-ident))
-        _             (when (and app (seq on-save-failed))
-                        (rc/transact! app on-save-failed))]
+        app          (:fulcro/app env)
+        base-ops     (when (seq errors)
+                       [(fops/assoc-alias :server-errors errors)])
+        trigger-ops  (when (fn? save-failed)
+                       (save-failed env data form-ident))
+        _            (when (and app (seq on-save-failed))
+                       (rc/transact! app on-save-failed))]
     (into (or base-ops []) (or trigger-ops []))))
 
 (defn undo-all-expr
@@ -1496,29 +1576,43 @@
 (def field-visible? "See `form.impl/field-visible?`" form-impl/field-visible?)
 (def omit-label? "See `form.impl/omit-label?`" form-impl/omit-label?)
 
+(def legacy-delete-entity-symbol
+  "The mutation symbol deletes travel under on the wire: `com.fulcrologic.rad.form/delete-entity`, which upstream
+   `com.fulcrologic.rad.form/resolvers` registers on servers."
+  'com.fulcrologic.rad.form/delete-entity)
+
 (def pathom2-server-delete-entity-mutation
-  {:com.wsscode.pathom.connect/sym    `delete-entity
+  "Pathom 2 server mutation (a `::pc/sym`/`::pc/mutate` map) for `legacy-delete-entity-symbol`. It runs the
+   `::form/delete-middleware` that the form pathom plugin puts in the env. Servers normally get the same mutation from
+   upstream `com.fulcrologic.rad.form/resolvers`; register only one of the two."
+  {:com.wsscode.pathom.connect/sym    legacy-delete-entity-symbol
    :com.wsscode.pathom.connect/mutate (fn [env params]
                                         (if-let [delete-middleware (:com.fulcrologic.rad.form/delete-middleware env)]
                                           (let [delete-env (assoc env :com.fulcrologic.rad.form/params params)]
                                             (delete-middleware delete-env))
                                           (throw (ex-info "form/pathom-plugin in not installed on Pathom parser." {}))))})
 
-#?(:clj
-   (def delete-entity pathom2-server-delete-entity-mutation)
-   :cljs
-   (m/defmutation delete-entity [params]
-     (ok-action [{:keys [state]}]
-       (let [target-ident (first params)]
-         (swap! state fns/remove-entity target-ident)))
-     (remote [_] true)))
+(m/defmutation delete-entity
+  "Client mutation behind `delete!`. `params` is `{id-key id}`. Sends `legacy-delete-entity-symbol` to the remote and,
+   once the server confirms, removes the entity (and every ident pointing at it) from app state.
+
+   It dispatches locally under this namespace's symbol, so it neither depends on nor conflicts with upstream's CLJS
+   `com.fulcrologic.rad.form/delete-entity` client mutation, whether or not upstream's form ns is loaded."
+  [params]
+  (ok-action [{:keys [state]}]
+    (let [[id-key id] (first params)]
+      (swap! state fns/remove-entity [id-key id])))
+  (remote [env]
+    (m/with-server-side-mutation env legacy-delete-entity-symbol)))
 
 (defn delete!
   "Delete the given entity from local app state and the remote (if present). This method assumes that the
-   given entity is *not* currently being edited and can be used from anyplace else in the application."
+   given entity is *not* currently being edited and can be used from anyplace else in the application.
+
+   Works in CLJ and CLJS. The remote receives `com.fulcrologic.rad.form/delete-entity` with `{id-key entity-id}`; the
+   entity leaves app state when the server confirms (see `delete-entity`)."
   [this id-key entity-id]
-  #?(:cljs
-     (comp/transact! this [(delete-entity {id-key entity-id})])))
+  (comp/transact! this [(delete-entity {id-key entity-id})]))
 
 (defn input-blur!
   "Helper: Informs the form's statechart that focus has left an input. Requires a form rendering env, attr keyword,
@@ -1579,6 +1673,22 @@
   "
   form-impl/field-label)
 
+(defn- validity
+  "Calls a form `validator` (`fo/validator`) with `args` (`form-props`, optionally followed by a field key) the way
+   CLJS calls any function: through `lambda/->arity-tolerant`, so extra args are dropped, and with nil for args the
+   validator requires but was not given. So both a `(fn [props])` and a `(fn [form field])` validator can be called
+   with one or two args without an arity error. Returns what the validator returns (`:valid`, `:invalid` or
+   `:unchecked`)."
+  [validator & args]
+  #?(:clj
+     (let [{:keys [variadic? arities]} (lambda/fn-arities validator)
+           arg-count (count args)]
+       (if (or variadic? (empty? arities) (some #(<= % arg-count) arities))
+         (apply (lambda/->arity-tolerant validator) args)
+         (apply validator (take (apply min arities) (concat args (repeat nil))))))
+     :cljs
+     (apply (lambda/->arity-tolerant validator) args)))
+
 (defn invalid?
   "Returns true if the validator on the form in `env` indicates that some form field(s) are invalid. Note that a
   field does not report valid OR invalid until it is marked complete (usually on blur)."
@@ -1588,7 +1698,7 @@
      (invalid? form-instance props)))
   ([form-class-or-instance props]
    (let [{:com.fulcrologic.rad.form/keys [validator]} (comp/component-options form-class-or-instance)]
-     (and validator (= :invalid (validator props))))))
+     (boolean (and validator (= :invalid (validity validator props)))))))
 
 (defn valid?
   "Returns true if the validator on the form in `env` indicates that all of the form fields are valid. Note that a
@@ -1618,7 +1728,7 @@
        all-required-present?
        (or
          (not validator)
-         (and validator (= :valid (validator props))))))))
+         (= :valid (validity validator props)))))))
 
 (def field-style-config "See `form.impl/field-style-config`" form-impl/field-style-config)
 (def field-autocomplete "See `form.impl/field-autocomplete`" form-impl/field-autocomplete)
@@ -1650,8 +1760,9 @@
 
 (defn invalid-attribute-value?
   "Returns true if the given `attribute` is invalid in the given form `env` context. This is meant to be used in UI
-  functions, not resolvers/mutations. If there is a validator defined on the form it completely overrides all
-  attribute validators."
+  functions, not resolvers/mutations. If there is a validator defined on the master form it completely overrides all
+  attribute validators. Every `defsc-form` has one: its `fo/validator`, or the `default-validator` built from the
+  attributes of the form and its subforms, so this agrees with the save guard."
   [{:com.fulcrologic.rad.form/keys [form-instance master-form] :as _env} attribute]
   (let [k              (::attr/qualified-key attribute)
         props          (comp/props form-instance)
@@ -1662,7 +1773,7 @@
         invalid?       (or
                          (and checked? required? (or (nil? value) (and (string? value) (empty? value))))
                          (and checked? (not form-validator) (not (attr/valid-value? attribute value props k)))
-                         (and form-validator (= :invalid (form-validator props k))))]
+                         (and form-validator (= :invalid (validity form-validator props k))))]
     invalid?))
 
 (def validation-error-message
